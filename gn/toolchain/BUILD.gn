@@ -33,7 +33,9 @@ toolchain("cc") {
     outfile = "{{target_output_name}}{{output_extension}}"
     command = "c++ {{ldflags}} -o $outfile {{libs}} {{inputs}}"
     description = "LINK $outfile"
-    outputs = [ outfile ]
+    outputs = [
+      outfile,
+    ]
     lib_switch = "-l"
   }
 
