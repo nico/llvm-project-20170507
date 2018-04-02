@@ -1,0 +1,9 @@
+config("compiler_defaults") {
+  # FIXME: Don't define this globally here.
+  defines = [ "LLVM_ON_UNIX" ]
+  cflags_cc = [ "-std=c++11" ]
+}
+
+config("llvm_code") {
+  include_dirs = [ "//llvm/include" ]
+}

@@ -1,4 +1,42 @@
 toolchain("cc") {
+  tool("cxx") {
+    depfile = "{{output}}.d"
+    command = "cc -MMD -MF $depfile -o {{output}} -c {{source}} {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}}"
+    depsformat = "gcc"
+    description = "CC {{output}}"
+    outputs = [
+      "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o",
+    ]
+  }
+
+  tool("cxx") {
+    depfile = "{{output}}.d"
+    command = "c++ -MMD -MF $depfile -o {{output}} -c {{source}} {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}}"
+    depsformat = "gcc"
+    description = "CXX {{output}}"
+    outputs = [
+      "{{source_out_dir}}/{{target_output_name}}.{{source_name_part}}.o",
+    ]
+  }
+
+  tool("alink") {
+    command = "libtool -static {{arflags}} -o {{output}} {{inputs}}"
+    description = "LIBTOOL-STATIC {{output}}"
+    outputs = [
+      "{{target_out_dir}}/{{target_output_name}}{{output_extension}}",
+    ]
+    default_output_extension = ".a"
+    output_prefix = "lib"
+  }
+
+  tool("link") {
+    outfile = "{{target_output_name}}{{output_extension}}"
+    command = "c++ {{ldflags}} -o $outfile {{libs}} {{inputs}}"
+    description = "LINK $outfile"
+    outputs = [ outfile ]
+    lib_switch = "-l"
+  }
+
   tool("stamp") {
     command = "touch {{output}}"
     description = "STAMP {{output}}"
