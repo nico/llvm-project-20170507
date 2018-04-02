@@ -5,5 +5,8 @@ config("compiler_defaults") {
 }
 
 config("llvm_code") {
-  include_dirs = [ "//llvm/include" ]
+  include_dirs = [
+    "//llvm/include",
+    "$root_gen_dir/llvm/include",
+  ]
 }

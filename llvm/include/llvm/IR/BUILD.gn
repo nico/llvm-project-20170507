@@ -1,0 +1,22 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("intrinsics_gen") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-intrinsic" ]
+  td_file = "Intrinsics.td"
+  output_name = "Intrinsics.gen"
+}
+
+tablegen("attributes_gen") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-attrs" ]
+  td_file = "Attributes.td"
+  output_name = "Attributes.gen"
+}
+
+group("tablegen") {
+  deps = [
+    ":attributes_gen",
+    ":intrinsics_gen",
+  ]
+}

@@ -1,0 +1,67 @@
+# This file introduces a templates for running llvm-tblgen.
+#
+# Parameters:
+#
+#   args (required)
+#       [list of strings] Flags to pass to llvm-tblgen.
+#
+#   output_name (optional)
+#       Basename of the generated output file. Depends to td_file with
+#       ".td" replaced with ".inc".
+#
+#   td_file (required)
+#       [files] The .td file to pass to llvm-tblgen.
+#
+#   visibility (optional)
+#       GN's regular visibility attribute, see `gn help visibility`.
+#
+# Example of usage:
+#
+#   tablegen("attributes_compat_func_gen") {
+#     visibility = [ ":IR" ]
+#     args = [ "-gen-attrs" ]
+#     td_file = "AttributesCompatFunc.td"
+#   }
+
+template("tablegen") {
+  assert(defined(invoker.td_file), "td_file must be defined for $target_name")
+  assert(defined(invoker.args), "args must be defined for $target_name")
+
+  action(target_name) {
+    forward_variables_from(invoker, [ "visibility" ])
+
+    # FIXME: In cross builds, this should depend on the host binary.
+    tblgen_target = "//llvm/utils/TableGen:llvm-tblgen"
+    tblgen_executable = get_label_info(tblgen_target, "root_out_dir") + "/" +
+                        get_label_info(tblgen_target, "name")
+    deps = [
+      tblgen_target,
+    ]
+    sources = [
+      invoker.td_file,
+    ]
+    script = "//gn/run_host_binary.py"
+    if (defined(invoker.output_name)) {
+      gen_output = "$target_gen_dir/" + invoker.output_name
+    } else {
+      gen_output =
+          "$target_gen_dir/" + get_path_info(invoker.td_file, "name") + ".inc"
+    }
+    depfile = "$gen_output.d"
+    args = [
+             rebase_path(tblgen_executable, root_build_dir),
+             "-I",
+             rebase_path("//llvm/include", root_build_dir),
+             "-d",
+             rebase_path(depfile, root_build_dir),
+             "-o",
+             rebase_path(gen_output, root_build_dir),
+             rebase_path(invoker.td_file, root_build_dir),
+           ] + invoker.args
+    outputs = [
+      gen_output,
+    ]
+
+    # FIXME: write_if_different (sink into tablegen itself?)
+  }
+}
