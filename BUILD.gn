@@ -1,5 +1,6 @@
 group("all") {
   deps = [
+    "//llvm/tools/llvm-mt",
     "//llvm/tools/llvm-pdbutil",
     "//llvm/utils/TableGen:llvm-tblgen",
     "//llvm/utils/not",

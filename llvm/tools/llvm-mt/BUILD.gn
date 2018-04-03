@@ -1,0 +1,23 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("MtTableGen") {
+  visibility = [ ":llvm-mt" ]
+  args = [ "-gen-opt-parser-defs" ]
+  td_file = "Opts.td"
+}
+
+executable("llvm-mt") {
+  deps = [
+    ":MtTableGen",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/WindowsManifest",
+  ]
+
+  # Add include path for generated Opts.inc.inc.
+  # FIXME: Shoudl tablegen.gni have a public_config to set this automatically?
+  include_dirs = [ "$target_gen_dir" ]
+  sources = [
+    "llvm-mt.cpp",
+  ]
+}
