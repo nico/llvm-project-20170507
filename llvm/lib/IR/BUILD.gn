@@ -11,6 +11,8 @@ static_library("IR") {
   deps = [
     ":attributes_compat_func_gen",
     "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/Support",
   ]
 
   # Add include path for generated AttributesCompatFunc.inc.
