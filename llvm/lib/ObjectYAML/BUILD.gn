@@ -5,11 +5,11 @@ static_library("ObjectYAML") {
     "//llvm/lib/Support",
   ]
   sources = [
+    "COFFYAML.cpp",
     "CodeViewYAMLDebugSections.cpp",
     "CodeViewYAMLSymbols.cpp",
     "CodeViewYAMLTypeHashing.cpp",
     "CodeViewYAMLTypes.cpp",
-    "COFFYAML.cpp",
     "DWARFEmitter.cpp",
     "DWARFVisitor.cpp",
     "DWARFYAML.cpp",

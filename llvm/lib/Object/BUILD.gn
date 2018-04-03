@@ -30,8 +30,8 @@ static_library("Object") {
     "Object.cpp",
     "ObjectFile.cpp",
     "RecordStreamer.cpp",
-    "SymbolicFile.cpp",
     "SymbolSize.cpp",
+    "SymbolicFile.cpp",
     "WasmObjectFile.cpp",
     "WindowsResource.cpp",
   ]

@@ -5,8 +5,11 @@ action("vcsrevision") {
 
   args = [
     rebase_path(header, root_build_dir),
-    "-d", rebase_path(depfile, root_build_dir),
+    "-d",
+    rebase_path(depfile, root_build_dir),
   ]
 
-  outputs = [ header ]
+  outputs = [
+    header,
+  ]
 }

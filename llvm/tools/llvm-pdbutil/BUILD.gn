@@ -13,9 +13,8 @@ executable("llvm-pdbutil") {
     "BytesOutputStyle.cpp",
     "DumpOutputStyle.cpp",
     "ExplainOutputStyle.cpp",
-    "InputFile.cpp",
-    "llvm-pdbutil.cpp",
     "FormatUtil.cpp",
+    "InputFile.cpp",
     "LinePrinter.cpp",
     "MinimalSymbolDumper.cpp",
     "MinimalTypeDumper.cpp",
@@ -32,5 +31,6 @@ executable("llvm-pdbutil") {
     "PrettyVariableDumper.cpp",
     "StreamUtil.cpp",
     "YAMLOutputStyle.cpp",
+    "llvm-pdbutil.cpp",
   ]
 }
