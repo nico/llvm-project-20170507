@@ -1,0 +1,12 @@
+action("vcsrevision") {
+  script = "write_vcsrevision.py"
+  header = "$target_gen_dir/VCSRevision.h"
+  depfile = "$header.d"
+
+  args = [
+    rebase_path(header, root_build_dir),
+    "-d", rebase_path(depfile, root_build_dir),
+  ]
+
+  outputs = [ header ]
+}

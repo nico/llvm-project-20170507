@@ -1,0 +1,16 @@
+static_library("Reader") {
+  output_name = "LLVMBitReader"
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+
+  sources = [
+    "BitReader.cpp",
+    "BitcodeReader.cpp",
+    "BitstreamReader.cpp",
+    "MetadataLoader.cpp",
+    "ValueList.cpp",
+  ]
+}
