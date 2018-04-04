@@ -1,7 +1,94 @@
+declare_args() {
+  # The target archs LLVM should support. Defaults to the host arch.
+  # Set to a list, e.g. `llvm_targets_to_build = [ "X86", "ARM" ]`,
+  # or to the string "all" to get all known targets..
+  llvm_targets_to_build = []
+}
+
+if (llvm_targets_to_build == "all") {
+  # FIXME: Port the remaining targets.
+  llvm_targets_to_build = [ "X86" ]
+}
+
+# Validate that llvm_targets_to_build is set to a list of valid targets.
+foreach(target, llvm_targets_to_build) {
+  # FIXME: Port the remaining targets.
+  assert(target == "X86", "Unknown target '$target'.")
+}
+
+# Set default target list if it's not set.
+if (llvm_targets_to_build == []) {
+  # FIXME: default to host instead.
+  llvm_targets_to_build = [ "X86" ]
+}
+
 group("TargetsToBuild") {
+  deps = llvm_targets_to_build
+}
+
+# FIXME: Move to llvm/include/Config/BUILD.gn instead?
+template("write_target_def_file") {
+  assert(defined(invoker.replace))
+  assert(defined(invoker.with))
+  action(target_name) {
+    script = "write_target_def_file.py"
+    file = "//llvm/include/llvm/Config/$target_name.in"
+    sources = [
+      file,
+    ]
+
+    # `llvm-build --configure-target-def-file` could do this too, but nothing
+    # else uses that flag at the moment, and depending on llvm-build just for
+    # some very simple string replacement seems overkill.
+    args = [
+      "--replace",
+      invoker.replace,
+      "--with",
+      invoker.with,
+      rebase_path(file, root_out_dir),
+      "-o",
+      rebase_path("$root_gen_dir/llvm/include/Config/$target_name",
+                  root_out_dir),
+    ]
+    foreach(target, llvm_targets_to_build) {
+      args += [
+        "--target",
+        target,
+      ]
+    }
+    outputs = [
+      "$root_gen_dir/llvm/include/Config/$target_name",
+    ]
+  }
+}
+write_target_def_file("AsmParsers.def") {
+  replace = "@LLVM_ENUM_ASM_PARSERS@"
+  with = "LLVM_ASM_PARSER(%(target)s)"
+}
+write_target_def_file("AsmPrinters.def") {
+  replace = "@LLVM_ENUM_ASM_PRINTERS@"
+  with = "LLVM_ASM_PRINTER(%(target)s)"
+}
+write_target_def_file("Disassemblers.def") {
+  replace = "@LLVM_ENUM_DISASSEMBLERS@"
+  with = "LLVM_DISASSEMBLER(%(target)s)"
+}
+write_target_def_file("Targets.def") {
+  replace = "@LLVM_ENUM_TARGETS@"
+  with = "LLVM_TARGET(%(target)s)"
+}
+config("target_def_config") {
+  # Add include path for generated AsmParsers.def etc.
+  include_dirs = [ "$target_gen_dir" ]
+}
+group("write_target_def_files") {
   deps = [
-    "X86",
+    ":AsmParsers.def",
+    ":AsmPrinters.def",
+    ":Disassemblers.def",
+    ":Targets.def",
   ]
+  public_configs = [ ":target_def_config" ]
 }
 
 static_library("Target") {
@@ -11,6 +98,9 @@ static_library("Target") {
     "//llvm/lib/IR",
     "//llvm/lib/MC",
     "//llvm/lib/Support",
+  ]
+  public_deps = [
+    ":write_target_def_files",
   ]
   sources = [
     "Target.cpp",

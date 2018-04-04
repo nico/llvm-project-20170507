@@ -81,7 +81,7 @@ tablegen("X86GenGlobalISel") {
 }
 
 config("tablegen_config") {
-  # Add include path for generated X86GenRegisterInfo.inc.inc etc.
+  # Add include path for generated X86GenRegisterInfo.inc etc.
   # FIXME: Should tablegen.gni have a public_config to set this automatically?
   include_dirs = [ "$target_gen_dir" ]
 }

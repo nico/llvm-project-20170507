@@ -7,7 +7,7 @@ Missing:
 - make tablegen() write nothing if the output didn't change
 - describe how to get or build a gn binary
 - configure step equivalent. For now,
-  `cp /path/to/cmake/build/llvm/include/Config/{AsmParsers.def,AsmPrinters.def,Disassemblers.def,Targets.def,abi-breaking.h,config.h,llvm-config.h} llvm/include/llvm/Config`.
+  `cp /path/to/cmake/build/llvm/include/Config/{abi-breaking.h,config.h,llvm-config.h} llvm/include/llvm/Config`.
   For now, the `declare_args` need to match the copied-over config files.
   Probably want small feature headers for the feature config toggles, and
   per-platform defaults instead of configure for things like headers to use.
