@@ -1,6 +1,6 @@
 import("//llvm/utils/TableGen/tablegen.gni")
 
-tablegen("attributes_compat_func_gen") {
+tablegen("AttributesCompatFunc") {
   visibility = [ ":IR" ]
   args = [ "-gen-attrs" ]
   td_file = "AttributesCompatFunc.td"
@@ -9,14 +9,14 @@ tablegen("attributes_compat_func_gen") {
 static_library("IR") {
   output_name = "LLVMCore"
   deps = [
-    ":attributes_compat_func_gen",
+    ":AttributesCompatFunc",
     "//llvm/include/llvm/IR:tablegen",
     "//llvm/lib/BinaryFormat",
     "//llvm/lib/Support",
   ]
 
   # Add include path for generated AttributesCompatFunc.inc.
-  # FIXME: Shoudl tablegen.gni have a public_config to set this automatically?
+  # FIXME: Should tablegen.gni have a public_config to set this automatically?
   include_dirs = [ "$target_gen_dir" ]
   sources = [
     "AsmWriter.cpp",

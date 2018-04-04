@@ -1,0 +1,14 @@
+static_library("Disassembler") {
+  output_name = "LLVMX86Disassembler"
+  deps = [
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/X86:tablegen",
+    "//llvm/lib/Target/X86/TargetInfo",
+  ]
+  include_dirs = [ ".." ]
+  sources = [
+    "X86Disassembler.cpp",
+    "X86DisassemblerDecoder.cpp",
+  ]
+}

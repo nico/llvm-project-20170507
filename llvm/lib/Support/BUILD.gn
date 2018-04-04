@@ -1,6 +1,9 @@
 declare_args() {
   # Wether to link against terminfo.
-  use_terminfo = true
+  llvm_enable_terminfo = true
+
+  # Wether to link against zlib.
+  llvm_enable_zlib = true
 }
 
 static_library("Support") {
@@ -127,9 +130,19 @@ static_library("Support") {
     "Watchdog.cpp",
   ]
 
-  if (use_terminfo) {
-    defines = [ "HAVE_TERMINFO" ]
-    libs = [ "ncurses" ]
-  } else {
+  defines = []
+  libs = []
+
+  # FIXME: Use feature headers instead of flags?
+  if (llvm_enable_terminfo) {
+    defines += [ "HAVE_TERMINFO" ]
+    libs += [ "ncurses" ]
+  }
+  if (llvm_enable_terminfo) {
+    defines += [
+      "HAVE_ZLIB_H",
+      "LLVM_ENABLE_ZLIB",
+    ]
+    libs += [ "z" ]
   }
 }

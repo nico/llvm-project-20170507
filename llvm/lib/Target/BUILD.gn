@@ -1,0 +1,22 @@
+group("TargetsToBuild") {
+  deps = [
+    "X86",
+  ]
+}
+
+static_library("Target") {
+  output_name = "LLVMTarget"
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "Target.cpp",
+    "TargetIntrinsicInfo.cpp",
+    "TargetLoweringObjectFile.cpp",
+    "TargetMachine.cpp",
+    "TargetMachineC.cpp",
+  ]
+}

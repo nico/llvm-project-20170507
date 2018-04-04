@@ -6,8 +6,8 @@
 #       [list of strings] Flags to pass to llvm-tblgen.
 #
 #   output_name (optional)
-#       Basename of the generated output file. Depends to td_file with
-#       ".td" replaced with ".inc".
+#       Basename of the generated output file. Depends to target name with
+#       ".inc" appended.
 #
 #   td_file (required)
 #       [files] The .td file to pass to llvm-tblgen.
@@ -44,19 +44,23 @@ template("tablegen") {
     if (defined(invoker.output_name)) {
       gen_output = "$target_gen_dir/" + invoker.output_name
     } else {
-      gen_output =
-          "$target_gen_dir/" + get_path_info(invoker.td_file, "name") + ".inc"
+      gen_output = "$target_gen_dir/${target_name}.inc"
     }
     depfile = "$gen_output.d"
+    td_file = rebase_path(invoker.td_file, root_build_dir)
     args = [
              rebase_path(tblgen_executable, root_build_dir),
              "-I",
              rebase_path("//llvm/include", root_build_dir),
+
+             # FIXME: Let tablegen add input dir to include search path instead?
+             "-I",
+             get_path_info(td_file, "dir"),
              "-d",
              rebase_path(depfile, root_build_dir),
              "-o",
              rebase_path(gen_output, root_build_dir),
-             rebase_path(invoker.td_file, root_build_dir),
+             td_file,
            ] + invoker.args
     outputs = [
       gen_output,

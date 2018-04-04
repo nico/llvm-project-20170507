@@ -1,0 +1,168 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+group("X86") {
+  deps = [
+    ":X86CodeGen",
+    "AsmParser",
+    "Disassembler",
+    "InstPrinter",
+    "MCTargetDesc",
+    "TargetInfo",
+    "Utils",
+  ]
+}
+
+tablegen("X86GenRegisterInfo") {
+  args = [ "-gen-register-info" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenDisassemblerTables") {
+  args = [ "-gen-disassembler" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenInstrInfo") {
+  args = [ "-gen-instr-info" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenAsmWriter") {
+  args = [ "-gen-asm-writer" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenAsmWriter1") {
+  args = [
+    "-gen-asm-writer",
+    "-asmwriternum=1",
+  ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenAsmMatcher") {
+  args = [ "-gen-asm-matcher" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenDAGISel") {
+  args = [ "-gen-dag-isel" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenFastISel") {
+  args = [ "-gen-fast-isel" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenCallingConv") {
+  args = [ "-gen-callingconv" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenSubtargetInfo") {
+  args = [ "-gen-subtarget" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenEVEX2VEXTables") {
+  args = [ "-gen-x86-EVEX2VEX-tables" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenRegisterBank") {
+  args = [ "-gen-register-bank" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenGlobalISel") {
+  args = [ "-gen-global-isel" ]
+  td_file = "X86.td"
+}
+
+config("tablegen_config") {
+  # Add include path for generated X86GenRegisterInfo.inc.inc etc.
+  # FIXME: Should tablegen.gni have a public_config to set this automatically?
+  include_dirs = [ "$target_gen_dir" ]
+}
+
+group("tablegen") {
+  deps = [
+    ":X86GenAsmMatcher",
+    ":X86GenAsmWriter",
+    ":X86GenAsmWriter1",
+    ":X86GenCallingConv",
+    ":X86GenDAGISel",
+    ":X86GenDisassemblerTables",
+    ":X86GenEVEX2VEXTables",
+    ":X86GenFastISel",
+    ":X86GenGlobalISel",
+    ":X86GenInstrInfo",
+    ":X86GenRegisterBank",
+    ":X86GenRegisterInfo",
+    ":X86GenSubtargetInfo",
+  ]
+  public_configs = [ ":tablegen_config" ]
+}
+
+# FIXME: X86_GEN_FOLD_TABLES?
+
+static_library("X86CodeGen") {
+  deps = [
+    ":tablegen",
+    "InstPrinter",
+    "MCTargetDesc",
+    "TargetInfo",
+    "Utils",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/GlobalISel",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+  ]
+  sources = [
+    "X86AsmPrinter.cpp",
+    "X86CallFrameOptimization.cpp",
+    "X86CallLowering.cpp",
+    "X86CallingConv.cpp",
+    "X86CmovConversion.cpp",
+    "X86DomainReassignment.cpp",
+    "X86EvexToVex.cpp",
+    "X86ExpandPseudo.cpp",
+    "X86FastISel.cpp",
+    "X86FixupBWInsts.cpp",
+    "X86FixupLEAs.cpp",
+    "X86FixupSetCC.cpp",
+    "X86FloatingPoint.cpp",
+    "X86FrameLowering.cpp",
+    "X86ISelDAGToDAG.cpp",
+    "X86ISelLowering.cpp",
+    "X86IndirectBranchTracking.cpp",
+    "X86InstrFMA3Info.cpp",
+    "X86InstrInfo.cpp",
+    "X86InstructionSelector.cpp",
+    "X86InterleavedAccess.cpp",
+    "X86LegalizerInfo.cpp",
+    "X86MCInstLower.cpp",
+    "X86MachineFunctionInfo.cpp",
+    "X86MacroFusion.cpp",
+    "X86OptimizeLEAs.cpp",
+    "X86PadShortFunction.cpp",
+    "X86RegisterBankInfo.cpp",
+    "X86RegisterInfo.cpp",
+    "X86RetpolineThunks.cpp",
+    "X86SelectionDAGInfo.cpp",
+    "X86ShuffleDecodeConstantPool.cpp",
+    "X86Subtarget.cpp",
+    "X86TargetMachine.cpp",
+    "X86TargetObjectFile.cpp",
+    "X86TargetTransformInfo.cpp",
+    "X86VZeroUpper.cpp",
+    "X86WinAllocaExpander.cpp",
+    "X86WinEHState.cpp",
+  ]
+}
