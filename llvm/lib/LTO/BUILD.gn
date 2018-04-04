@@ -2,31 +2,31 @@ static_library("LTO") {
   output_name = "LLVMLTO"
   deps = [
     "//llvm/include/llvm/IR:tablegen",
-    "//llvm/lib/Transforms/AggressiveInstCombine",
     "//llvm/lib/Analysis",
     "//llvm/lib/Bitcode/Reader",
     "//llvm/lib/Bitcode/Writer",
     "//llvm/lib/CodeGen",
     "//llvm/lib/IR",
-    "//llvm/lib/Transforms/IPO",
-    "//llvm/lib/Transforms/InstCombine",
     "//llvm/lib/Linker",
     "//llvm/lib/MC",
-    "//llvm/lib/Transforms/ObjCARC",
     "//llvm/lib/Object",
     "//llvm/lib/Passes",
-    "//llvm/lib/Transforms/Scalar",
     "//llvm/lib/Support",
     "//llvm/lib/Target",
+    "//llvm/lib/Transforms/AggressiveInstCombine",
+    "//llvm/lib/Transforms/IPO",
+    "//llvm/lib/Transforms/InstCombine",
+    "//llvm/lib/Transforms/ObjCARC",
+    "//llvm/lib/Transforms/Scalar",
     "//llvm/lib/Transforms/Utils",
   ]
   sources = [
     "Caching.cpp",
     "LTO.cpp",
     "LTOBackend.cpp",
-    "LTOModule.cpp",
     "LTOCodeGenerator.cpp",
-    "UpdateCompilerUsed.cpp",
+    "LTOModule.cpp",
     "ThinLTOCodeGenerator.cpp",
+    "UpdateCompilerUsed.cpp",
   ]
 }

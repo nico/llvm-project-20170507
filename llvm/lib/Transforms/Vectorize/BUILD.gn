@@ -11,7 +11,7 @@ static_library("Vectorize") {
     "LoadStoreVectorizer.cpp",
     "LoopVectorize.cpp",
     "SLPVectorizer.cpp",
-    "Vectorize.cpp",
     "VPlan.cpp",
+    "Vectorize.cpp",
   ]
 }

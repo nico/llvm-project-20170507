@@ -2,18 +2,18 @@ static_library("Passes") {
   output_name = "LLVMPasses"
   deps = [
     "//llvm/include/llvm/IR:tablegen",
-    "//llvm/lib/Transforms/AggressiveInstCombine",
     "//llvm/lib/Analysis",
     "//llvm/lib/CodeGen",
     "//llvm/lib/IR",
-    "//llvm/lib/Transforms/IPO",
-    "//llvm/lib/Transforms/InstCombine",
-    "//llvm/lib/Transforms/Scalar",
     "//llvm/lib/Support",
     "//llvm/lib/Target",
+    "//llvm/lib/Transforms/AggressiveInstCombine",
+    "//llvm/lib/Transforms/IPO",
+    "//llvm/lib/Transforms/InstCombine",
+    "//llvm/lib/Transforms/Instrumentation",
+    "//llvm/lib/Transforms/Scalar",
     "//llvm/lib/Transforms/Utils",
     "//llvm/lib/Transforms/Vectorize",
-    "//llvm/lib/Transforms/Instrumentation",
   ]
   sources = [
     "PassBuilder.cpp",

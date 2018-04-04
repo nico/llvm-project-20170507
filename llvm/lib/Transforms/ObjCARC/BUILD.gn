@@ -8,12 +8,12 @@ static_library("ObjCARC") {
     "//llvm/lib/Transforms/Utils",
   ]
   sources = [
+    "DependencyAnalysis.cpp",
     "ObjCARC.cpp",
-    "ObjCARCOpts.cpp",
-    "ObjCARCExpand.cpp",
     "ObjCARCAPElim.cpp",
     "ObjCARCContract.cpp",
-    "DependencyAnalysis.cpp",
+    "ObjCARCExpand.cpp",
+    "ObjCARCOpts.cpp",
     "ProvenanceAnalysis.cpp",
     "ProvenanceAnalysisEvaluator.cpp",
     "PtrState.cpp",

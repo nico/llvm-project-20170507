@@ -7,8 +7,8 @@ executable("llvm-link") {
     "//llvm/lib/Linker",
     "//llvm/lib/Object",
     "//llvm/lib/Support",
-    "//llvm/lib/Transforms/Utils",
     "//llvm/lib/Transforms/IPO",
+    "//llvm/lib/Transforms/Utils",
   ]
   sources = [
     "llvm-link.cpp",
