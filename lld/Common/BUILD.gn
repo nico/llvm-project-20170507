@@ -1,0 +1,51 @@
+action("Version.inc") {
+  script = "write_version_inc.py"
+  input = "//lld/include/lld/Common/Version.inc.in"
+  output = "$root_gen_dir/lld/include/lld/Common/Version.inc"
+
+  sources = [
+    input,
+  ]
+  args = [
+    rebase_path(input, root_out_dir),
+    "-o",
+    rebase_path(output, root_out_dir),
+    "--from_to",
+    # FIXME: Real values for this (maybe using write_vcsrevision.py?)
+    "@LLD_VERSION@=9000.0.0",
+    "@LLD_VERSION_MAJOR@=9000",
+    "@LLD_VERSION_MINOR@=0",
+    "@LLD_REVISION@=12345",
+    "@LLD_REPOSITORY@=repository goes here",
+  ]
+  outputs = [
+    output,
+  ]
+}
+
+static_library("Common") {
+  output_name = "lldCommon"
+  configs += [ "//gn:lld_code" ]
+  deps = [
+    ":Version.inc",
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/Demangle",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+  ]
+  sources = [
+    "Args.cpp",
+    "ErrorHandler.cpp",
+    "Memory.cpp",
+    "Reproduce.cpp",
+    "Strings.cpp",
+    "TargetOptionsCommandFlags.cpp",
+    "Threads.cpp",
+    "Timer.cpp",
+    "Version.cpp",
+  ]
+}

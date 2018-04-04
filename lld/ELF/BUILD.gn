@@ -1,0 +1,67 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Options") {
+  visibility = [ ":ELF" ]
+  args = [ "-gen-opt-parser-defs" ]
+  td_file = "Options.td"
+}
+
+static_library("ELF") {
+  output_name = "lldELF"
+  configs += [ "//gn:lld_code" ]
+  deps = [
+    ":Options",
+    "//lld/Common",
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/IR",
+    "//llvm/lib/LTO",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+  ]
+  include_dirs = [ "." ]
+
+  # Add include path for generated Opts.inc.
+  # FIXME: Should tablegen.gni have a public_config to set this automatically?
+  include_dirs += [ "$target_gen_dir" ]
+  sources = [
+    "AArch64ErrataFix.cpp",
+    "Arch/AArch64.cpp",
+    "Arch/AMDGPU.cpp",
+    "Arch/ARM.cpp",
+    "Arch/AVR.cpp",
+    "Arch/Mips.cpp",
+    "Arch/MipsArchTree.cpp",
+    "Arch/PPC.cpp",
+    "Arch/PPC64.cpp",
+    "Arch/SPARCV9.cpp",
+    "Arch/X86.cpp",
+    "Arch/X86_64.cpp",
+    "Driver.cpp",
+    "DriverUtils.cpp",
+    "EhFrame.cpp",
+    "Filesystem.cpp",
+    "GdbIndex.cpp",
+    "ICF.cpp",
+    "InputFiles.cpp",
+    "InputSection.cpp",
+    "LTO.cpp",
+    "LinkerScript.cpp",
+    "MapFile.cpp",
+    "MarkLive.cpp",
+    "OutputSections.cpp",
+    "Relocations.cpp",
+    "ScriptLexer.cpp",
+    "ScriptParser.cpp",
+    "SymbolTable.cpp",
+    "Symbols.cpp",
+    "SyntheticSections.cpp",
+    "Target.cpp",
+    "Thunks.cpp",
+    "Writer.cpp",
+  ]
+}

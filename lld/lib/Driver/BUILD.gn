@@ -1,0 +1,28 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("DarwinLdOptions") {
+  visibility = [ ":Driver" ]
+  args = [ "-gen-opt-parser-defs" ]
+  td_file = "DarwinLdOptions.td"
+}
+
+static_library("Driver") {
+  output_name = "lldDriver"
+  configs += [ "//gn:lld_code" ]
+  deps = [
+    ":DarwinLdOptions",
+    "//lld/lib/Core",
+    "//lld/lib/ReaderWriter",
+    "//lld/lib/ReaderWriter/MachO",
+    "//lld/lib/ReaderWriter/YAML",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+  ]
+
+  # Add include path for generated Opts.inc.
+  # FIXME: Should tablegen.gni have a public_config to set this automatically?
+  include_dirs = [ "$target_gen_dir" ]
+  sources = [
+    "DarwinLdDriver.cpp",
+  ]
+}

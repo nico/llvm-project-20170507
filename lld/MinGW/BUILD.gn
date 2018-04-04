@@ -1,0 +1,26 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Options") {
+  visibility = [ ":MinGW" ]
+  args = [ "-gen-opt-parser-defs" ]
+  td_file = "Options.td"
+}
+
+static_library("MinGW") {
+  output_name = "lldMinGW"
+  configs += [ "//gn:lld_code" ]
+  deps = [
+    ":Options",
+    "//lld/COFF",
+    "//lld/Common",
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/Option",
+  ]
+
+  # Add include path for generated Opts.inc.
+  # FIXME: Should tablegen.gni have a public_config to set this automatically?
+  include_dirs = [ "$target_gen_dir" ]
+  sources = [
+    "Driver.cpp",
+  ]
+}

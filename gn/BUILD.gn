@@ -10,3 +10,10 @@ config("llvm_code") {
     "$root_gen_dir/llvm/include",
   ]
 }
+
+config("lld_code") {
+  include_dirs = [
+    "//lld/include",
+    "$root_gen_dir/lld/include",
+  ]
+}

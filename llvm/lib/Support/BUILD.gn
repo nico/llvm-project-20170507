@@ -99,6 +99,7 @@ static_library("Support") {
     "Twine.cpp",
     "Unicode.cpp",
     "UnicodeCaseFold.cpp",
+    "WithColor.cpp",
     "YAMLParser.cpp",
     "YAMLTraits.cpp",
     "circular_raw_ostream.cpp",

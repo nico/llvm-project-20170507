@@ -49,12 +49,10 @@ template("write_target_def_file") {
       "-o",
       rebase_path("$root_gen_dir/llvm/include/llvm/Config/$target_name",
                   root_out_dir),
+      "--target",
     ]
     foreach(target, llvm_targets_to_build) {
-      args += [
-        "--target",
-        target,
-      ]
+      args += [ target ]
     }
     outputs = [
       "$root_gen_dir/llvm/include/llvm/Config/$target_name",
