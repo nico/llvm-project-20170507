@@ -2,6 +2,7 @@ group("all") {
   deps = [
     "//llvm/tools/llvm-ar",
     "//llvm/tools/llvm-link",
+    "//llvm/tools/llvm-lto",
     "//llvm/tools/llvm-mt",
     "//llvm/tools/llvm-pdbutil",
     "//llvm/utils/TableGen:llvm-tblgen",

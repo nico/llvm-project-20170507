@@ -1,0 +1,21 @@
+static_library("ObjCARC") {
+  output_name = "LLVMObjCARCOpts"
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [
+    "ObjCARC.cpp",
+    "ObjCARCOpts.cpp",
+    "ObjCARCExpand.cpp",
+    "ObjCARCAPElim.cpp",
+    "ObjCARCContract.cpp",
+    "DependencyAnalysis.cpp",
+    "ProvenanceAnalysis.cpp",
+    "ProvenanceAnalysisEvaluator.cpp",
+    "PtrState.cpp",
+  ]
+}

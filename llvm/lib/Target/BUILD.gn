@@ -47,7 +47,7 @@ template("write_target_def_file") {
       invoker.with,
       rebase_path(file, root_out_dir),
       "-o",
-      rebase_path("$root_gen_dir/llvm/include/Config/$target_name",
+      rebase_path("$root_gen_dir/llvm/include/llvm/Config/$target_name",
                   root_out_dir),
     ]
     foreach(target, llvm_targets_to_build) {
@@ -57,7 +57,7 @@ template("write_target_def_file") {
       ]
     }
     outputs = [
-      "$root_gen_dir/llvm/include/Config/$target_name",
+      "$root_gen_dir/llvm/include/llvm/Config/$target_name",
     ]
   }
 }
