@@ -1,0 +1,14 @@
+static_library("AsmParser") {
+  output_name = "LLVMAsmParser"
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "LLLexer.cpp",
+    "LLParser.cpp",
+    "Parser.cpp",
+  ]
+}

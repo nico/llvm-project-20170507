@@ -1,0 +1,28 @@
+static_library("Instrumentation") {
+  output_name = "LLVMInstrumentation"
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/ProfileData",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [
+    "AddressSanitizer.cpp",
+    "BoundsChecking.cpp",
+    "DataFlowSanitizer.cpp",
+    "GCOVProfiling.cpp",
+    "MemorySanitizer.cpp",
+    "IndirectCallPromotion.cpp",
+    "Instrumentation.cpp",
+    "InstrProfiling.cpp",
+    "PGOInstrumentation.cpp",
+    "PGOMemOPSizeOpt.cpp",
+    "SanitizerCoverage.cpp",
+    "ThreadSanitizer.cpp",
+    "EfficiencySanitizer.cpp",
+    "HWAddressSanitizer.cpp",
+  ]
+}

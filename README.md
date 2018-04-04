@@ -1,5 +1,4 @@
 Missing:
-- mechanism to configure archs to include in lib/Target build
 - hook up lit / tests
 - monorepro "projects to build" selection mechanism
 - actual compiler flags, debug/release, asserts on/off, ...
