@@ -4,11 +4,16 @@
 #   output: Where to create the symlink.
 template("symlink") {
   action(target_name) {
+    # Make a stamp file the output to work around
+    # https://github.com/ninja-build/ninja/issues/1186
+    stamp = "$target_gen_dir/" + get_path_info(invoker.output, "file") + ".stamp"
     outputs = [
-      invoker.output,
+      stamp,
     ]
     script = "//gn/symlink.py"
     args = [
+      "--stamp",
+      rebase_path(stamp, root_out_dir),
       "-f",
       invoker.source,
       rebase_path(invoker.output, root_out_dir),

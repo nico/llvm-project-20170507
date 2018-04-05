@@ -6,6 +6,7 @@ import sys
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--force', action='store_true')
+    parser.add_argument('--stamp')
     parser.add_argument('source')
     parser.add_argument('output')
     args = parser.parse_args()
@@ -17,6 +18,7 @@ def main():
           os.symlink(args.source, args.output)
       else:
           raise
+    open(args.stamp, 'w') # Update mtime on stamp file.
 
 if __name__ == '__main__':
     sys.exit(main())

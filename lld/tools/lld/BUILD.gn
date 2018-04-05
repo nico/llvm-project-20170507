@@ -23,10 +23,6 @@ executable("lld") {
     "//lld/wasm",
     "//llvm/lib/Support",
   ]
-
-  # Runs into https://github.com/ninja-build/ninja/issues/1186, needs two
-  # builds to get clean.
-  # FIXME: Fix or workaround somehow.
   foreach(target, symlinks) {
     deps += [ ":$target" ]
   }
