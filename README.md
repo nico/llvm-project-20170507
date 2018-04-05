@@ -1,5 +1,4 @@
 Missing:
-- set up lld symlinks
 - give lld correct --version output (currently dummy values in lld/Common/BUILD.gn)
 - make clang build
 - hook up lit / tests

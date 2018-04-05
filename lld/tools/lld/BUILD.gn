@@ -1,4 +1,17 @@
-# FIXME: symlinks
+import("//gn/symlink.gni")
+
+symlinks = [
+  "lld-link",
+  "ld.lld",
+  "ld64.lld",
+  "wasm-ld",
+]
+foreach(target, symlinks) {
+  symlink(target) {
+    source = "lld"
+    output = "$root_out_dir/$target"
+  }
+}
 
 executable("lld") {
   configs += [ "//gn:lld_code" ]
@@ -10,6 +23,13 @@ executable("lld") {
     "//lld/wasm",
     "//llvm/lib/Support",
   ]
+
+  # Runs into https://github.com/ninja-build/ninja/issues/1186, needs two
+  # builds to get clean.
+  # FIXME: Fix or workaround somehow.
+  foreach(target, symlinks) {
+    deps += [ ":$target" ]
+  }
   sources = [
     "lld.cpp",
   ]

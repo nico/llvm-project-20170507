@@ -1,0 +1,17 @@
+# Creates a symlink.
+# Args:
+#   source: Path to link to.
+#   output: Where to create the symlink.
+template("symlink") {
+  action(target_name) {
+    outputs = [
+      invoker.output,
+    ]
+    script = "//gn/symlink.py"
+    args = [
+      "-f",
+      invoker.source,
+      rebase_path(invoker.output, root_out_dir),
+    ]
+  }
+}
