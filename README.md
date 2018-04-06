@@ -4,7 +4,8 @@ Missing:
 - hook up lit / tests
 - monorepro "projects to build" selection mechanism
 - actual compiler flags, debug/release, asserts on/off, ...
-- optimized tablegen in debug builds
+- optimized tablegen in debug builds (having an `add_tablegen` template might
+  make sense now that there's llvm-tblgen and clang-tblgen)
 - make tablegen() write nothing if the output didn't change
 - describe how to get or build a gn binary
 - configure step equivalent. For now,
