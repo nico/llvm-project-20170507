@@ -1,0 +1,17 @@
+static_library("Core") {
+  output_name = "clangToolingCore"
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Lex",
+    "//clang/lib/Rewrite",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "Lookup.cpp",
+    "Replacement.cpp",
+    "Diagnostic.cpp",
+  ]
+}
+

@@ -5,6 +5,11 @@ action("vcsrevision") {
 
   args = [
     rebase_path(header, root_build_dir),
+
+    # FIXME: Add a llvm_tardy_revision or similar arg that disables this
+    # depfile arg so that all the llvm binaries don't need to relink after
+    # every git commit (doing so is technically correct, but annoying for
+    # development, and devs don't care that --version output is slightly off).
     "-d",
     rebase_path(depfile, root_build_dir),
   ]

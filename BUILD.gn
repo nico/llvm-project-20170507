@@ -1,6 +1,7 @@
 group("all") {
   deps = [
     "//clang/lib/Sema",
+    "//clang/tools/clang-format",
     "//clang/utils/TableGen:clang-tblgen",
     "//lld/tools/lld",
     "//llvm/tools/llvm-ar",
