@@ -125,7 +125,9 @@ static_library("X86CodeGen") {
     "//llvm/lib/Target",
   ]
   sources = [
+    "ShadowCallStack.cpp",
     "X86AsmPrinter.cpp",
+    "X86AvoidStoreForwardingBlocks.cpp",
     "X86CallFrameOptimization.cpp",
     "X86CallLowering.cpp",
     "X86CallingConv.cpp",

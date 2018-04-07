@@ -1,3 +1,8 @@
+Goals:
+- Run no python code at gn gen time, for speed
+- Source files are listed right in the gn files; use
+  `gn/sync_source_lists_from_cmake.py` to keep the in sync after pulling
+
 Missing:
 - give clang and lld correct --version output (currently dummy values in
   lld/Common/BUILD.gn and clang/lib/Basic/BUILD.gn)

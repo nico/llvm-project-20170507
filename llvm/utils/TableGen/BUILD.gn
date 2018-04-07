@@ -11,6 +11,7 @@ executable("llvm-tblgen") {
     "Attributes.cpp",
     "CTagsEmitter.cpp",
     "CallingConvEmitter.cpp",
+    "RISCVCompressInstEmitter.cpp",
     "CodeEmitterGen.cpp",
     "CodeGenDAGPatterns.cpp",
     "CodeGenHwModes.cpp",
