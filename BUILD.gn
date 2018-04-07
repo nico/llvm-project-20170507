@@ -1,6 +1,6 @@
 group("all") {
   deps = [
-    "//clang/lib/AST",
+    "//clang/lib/Sema",
     "//clang/utils/TableGen:clang-tblgen",
     "//lld/tools/lld",
     "//llvm/tools/llvm-ar",

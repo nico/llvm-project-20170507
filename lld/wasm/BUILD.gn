@@ -14,8 +14,8 @@ static_library("wasm") {
     "//lld/Common",
     "//llvm/include/llvm/IR:tablegen",
     "//llvm/lib/BinaryFormat",
-    "//llvm/lib/IR",
     "//llvm/lib/Demangle",
+    "//llvm/lib/IR",
     "//llvm/lib/Object",
     "//llvm/lib/Option",
   ]
