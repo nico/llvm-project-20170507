@@ -1,16 +1,15 @@
 import("//gn/symlink.gni")
 
 symlinks = [
-  # FIXME: gn embeds the + into a ninja rule name, but ninja doesn't accept +
-  # in rule names.
-  #"clang++",
-  "clang-cl",
-  "clang-cpp",
+  # target_name, symlink_target pairs, for GN doesn't support '+' in rule names.
+  ["clangxx", "clang++"],
+  ["clang-cl", "clang-cl"],
+  ["clang-cpp", "clang-cpp" ],
 ]
 foreach(target, symlinks) {
-  symlink(target) {
+  symlink(target[0]) {
     source = "clang"
-    output = "$root_out_dir/$target"
+    output = "$root_out_dir/${target[1]}"
   }
 }
 
@@ -38,6 +37,9 @@ executable("clang") {
     "//llvm/lib/Transforms/Utils",
     "//llvm/lib/Transforms/Vectorize",
   ]
+  foreach(target, symlinks) {
+    deps += [ ":${target[0]}" ]
+  }
   sources = [
     "cc1_main.cpp",
     "cc1as_main.cpp",
