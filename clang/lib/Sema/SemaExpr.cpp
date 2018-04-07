@@ -25,7 +25,6 @@
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ExprOpenMP.h"
 #include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/AST/Type.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/PartialDiagnostic.h"
 #include "clang/Basic/SourceManager.h"
@@ -1658,16 +1657,6 @@ Sema::BuildDeclRefExpr(ValueDecl *D, QualType Ty, ExprValueKind VK,
   bool RefersToCapturedVariable =
       isa<VarDecl>(D) &&
       NeedToCaptureVariable(cast<VarDecl>(D), NameInfo.getLoc());
-
-  // Drop CUDA kernel calling convention since it is invisible to the user
-  // in DRE.
-  if (const auto *FT = Ty->getAs<FunctionType>()) {
-    if (FT->getCallConv() == CC_CUDAKernel) {
-      FT = Context.adjustFunctionType(FT,
-                                      FT->getExtInfo().withCallingConv(CC_C));
-      Ty = QualType(FT, Ty.getQualifiers().getAsOpaqueValue());
-    }
-  }
 
   DeclRefExpr *E;
   if (isa<VarTemplateSpecializationDecl>(D)) {
@@ -5732,7 +5721,7 @@ Sema::ActOnInitList(SourceLocation LBraceLoc, MultiExprArg InitArgList,
   }
 
   // Semantic analysis for initializers is done by ActOnDeclarator() and
-  // CheckInitializer() - it requires knowledge of the object being intialized.
+  // CheckInitializer() - it requires knowledge of the object being initialized.
 
   InitListExpr *E = new (Context) InitListExpr(Context, LBraceLoc, InitArgList,
                                                RBraceLoc);
@@ -8243,7 +8232,7 @@ static bool canConvertIntTyToFloatTy(Sema &S, ExprResult *Int,
   QualType IntTy = Int->get()->getType().getUnqualifiedType();
 
   // Determine if the integer constant can be expressed as a floating point
-  // number of the appropiate type.
+  // number of the appropriate type.
   llvm::APSInt Result;
   bool CstInt = Int->get()->EvaluateAsInt(Result, S.Context);
   uint64_t Bits = 0;
@@ -12406,7 +12395,7 @@ ExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
     OK = Input.get()->getObjectKind();
     break;
   case UO_Coawait:
-    // It's unnessesary to represent the pass-through operator co_await in the
+    // It's unnecessary to represent the pass-through operator co_await in the
     // AST; just return the input expression instead.
     assert(!Input.get()->getType()->isDependentType() &&
                    "the co_await expression must be non-dependant before "
