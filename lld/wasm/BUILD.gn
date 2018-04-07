@@ -1,0 +1,37 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Options") {
+  visibility = [ ":wasm" ]
+  args = [ "-gen-opt-parser-defs" ]
+  td_file = "Options.td"
+}
+
+static_library("wasm") {
+  output_name = "lldWasm"
+  configs += [ "//gn:lld_code" ]
+  deps = [
+    ":Options",
+    "//lld/Common",
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/IR",
+    "//llvm/lib/Demangle",
+    "//llvm/lib/Object",
+    "//llvm/lib/Option",
+  ]
+
+  # Add include path for generated Opts.inc.
+  # FIXME: Should tablegen.gni have a public_config to set this automatically?
+  include_dirs = [ "$target_gen_dir" ]
+  sources = [
+    "Driver.cpp",
+    "InputChunks.cpp",
+    "InputFiles.cpp",
+    "MarkLive.cpp",
+    "OutputSections.cpp",
+    "SymbolTable.cpp",
+    "Symbols.cpp",
+    "Writer.cpp",
+    "WriterUtils.cpp",
+  ]
+}
