@@ -26,4 +26,3 @@ static_library("Serialization") {
     "ModuleManager.cpp",
   ]
 }
-

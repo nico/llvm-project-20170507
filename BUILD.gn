@@ -1,8 +1,7 @@
 group("all") {
   deps = [
-    "//clang/lib/Frontend/Rewrite",
     "//clang/tools/clang-format",
-    "//clang/utils/TableGen:clang-tblgen",
+    "//clang/tools/driver:clang",
     "//lld/tools/lld",
     "//llvm/tools/llvm-ar",
     "//llvm/tools/llvm-link",

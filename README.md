@@ -1,7 +1,6 @@
 Missing:
 - give clang and lld correct --version output (currently dummy values in
   lld/Common/BUILD.gn and clang/lib/Basic/BUILD.gn)
-- make clang build
 - hook up lit / tests
 - monorepro "projects to build" selection mechanism
 - actual compiler flags, debug/release, asserts on/off, ...
