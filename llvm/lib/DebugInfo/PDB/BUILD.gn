@@ -87,6 +87,7 @@ static_library("PDB") {
   ]
   if (llvm_enable_dia_sdk) {
     sources += [
+      "DIA/DIADataStream.cpp",
       "DIA/DIAEnumDebugStreams.cpp",
       "DIA/DIAEnumInjectedSources.cpp",
       "DIA/DIAEnumLineNumbers.cpp",
