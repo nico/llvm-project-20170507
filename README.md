@@ -1,5 +1,6 @@
 Missing:
-- give lld correct --version output (currently dummy values in lld/Common/BUILD.gn)
+- give clang and lld correct --version output (currently dummy values in
+  lld/Common/BUILD.gn and clang/lib/Basic/BUILD.gn)
 - make clang build
 - hook up lit / tests
 - monorepro "projects to build" selection mechanism
@@ -10,6 +11,7 @@ Missing:
 - describe how to get or build a gn binary
 - configure step equivalent. For now,
   `cp /path/to/cmake/build/llvm/include/Config/{abi-breaking.h,config.h,llvm-config.h} llvm/include/llvm/Config`.
+  `cp /path/to/cmake/build/tools/clang/include/clang/Config/config.h clang/include/clang/Config`.
   For now, the `declare_args` need to match the copied-over config files.
   Probably want small feature headers for the feature config toggles, and
   per-platform defaults instead of configure for things like headers to use.

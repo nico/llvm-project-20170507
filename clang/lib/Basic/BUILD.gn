@@ -1,0 +1,94 @@
+action("Version.inc") {
+  script = "//gn/write_version_inc.py"
+  input = "//clang/include/clang/Basic/Version.inc.in"
+  output = "$root_gen_dir/clang/include/clang/Basic/Version.inc"
+
+  sources = [
+    input,
+  ]
+  args = [
+    rebase_path(input, root_out_dir),
+    "-o",
+    rebase_path(output, root_out_dir),
+    "--from_to",
+
+    # FIXME: Real values for this (maybe using write_vcsrevision.py?)
+    "@CLANG_VERSION@=9000.0.0",
+    "@CLANG_VERSION_MAJOR@=9000",
+    "@CLANG_VERSION_MINOR@=0",
+    "@CLANG_VERSION_PATCHLEVEL@=0",
+  ]
+  outputs = [
+    output,
+  ]
+}
+
+static_library("Basic") {
+  output_name = "clangBasic"
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    ":Version.inc",
+    "//clang/include/clang/Basic:diags_tablegen",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "Attributes.cpp",
+    "Builtins.cpp",
+    "CharInfo.cpp",
+    "Cuda.cpp",
+    "Diagnostic.cpp",
+    "DiagnosticIDs.cpp",
+    "DiagnosticOptions.cpp",
+    "FileManager.cpp",
+    "FileSystemStatCache.cpp",
+    "IdentifierTable.cpp",
+    "LangOptions.cpp",
+    "MemoryBufferCache.cpp",
+    "Module.cpp",
+    "ObjCRuntime.cpp",
+    "OpenMPKinds.cpp",
+    "OperatorPrecedence.cpp",
+    "SanitizerBlacklist.cpp",
+    "SanitizerSpecialCaseList.cpp",
+    "Sanitizers.cpp",
+    "SourceLocation.cpp",
+    "SourceManager.cpp",
+    "TargetInfo.cpp",
+    "Targets.cpp",
+    "Targets/AArch64.cpp",
+    "Targets/AMDGPU.cpp",
+    "Targets/ARM.cpp",
+    "Targets/AVR.cpp",
+    "Targets/BPF.cpp",
+    "Targets/Hexagon.cpp",
+    "Targets/Lanai.cpp",
+    "Targets/Le64.cpp",
+    "Targets/MSP430.cpp",
+    "Targets/Mips.cpp",
+    "Targets/NVPTX.cpp",
+    "Targets/Nios2.cpp",
+    "Targets/OSTargets.cpp",
+    "Targets/PNaCl.cpp",
+    "Targets/PPC.cpp",
+    "Targets/RISCV.cpp",
+    "Targets/SPIR.cpp",
+    "Targets/Sparc.cpp",
+    "Targets/SystemZ.cpp",
+    "Targets/TCE.cpp",
+    "Targets/WebAssembly.cpp",
+    "Targets/X86.cpp",
+    "Targets/XCore.cpp",
+    "TokenKinds.cpp",
+
+    # FIXME: This should be in its own target that passes -DHAVE_SVN_VERSION_INC
+    # and that also depends on a target generating SVNVersion.inc.
+    "Version.cpp",
+    "VersionTuple.cpp",
+    "VirtualFileSystem.cpp",
+    "Warnings.cpp",
+    "XRayLists.cpp",
+  ]
+}

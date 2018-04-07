@@ -17,3 +17,10 @@ config("lld_code") {
     "$root_gen_dir/lld/include",
   ]
 }
+
+config("clang_code") {
+  include_dirs = [
+    "//clang/include",
+    "$root_gen_dir/clang/include",
+  ]
+}

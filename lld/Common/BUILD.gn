@@ -1,5 +1,5 @@
 action("Version.inc") {
-  script = "write_version_inc.py"
+  script = "//gn/write_version_inc.py"
   input = "//lld/include/lld/Common/Version.inc.in"
   output = "$root_gen_dir/lld/include/lld/Common/Version.inc"
 

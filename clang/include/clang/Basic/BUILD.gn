@@ -1,0 +1,104 @@
+import("//clang/utils/TableGen/tablegen.gni")
+
+# Diagnostics
+
+diag_groups = [
+  "Analysis",
+  "AST",
+  "Comment",
+  "Common",
+  "CrossTU",
+  "Driver",
+  "Frontend",
+  "Lex",
+  "Parse",
+  "Refactoring",
+  "Sema",
+  "Serialization",
+]
+foreach(diag_group, diag_groups) {
+  tablegen("Diagnostic${diag_group}Kinds") {
+    args = [
+      "-gen-clang-diags-defs",
+      "-clang-component=${diag_group}",
+    ]
+    td_file = "Diagnostic.td"
+  }
+}
+group("diags_tablegen") {
+  # DiagnosticGroups and DiagnosticIndexName are intentionally not part of this
+  # group.  Much of clang depends on the DiagKinds.inc files transitively,
+  # but almost nothing needs DiagnosticGroups.inc or DiagnosticIndexName.inc.
+  deps = []
+  foreach(diag_group, diag_groups) {
+    deps += [ ":Diagnostic${diag_group}Kinds" ]
+  }
+}
+
+tablegen("DiagnosticGroups") {
+  args = [ "-gen-clang-diag-groups" ]
+  td_file = "Diagnostic.td"
+}
+
+tablegen("DiagnosticIndexName") {
+  args = [ "-gen-clang-diags-index-name" ]
+  td_file = "Diagnostic.td"
+}
+
+# Attributes
+
+tablegen("AttrList") {
+  args = [
+    "-gen-clang-attr-list",
+    "-I",
+    rebase_path("../..", root_out_dir),
+  ]
+  td_file = "Attr.td"
+}
+
+tablegen("AttrSubMatchRulesList") {
+  args = [
+    "-gen-clang-attr-subject-match-rule-list",
+    "-I",
+    rebase_path("../..", root_out_dir),
+  ]
+  td_file = "Attr.td"
+}
+
+tablegen("AttrHasAttributeImpl") {
+  args = [
+    "-gen-clang-attr-has-attribute-impl",
+    "-I",
+    rebase_path("../..", root_out_dir),
+  ]
+  td_file = "Attr.td"
+}
+
+# FIXME: Should this exist, or should clients depend on what they need?
+group("attrs_tablegen") {
+  deps = [
+    ":AttrList",
+    ":AttrSubMatchRulesList",
+  ]
+}
+
+# Misc
+
+tablegen("arm_neon") {
+  args = [ "-gen-arm-neon-sema" ]
+  td_file = "arm_neon.td"
+}
+
+tablegen("arm_fp16") {
+  args = [ "-gen-arm-neon-sema" ]
+  td_file = "arm_fp16.td"
+}
+
+# FIXME: Should this target exist or should clients decide what they want to
+# depend on?
+group("tablegen") {
+  deps = [
+    ":attrs_tablegen",
+    ":diags_tablegen",
+  ]
+}

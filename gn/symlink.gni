@@ -6,7 +6,8 @@ template("symlink") {
   action(target_name) {
     # Make a stamp file the output to work around
     # https://github.com/ninja-build/ninja/issues/1186
-    stamp = "$target_gen_dir/" + get_path_info(invoker.output, "file") + ".stamp"
+    stamp =
+        "$target_gen_dir/" + get_path_info(invoker.output, "file") + ".stamp"
     outputs = [
       stamp,
     ]
