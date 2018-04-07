@@ -24,4 +24,3 @@ static_library("Format") {
     "WhitespaceManager.cpp",
   ]
 }
-

@@ -14,4 +14,3 @@ static_library("Rewrite") {
     "TokenRewriter.cpp",
   ]
 }
-

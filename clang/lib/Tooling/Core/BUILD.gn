@@ -9,9 +9,8 @@ static_library("Core") {
     "//llvm/lib/Support",
   ]
   sources = [
+    "Diagnostic.cpp",
     "Lookup.cpp",
     "Replacement.cpp",
-    "Diagnostic.cpp",
   ]
 }
-
