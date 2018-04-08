@@ -1,0 +1,12 @@
+executable("llvm-as") {
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "llvm-as.cpp",
+  ]
+}

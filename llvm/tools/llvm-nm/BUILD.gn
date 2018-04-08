@@ -1,0 +1,18 @@
+# FIXME: if llvm_install_binutils_symlinks, then symlink("nm")
+
+executable("llvm-nm") {
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Demangle",
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsAsmParsers",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsInfos",
+  ]
+  sources = [
+    "llvm-nm.cpp",
+  ]
+}

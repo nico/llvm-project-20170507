@@ -2,9 +2,18 @@ import("//gn/symlink.gni")
 
 symlinks = [
   # target_name, symlink_target pairs, for GN doesn't support '+' in rule names.
-  ["clangxx", "clang++"],
-  ["clang-cl", "clang-cl"],
-  ["clang-cpp", "clang-cpp" ],
+  [
+    "clangxx",
+    "clang++",
+  ],
+  [
+    "clang-cl",
+    "clang-cl",
+  ],
+  [
+    "clang-cpp",
+    "clang-cpp",
+  ],
 ]
 foreach(target, symlinks) {
   symlink(target[0]) {

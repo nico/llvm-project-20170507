@@ -7,6 +7,7 @@ Missing:
 - give clang and lld correct --version output (currently dummy values in
   lld/Common/BUILD.gn and clang/lib/Basic/BUILD.gn)
 - hook up lit / tests
+  - llvm-config
 - monorepro "projects to build" selection mechanism
 - actual compiler flags, debug/release, asserts on/off, ...
 - optimized tablegen in debug builds (having an `add_tablegen` template might

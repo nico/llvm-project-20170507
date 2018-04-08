@@ -2,6 +2,7 @@ static_library("MCTargetDesc") {
   output_name = "LLVMX86Desc"
   deps = [
     "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
     "//llvm/lib/Object",
     "//llvm/lib/Support",
     "//llvm/lib/Target/X86:tablegen",

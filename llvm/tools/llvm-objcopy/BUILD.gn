@@ -1,0 +1,13 @@
+# FIXME: if llvm_install_binutils_symlinks, then symlink("objcopy")
+
+executable("llvm-objcopy") {
+  deps = [
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "Object.cpp",
+    "llvm-objcopy.cpp",
+  ]
+}

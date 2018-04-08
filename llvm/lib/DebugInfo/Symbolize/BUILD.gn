@@ -1,0 +1,15 @@
+static_library("Symbolize") {
+  output_name = "LLVMSymbolize"
+  deps = [
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/DebugInfo/PDB",
+    "//llvm/lib/Demangle",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "DIPrinter.cpp",
+    "SymbolizableObjectFile.cpp",
+    "Symbolize.cpp",
+  ]
+}

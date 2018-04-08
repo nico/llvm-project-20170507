@@ -1,0 +1,35 @@
+# FIXME: if llvm_install_binutils_symlinks, then symlink("objdump")
+
+declare_args() {
+  llvm_have_libxar = true
+}
+
+executable("llvm-objdump") {
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/DebugInfo/PDB",
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/Demangle",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsAsmPrinters",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsDisassemblers",
+    "//llvm/lib/Target:AllTargetsInfos",
+  ]
+  sources = [
+    "COFFDump.cpp",
+    "ELFDump.cpp",
+    "MachODump.cpp",
+    "WasmDump.cpp",
+    "llvm-objdump.cpp",
+  ]
+
+  if (llvm_have_libxar) {
+    defines = [ "HAVE_LIBXAR" ]
+    libs = [ "xar" ]
+  }
+}

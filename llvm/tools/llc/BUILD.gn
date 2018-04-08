@@ -1,0 +1,24 @@
+executable("llc") {
+  # FIXME: Disable dead stripping once other binaries are dead-stripped, for
+  # Support plugins.
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/MIRParser",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRReader",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/Transforms/Scalar",
+    "//llvm/lib/Transforms/Utils",
+    "//llvm/lib/Transforms/Vectorize",
+  ]
+  sources = [
+    "llc.cpp",
+  ]
+}

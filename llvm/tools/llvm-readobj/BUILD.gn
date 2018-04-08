@@ -1,0 +1,34 @@
+# FIXME: if llvm_install_binutils_symlinks, then symlink("readelf")
+
+import("//gn/symlink.gni")
+
+symlink("llvm-readelf") {
+  source = "llvm-readobj"
+  output = "$root_out_dir/llvm-readelf"
+}
+
+executable("llvm-readobj") {
+  deps = [
+    ":llvm-readelf",
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/DebugInfo/CodeView",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/DebugInfo/MSF",
+    "//llvm/lib/DebugInfo/PDB",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "ARMWinEHPrinter.cpp",
+    "COFFDumper.cpp",
+    "COFFImportDumper.cpp",
+    "ELFDumper.cpp",
+    "Error.cpp",
+    "MachODumper.cpp",
+    "ObjDumper.cpp",
+    "WasmDumper.cpp",
+    "Win64EHDumper.cpp",
+    "WindowsResourceDumper.cpp",
+    "llvm-readobj.cpp",
+  ]
+}

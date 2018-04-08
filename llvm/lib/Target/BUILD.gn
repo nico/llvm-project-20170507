@@ -26,6 +26,41 @@ group("TargetsToBuild") {
   deps = llvm_targets_to_build
 }
 
+group("AllTargetsAsmParsers") {
+  deps = []
+  foreach(target, llvm_targets_to_build) {
+    deps += [ "$target/AsmParser" ]
+  }
+}
+
+group("AllTargetsAsmPrinters") {
+  deps = []
+  foreach(target, llvm_targets_to_build) {
+    deps += [ "$target/InstPrinter" ]
+  }
+}
+
+group("AllTargetsDescs") {
+  deps = []
+  foreach(target, llvm_targets_to_build) {
+    deps += [ "$target/MCTargetDesc" ]
+  }
+}
+
+group("AllTargetsDisassemblers") {
+  deps = []
+  foreach(target, llvm_targets_to_build) {
+    deps += [ "$target/Disassembler" ]
+  }
+}
+
+group("AllTargetsInfos") {
+  deps = []
+  foreach(target, llvm_targets_to_build) {
+    deps += [ "$target/TargetInfo" ]
+  }
+}
+
 # FIXME: Move to llvm/include/Config/BUILD.gn instead?
 template("write_target_def_file") {
   assert(defined(invoker.replace))

@@ -1,3 +1,17 @@
+import("//gn/symlink.gni")
+
+symlinks = [
+  "llvm-ranlib",
+  "llvm-lib",
+  "llvm-dlltool",
+]
+foreach(target, symlinks) {
+  symlink(target) {
+    source = "llvm-ar"
+    output = "$root_out_dir/$target"
+  }
+}
+
 executable("llvm-ar") {
   deps = [
     "//llvm/lib/IR",
@@ -7,6 +21,9 @@ executable("llvm-ar") {
     "//llvm/lib/ToolDrivers/llvm-dlltool:DlltoolDriver",
     "//llvm/lib/ToolDrivers/llvm-lib:LibDriver",
   ]
+  foreach(target, symlinks) {
+    deps += [ ":$target" ]
+  }
   sources = [
     "llvm-ar.cpp",
   ]
