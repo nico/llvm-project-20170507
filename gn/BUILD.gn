@@ -1,6 +1,13 @@
 config("compiler_defaults") {
   # FIXME: Don't define this globally here.
   defines = [ "LLVM_ON_UNIX" ]
+  cflags = [
+    # FIXME: only pass this on mac, and probably only if clang_base_path is set.
+    "-isysroot",
+    "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+    # FIXME: Have is_debug=false support
+    "-O3",
+  ]
   cflags_cc = [ "-std=c++11" ]
 }
 
