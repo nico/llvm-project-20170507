@@ -1,8 +1,14 @@
+import("//gn/mac_sdk.gni")
+
 declare_args() {
   # Whether to build with debug information and without optimizations.
   is_debug = true
+
+  # Whether to enable threading.
+  llvm_enable_threads = true
 }
 
+# args that depend on other args must live in a later declare_args() block.
 declare_args() {
   # Whether to enable assertions.
   llvm_enable_assertions = is_debug
@@ -11,11 +17,15 @@ declare_args() {
 config("compiler_defaults") {
   # FIXME: Don't define this globally here.
   defines = [ "LLVM_ON_UNIX" ]
-  cflags = [
-    # FIXME: only pass this on mac, and probably only if clang_base_path is set.
-    "-isysroot",
-    "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
-  ]
+  cflags = []
+
+  if (host_os == "mac" ) {
+    cflags += [
+      # FIXME: probably only do this if clang_base_path is set.
+      "-isysroot",
+      mac_sdk,
+    ]
+  }
 
   if (is_debug) {
     cflags += [ "-g" ]
@@ -49,4 +59,18 @@ config("clang_code") {
     "//clang/include",
     "$root_gen_dir/clang/include",
   ]
+}
+
+config("pthread_config") {
+  visibility = [ ":pthread" ]
+  libs = [ "pthread" ]
+
+  # FIXME: currently must match config.h
+  defines = [ "LLVM_ENABLE_THREADS" ]
+}
+
+group("pthread") {
+  if (llvm_enable_threads) {
+    public_configs = [":pthread_config"]
+  }
 }

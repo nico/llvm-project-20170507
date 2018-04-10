@@ -1,3 +1,5 @@
+import("//gn/mac_sdk.gni")
+
 declare_args() {
   # Wether to include code that links against libxml2.
   llvm_enable_libxml2 = true
@@ -15,7 +17,10 @@ static_library("WindowsManifest") {
     defines = [ "LLVM_LIBXML2_ENABLED" ]
     libs = [ "xml2" ]
 
-    # FIXME: Only add the /Applications stuff if is_mac.
-    include_dirs = [ "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/libxml2" ]
+    if (host_os == "mac") {
+      include_dirs = [ "$mac_sdk/usr/include/libxml2" ]
+    } else {
+      include_dirs = [ "/usr/include/libxml2" ]
+    }
   }
 }

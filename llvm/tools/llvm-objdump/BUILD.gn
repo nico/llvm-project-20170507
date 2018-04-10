@@ -1,7 +1,7 @@
 # FIXME: if llvm_install_binutils_symlinks, then symlink("objdump")
 
 declare_args() {
-  llvm_have_libxar = true
+  llvm_have_libxar = host_os == "mac"
 }
 
 executable("llvm-objdump") {

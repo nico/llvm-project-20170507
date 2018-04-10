@@ -10,6 +10,7 @@ static_library("Support") {
   output_name = "LLVMSupport"
   deps = [
     "//llvm/lib/Demangle",
+    "//gn:pthread",
   ]
   include_dirs = [
     "Unix",
@@ -133,6 +134,10 @@ static_library("Support") {
 
   defines = []
   libs = []
+
+  if (host_os == "linux") {
+    libs += [ "dl" ]
+  }
 
   # FIXME: Use feature headers instead of flags?
   if (llvm_enable_terminfo) {

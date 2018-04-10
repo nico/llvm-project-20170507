@@ -50,7 +50,11 @@ toolchain("cc") {
   }
 
   tool("alink") {
-    command = "libtool -static {{arflags}} -o {{output}} {{inputs}}"
+    if (host_os == "mac") {
+      command = "libtool -static {{arflags}} -o {{output}} {{inputs}}"
+    } else {
+      command = "ar rcsDT {{arflags}} -o {{output}} {{inputs}}"
+    }
     description = "LIBTOOL-STATIC {{output}}"
     outputs = [
       "{{target_out_dir}}/{{target_output_name}}{{output_extension}}",
@@ -61,7 +65,11 @@ toolchain("cc") {
 
   tool("link") {
     outfile = "{{target_output_name}}{{output_extension}}"
-    command = "$ld {{ldflags}} -o $outfile {{libs}} {{inputs}}"
+    if (host_os == "mac") {
+      command = "$ld {{ldflags}} -o $outfile {{libs}} {{inputs}}"
+    } else {
+      command = "$ld {{ldflags}} -o $outfile {{libs}} -Wl,--start-group {{inputs}} -Wl,--end-group"
+    }
     description = "LINK $outfile"
     outputs = [
       outfile,
