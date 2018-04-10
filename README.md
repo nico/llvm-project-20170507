@@ -10,7 +10,7 @@ Missing:
   - llvm-config
 - lib/Headers for clang
 - monorepro "projects to build" selection mechanism
-- actual compiler flags, debug/release, asserts on/off, ...
+- actual compiler flags (dead code stripping etc)
 - optimized tablegen in debug builds (having an `add_tablegen` template might
   make sense now that there's llvm-tblgen and clang-tblgen)
 - make tablegen() write nothing if the output didn't change

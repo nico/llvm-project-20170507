@@ -1,4 +1,7 @@
-# All binary targets will get this list of configs by default.
+# All targets will get this list of configs by default.
+# Targets can opt out of a config by removing it from their local configs list.
+# If you're adding global flags and don't need targets to be able to opt out,
+# add the flags to compiler_defaults, not to a new config.
 _shared_binary_target_configs = [
   "//gn:compiler_defaults",
   "//gn:llvm_code",

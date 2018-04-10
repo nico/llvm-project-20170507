@@ -1,3 +1,13 @@
+declare_args() {
+  # Whether to build with debug information and without optimizations.
+  is_debug = true
+}
+
+declare_args() {
+  # Whether to enable assertions.
+  llvm_enable_assertions = is_debug
+}
+
 config("compiler_defaults") {
   # FIXME: Don't define this globally here.
   defines = [ "LLVM_ON_UNIX" ]
@@ -5,9 +15,18 @@ config("compiler_defaults") {
     # FIXME: only pass this on mac, and probably only if clang_base_path is set.
     "-isysroot",
     "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
-    # FIXME: Have is_debug=false support
-    "-O3",
   ]
+
+  if (is_debug) {
+    cflags += [ "-g" ]
+  } else {
+    cflags += [ "-O3" ]
+  }
+
+  if (!llvm_enable_assertions) {
+    defines += [ "NDEBUG" ]
+  }
+
   cflags_cc = [ "-std=c++11" ]
 }
 
