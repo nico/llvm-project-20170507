@@ -1,9 +1,7 @@
+import("//gn/buildflags.gni")
 import("//gn/mac_sdk.gni")
 
 declare_args() {
-  # Whether to build with debug information and without optimizations.
-  is_debug = true
-
   # Whether to enable threading.
   llvm_enable_threads = true
 }
@@ -19,7 +17,7 @@ config("compiler_defaults") {
   defines = [ "LLVM_ON_UNIX" ]
   cflags = []
 
-  if (host_os == "mac" ) {
+  if (host_os == "mac") {
     cflags += [
       # FIXME: probably only do this if clang_base_path is set.
       "-isysroot",
@@ -71,6 +69,6 @@ config("pthread_config") {
 
 group("pthread") {
   if (llvm_enable_threads) {
-    public_configs = [":pthread_config"]
+    public_configs = [ ":pthread_config" ]
   }
 }

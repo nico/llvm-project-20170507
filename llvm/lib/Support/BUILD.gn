@@ -9,8 +9,8 @@ declare_args() {
 static_library("Support") {
   output_name = "LLVMSupport"
   deps = [
-    "//llvm/lib/Demangle",
     "//gn:pthread",
+    "//llvm/lib/Demangle",
   ]
   include_dirs = [
     "Unix",

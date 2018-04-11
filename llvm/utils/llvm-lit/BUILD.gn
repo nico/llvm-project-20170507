@@ -1,0 +1,43 @@
+action("llvm-lit") {
+  script = "//gn/write_version_inc.py"  # FIXME: rename
+  input = "llvm-lit.in"
+  output = "$root_out_dir/llvm-lit"  # FIXME: bin/?
+
+  # Generate LLVM_LIT_CONFIG_MAP parameter.
+  # llvm-lit contains a mapping from each lit.cfg.py file to the corresponding
+  # generated llvm.site.cfg.py file, so llvm-lit depends on all the targets to
+  # generate the site.cfg.py file.
+  deps = []
+  config_map = ""
+
+  deps += [
+    "//lld/test:lit_site_cfg",
+    "//lld/test:lit_unit_site_cfg",
+  ]
+  # $0x0A is how you write \n in a gn string literal.
+  # FIXME: Use that instead of ; once gn can handle it in action args.
+  # FIXME: Come up with a way to not repeat the lit cfg paths in 4 places.
+  config_map += "map_config(\"" + rebase_path("//lld/test/lit.cfg.py") + "\", \"" + rebase_path("$root_gen_dir/lld/test/lit.site.cfg.py") + "\");"
+  config_map += "map_config(\"" + rebase_path("//lld/test/Unit/lit.cfg.py") + "\", \"" + rebase_path("$root_gen_dir/lld/test/Unit/lit.site.cfg.py") + "\")"
+
+  sources = [
+    input,
+  ]
+  args = [
+    rebase_path(input, root_out_dir),
+    "-o",
+    rebase_path(output, root_out_dir),
+    "--from_to",
+
+    # FIXME: Do all these paths have to be absolute?
+    # FIXME: Get all paths from a central gni file (or one per project)
+    "@LLVM_SOURCE_DIR@=" + rebase_path("//llvm"),  # FIXME: assumes monorepo
+    "@LLVM_BINARY_DIR@=" +
+        rebase_path(get_label_info("//llvm", "target_out_dir")),
+    "@BUILD_MODE@=.",
+    "@LLVM_LIT_CONFIG_MAP@=" + config_map,
+  ]
+  outputs = [
+    output,
+  ]
+}

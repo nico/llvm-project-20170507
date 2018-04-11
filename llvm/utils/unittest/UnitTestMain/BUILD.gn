@@ -1,0 +1,15 @@
+static_library("UnitTestMain") {
+  deps = [
+    "//llvm/lib/Support",
+  ]
+
+  # Make targets depending on this also depend on googletest, to get the
+  # gtest include_dir.
+  public_deps = [
+    "..:googletest",
+  ]
+  sources = [
+    "TestMain.cpp",
+  ]
+  testonly = true
+}

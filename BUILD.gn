@@ -2,6 +2,7 @@ group("all") {
   deps = [
     "//clang/tools/clang-format",
     "//clang/tools/driver:clang",
+    "//lld/test",
     "//lld/tools/lld",
     "//llvm/tools/llc",
     "//llvm/tools/llvm-ar",

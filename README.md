@@ -6,8 +6,8 @@ Goals:
 Missing:
 - give clang and lld correct --version output (currently dummy values in
   lld/Common/BUILD.gn and clang/lib/Basic/BUILD.gn)
-- hook up lit / tests
-  - llvm-config
+- put check-lld in console pool, omit it from 'all' target
+- hook up check-llvm, check-clang
 - lib/Headers for clang
 - monorepro "projects to build" selection mechanism
 - actual compiler flags (dead code stripping etc)

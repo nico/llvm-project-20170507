@@ -14,7 +14,6 @@ declare_args() {
 }
 
 toolchain("cc") {
-
   cc = "cc"
   cxx = "c++"
 
@@ -23,7 +22,7 @@ toolchain("cc") {
     cxx = "$clang_base_path/bin/clang++"
   }
 
-  ld = cxx # Don't goma wrapper for links.
+  ld = cxx  # Don't use goma wrapper for linking.
   if (use_goma) {
     cc = "$goma_dir/gomacc $cc"
     cxx = "$goma_dir/gomacc $cxx"
@@ -64,7 +63,7 @@ toolchain("cc") {
   }
 
   tool("link") {
-    outfile = "{{target_output_name}}{{output_extension}}"
+    outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
     if (host_os == "mac") {
       command = "$ld {{ldflags}} -o $outfile {{libs}} {{inputs}}"
     } else {
@@ -75,6 +74,12 @@ toolchain("cc") {
       outfile,
     ]
     lib_switch = "-l"
+
+    # Setting this allows targets to override the default executable output by
+    # setting output_dir.
+    # FIXME: default to {{root_out_dir}}/bin? (need to change all scripts
+    # referring to build-time binaries then -- llvm-tblgen, clang-tblgen)
+    default_output_dir = "{{root_out_dir}}"
   }
 
   tool("stamp") {

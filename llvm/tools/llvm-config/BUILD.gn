@@ -1,0 +1,77 @@
+import("//gn/buildflags.gni")
+
+action("BuildVariables.inc") {
+  script = "//gn/write_version_inc.py"
+  input = "//llvm/tools/llvm-config/BuildVariables.inc.in"
+  output = "$target_gen_dir/llvm/tools/llvm-config/BuildVariables.inc"
+
+  sources = [
+    input,
+  ]
+
+  if (is_debug) {
+    build_mode = "debug"
+  } else {
+    build_mode = "release"
+  }
+
+  args = [
+    rebase_path(input, root_out_dir),
+    "-o",
+    rebase_path(output, root_out_dir),
+    "--from_to",
+
+    # FIXME: Get all paths from a central gni file (or one per project)
+    # FIXME: Also, way less copy-pasta for this.
+    "@LLVM_SRC_ROOT@=" + rebase_path("//llvm"),  # FIXME: assumes monorepo
+    "@LLVM_OBJ_ROOT@=" + rebase_path(root_out_dir),
+
+    # FIXME: Only the bits needed to run LLVM's test are implemented.
+    "@LLVM_CPPFLAGS@=.",  # FIXME
+    "@LLVM_CFLAGS@=.",  # FIXME
+    "@LLVM_LDFLAGS@=.",  # FIXME
+    "@LLVM_CXXFLAGS@=.",  # FIXME
+    "@LLVM_BUILDMODE@=$build_mode",
+    "@LLVM_LIBDIR_SUFFIX@=",
+    "@LLVM_TARGETS_BUILT@=X86",  # FIXME: see //llvm/Targets/BUILD.gn
+    "@LLVM_SYSTEM_LIBS@=",
+    "@LLVM_BUILD_SYSTEM@=gn",  # ?
+    "@LLVM_HAS_RTTI@=0",
+    "@LLVM_BUILD_LLVM_DYLIB@=0",
+    "@LLVM_LINK_LLVM_DYLIB@=0",
+    "@BUILD_SHARED_LIBS@=0",
+    "@LLVM_DYLIB_COMPONENTS@=all",
+    "@LLVM_DYLIB_VERSION@=9000svn",
+    "@LLVM_HAS_GLOBAL_ISEL@=1",
+    "@LLVM_TOOLS_INSTALL_DIR@=",
+  ]
+  outputs = [
+    output,
+  ]
+}
+
+# FIXME: It'd be nice to not depend on llvm-build on this. The information in
+# the LLVMBuild.txt files is often out-of-date and incorrect, and depending on
+# all the LLVMBuild.txt files just for this seems a bit overkill.
+action("LibraryDependencies.inc") {
+  script = "//llvm/utils/llvm-build/llvm-build"
+  output = "$target_gen_dir/llvm/tools/llvm-config/LibraryDependencies.inc"
+  args = [ "--write-library-table=" + rebase_path(output, root_out_dir) ]
+  outputs = [
+    output,
+  ]
+}
+
+executable("llvm-config") {
+  deps = [
+    ":BuildVariables.inc",
+    ":LibraryDependencies.inc",
+    "//llvm/lib/Support",
+  ]
+
+  # To pick up the generated inc files.
+  include_dirs = [ "$target_gen_dir/llvm/tools/llvm-config" ]
+  sources = [
+    "llvm-config.cpp",
+  ]
+}
