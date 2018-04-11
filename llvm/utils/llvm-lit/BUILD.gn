@@ -15,7 +15,7 @@ action("llvm-lit") {
     "//lld/test:lit_unit_site_cfg",
   ]
   # $0x0A is how you write \n in a gn string literal.
-  # FIXME: Use that instead of ; once gn can handle it in action args.
+  # FIXME: Use that instead of ; once it works, https://crbug.com/831613.
   # FIXME: Come up with a way to not repeat the lit cfg paths in 4 places.
   config_map += "map_config(\"" + rebase_path("//lld/test/lit.cfg.py") + "\", \"" + rebase_path("$root_gen_dir/lld/test/lit.site.cfg.py") + "\");"
   config_map += "map_config(\"" + rebase_path("//lld/test/Unit/lit.cfg.py") + "\", \"" + rebase_path("$root_gen_dir/lld/test/Unit/lit.site.cfg.py") + "\")"
