@@ -2,11 +2,26 @@ static_library("AST") {
   output_name = "clangAST"
   configs += [ "//gn:clang_code" ]
   deps = [
+    "//clang/include/clang/AST:AttrDump",
+    "//clang/include/clang/AST:AttrImpl",
+    "//clang/include/clang/AST:CommentCommandInfo",
+    "//clang/include/clang/AST:CommentHTMLNamedCharacterReferences",
+    "//clang/include/clang/AST:CommentHTMLTags",
+    "//clang/include/clang/AST:CommentHTMLTagsProperties",
     "//clang/include/clang/AST:DeclNodes",
     "//clang/lib/Basic",
     "//clang/lib/Lex",
     "//llvm/lib/BinaryFormat",
     "//llvm/lib/Support",
+  ]
+  # generated files used in public headers should be in public_deps, the rest
+  # in regular deps.
+  public_deps = [
+    "//clang/include/clang/AST:Attrs",
+    "//clang/include/clang/AST:AttrVisitor",
+    "//clang/include/clang/AST:CommentCommandList",
+    "//clang/include/clang/AST:CommentNodes",
+    "//clang/include/clang/AST:StmtNodes",
   ]
   sources = [
     "APValue.cpp",
