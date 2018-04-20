@@ -101,7 +101,7 @@ action("check-lld") {
   ]
   testonly = true
 
-  # FIXME: console pool
+  pool = "//:console"
 }
 
 # Empty default target that 'all' in //BUILD.gn can depend on.

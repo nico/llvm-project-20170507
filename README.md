@@ -6,7 +6,7 @@ Goals:
 Missing:
 - give clang and lld correct --version output (currently dummy values in
   lld/Common/BUILD.gn and clang/lib/Basic/BUILD.gn)
-- put check-lld in console pool, omit it from 'all' target
+- omit check-lld from default target (see gn help on `ninja_rules`, `execution`)
 - hook up check-llvm, check-clang
 - lib/Headers for clang
 - monorepro "projects to build" selection mechanism
