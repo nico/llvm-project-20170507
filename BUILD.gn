@@ -1,8 +1,12 @@
+import("//clang/lib/ARCMigrate/enable.gni")
+
 group("all") {
   deps = [
     "//clang/tools/c-index-test",
+    "//clang/tools/clang-check",
     "//clang/tools/clang-diff",
     "//clang/tools/clang-format",
+    "//clang/tools/clang-func-mapping",
     "//clang/tools/clang-import-test",
     "//clang/tools/clang-offload-bundler",
     "//clang/tools/clang-refactor",
@@ -47,6 +51,12 @@ group("all") {
     "//llvm/utils/count",
     "//llvm/utils/not",
   ]
+  if (clang_enable_arcmt) {
+    deps += [
+      "//clang/tools/arcmt-test",
+      "//clang/tools/c-arcmt-test",
+    ]
+  }
 }
 
 # A pool called "console" in the root BUILD.gn is magic and represents ninja's

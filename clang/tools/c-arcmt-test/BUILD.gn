@@ -1,0 +1,9 @@
+executable("c-arcmt-test") {
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/tools/libclang",
+  ]
+  sources = [
+    "c-arcmt-test.c",
+  ]
+}
