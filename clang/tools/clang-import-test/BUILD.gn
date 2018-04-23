@@ -1,0 +1,18 @@
+executable("clang-import-test") {
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/CodeGen",
+    "//clang/lib/Driver",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Parse",
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "clang-import-test.cpp",
+  ]
+}
