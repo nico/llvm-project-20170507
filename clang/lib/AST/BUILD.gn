@@ -14,11 +14,12 @@ static_library("AST") {
     "//llvm/lib/BinaryFormat",
     "//llvm/lib/Support",
   ]
+
   # generated files used in public headers should be in public_deps, the rest
   # in regular deps.
   public_deps = [
-    "//clang/include/clang/AST:Attrs",
     "//clang/include/clang/AST:AttrVisitor",
+    "//clang/include/clang/AST:Attrs",
     "//clang/include/clang/AST:CommentCommandList",
     "//clang/include/clang/AST:CommentNodes",
     "//clang/include/clang/AST:StmtNodes",
