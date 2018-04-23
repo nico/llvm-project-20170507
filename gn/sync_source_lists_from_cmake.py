@@ -15,7 +15,7 @@ def main():
             ['git', 'ls-files', '*BUILD.gn']).splitlines()
 
     # Matches e.g. |   "foo.cpp",|.
-    gn_cpp_re = re.compile(r'^\s*"([^"]+.cpp)",$', re.MULTILINE)
+    gn_cpp_re = re.compile(r'^\s*"([^"]+\.cpp)",$', re.MULTILINE)
     # Matches e.g. |   "foo.cpp",|.
     cmake_cpp_re = re.compile(r'^\s*([A-Za-z_0-9/-]+.cpp)$', re.MULTILINE)
 
