@@ -8,7 +8,6 @@ Missing:
   lld/Common/BUILD.gn and clang/lib/Basic/BUILD.gn)
 - omit check-lld from default target (see gn help on `ninja_rules`, `execution`)
 - hook up check-llvm, check-clang
-- lib/Headers for clang
 - monorepro "projects to build" selection mechanism
 - actual compiler flags (dead code stripping etc)
 - optimized tablegen in debug builds (having an `add_tablegen` template might
