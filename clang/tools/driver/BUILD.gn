@@ -30,6 +30,7 @@ executable("clang") {
     "//clang/lib/Driver",
     "//clang/lib/Frontend",
     "//clang/lib/FrontendTool",
+    "//clang/tools/clang-offload-bundler",
     "//llvm/lib/Analysis",
     "//llvm/lib/CodeGen",
     "//llvm/lib/IR",

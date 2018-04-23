@@ -1,0 +1,14 @@
+executable("clang-offload-bundler") {
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/Basic",
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "ClangOffloadBundler.cpp",
+  ]
+}
