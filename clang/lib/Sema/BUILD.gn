@@ -2,8 +2,11 @@ static_library("Sema") {
   output_name = "clangSema"
   configs += [ "//gn:clang_code" ]
   deps = [
+    "//clang/include/clang/Sema:AttrParsedAttrImpl",
+    "//clang/include/clang/Sema:AttrParsedAttrKinds",
     "//clang/include/clang/Sema:AttrParsedAttrList",
     "//clang/include/clang/Sema:AttrSpellingListIndex",
+    "//clang/include/clang/Sema:AttrTemplateInstantiate",
     "//clang/lib/AST",
     "//clang/lib/Analysis",
     "//clang/lib/Basic",

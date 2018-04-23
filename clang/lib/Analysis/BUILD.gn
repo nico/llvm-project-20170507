@@ -2,6 +2,7 @@ static_library("Analysis") {
   output_name = "clangAnalysis"
   configs += [ "//gn:clang_code" ]
   deps = [
+    "//clang/include/clang/AST:StmtDataCollectors",
     "//clang/lib/AST",
     "//clang/lib/Basic",
     "//clang/lib/Lex",
