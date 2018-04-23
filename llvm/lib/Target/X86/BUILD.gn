@@ -12,18 +12,8 @@ group("X86") {
   ]
 }
 
-tablegen("X86GenRegisterInfo") {
-  args = [ "-gen-register-info" ]
-  td_file = "X86.td"
-}
-
-tablegen("X86GenDisassemblerTables") {
-  args = [ "-gen-disassembler" ]
-  td_file = "X86.td"
-}
-
-tablegen("X86GenInstrInfo") {
-  args = [ "-gen-instr-info" ]
+tablegen("X86GenAsmMatcher") {
+  args = [ "-gen-asm-matcher" ]
   td_file = "X86.td"
 }
 
@@ -40,8 +30,8 @@ tablegen("X86GenAsmWriter1") {
   td_file = "X86.td"
 }
 
-tablegen("X86GenAsmMatcher") {
-  args = [ "-gen-asm-matcher" ]
+tablegen("X86GenCallingConv") {
+  args = [ "-gen-callingconv" ]
   td_file = "X86.td"
 }
 
@@ -50,18 +40,8 @@ tablegen("X86GenDAGISel") {
   td_file = "X86.td"
 }
 
-tablegen("X86GenFastISel") {
-  args = [ "-gen-fast-isel" ]
-  td_file = "X86.td"
-}
-
-tablegen("X86GenCallingConv") {
-  args = [ "-gen-callingconv" ]
-  td_file = "X86.td"
-}
-
-tablegen("X86GenSubtargetInfo") {
-  args = [ "-gen-subtarget" ]
+tablegen("X86GenDisassemblerTables") {
+  args = [ "-gen-disassembler" ]
   td_file = "X86.td"
 }
 
@@ -70,13 +50,33 @@ tablegen("X86GenEVEX2VEXTables") {
   td_file = "X86.td"
 }
 
-tablegen("X86GenRegisterBank") {
-  args = [ "-gen-register-bank" ]
+tablegen("X86GenFastISel") {
+  args = [ "-gen-fast-isel" ]
   td_file = "X86.td"
 }
 
 tablegen("X86GenGlobalISel") {
   args = [ "-gen-global-isel" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenInstrInfo") {
+  args = [ "-gen-instr-info" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenRegisterBank") {
+  args = [ "-gen-register-bank" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenRegisterInfo") {
+  args = [ "-gen-register-info" ]
+  td_file = "X86.td"
+}
+
+tablegen("X86GenSubtargetInfo") {
+  args = [ "-gen-subtarget" ]
   td_file = "X86.td"
 }
 
