@@ -1,0 +1,9 @@
+executable("llvm-cxxfilt") {
+  deps = [
+    "//llvm/lib/Demangle",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "llvm-cxxfilt.cpp",
+  ]
+}
