@@ -1,7 +1,5 @@
-executable("verify-uselistorder") {
+executable("llvm-modextract") {
   deps = [
-    "//llvm/include/llvm/IR:tablegen",
-    "//llvm/lib/AsmParser",
     "//llvm/lib/Bitcode/Reader",
     "//llvm/lib/Bitcode/Writer",
     "//llvm/lib/IR",
@@ -9,6 +7,6 @@ executable("verify-uselistorder") {
     "//llvm/lib/Support",
   ]
   sources = [
-    "verify-uselistorder.cpp",
+    "llvm-modextract.cpp",
   ]
 }

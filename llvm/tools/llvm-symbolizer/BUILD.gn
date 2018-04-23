@@ -1,0 +1,13 @@
+executable("llvm-symbolizer") {
+  deps = [
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/DebugInfo/PDB",
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/Demangle",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "llvm-symbolizer.cpp",
+  ]
+}
