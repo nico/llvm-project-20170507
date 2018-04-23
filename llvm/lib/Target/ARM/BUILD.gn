@@ -1,0 +1,150 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+group("ARM") {
+  deps = [
+    ":ARMCodeGen",
+    "AsmParser",
+    "Disassembler",
+    "InstPrinter",
+    "MCTargetDesc",
+    "TargetInfo",
+    "Utils",
+  ]
+}
+
+tablegen_calls = [
+  [
+    "ARMGenAsmMatcher",
+    [ "-gen-asm-matcher" ],
+  ],
+  [
+    "ARMGenAsmWriter",
+    [ "-gen-asm-writer" ],
+  ],
+  [
+    "ARMGenCallingConv",
+    [ "-gen-callingconv" ],
+  ],
+  [
+    "ARMGenDAGISel",
+    [ "-gen-dag-isel" ],
+  ],
+  [
+    "ARMGenDisassemblerTables",
+    [ "-gen-disassembler" ],
+  ],
+  [
+    "ARMGenFastISel",
+    [ "-gen-fast-isel" ],
+  ],
+  [
+    "ARMGenGlobalISel",
+    [ "-gen-global-isel" ],
+  ],
+  [
+    "ARMGenInstrInfo",
+    [ "-gen-instr-info" ],
+  ],
+  [
+    "ARMGenMCCodeEmitter",
+    [ "-gen-emitter" ],
+  ],
+  [
+    "ARMGenMCPseudoLowering",
+    [ "-gen-pseudo-lowering" ],
+  ],
+  [
+    "ARMGenRegisterBank",
+    [ "-gen-register-bank" ],
+  ],
+  [
+    "ARMGenRegisterInfo",
+    [ "-gen-register-info" ],
+  ],
+  [
+    "ARMGenSubtargetInfo",
+    [ "-gen-subtarget" ],
+  ],
+  [
+    "ARMGenSystemRegister",
+    [ "-gen-searchable-tables" ],
+  ],
+]
+foreach(tablegen_call, tablegen_calls) {
+  tablegen(tablegen_call[0]) {
+    args = tablegen_call[1]
+    td_file = "ARM.td"
+  }
+}
+
+config("tablegen_config") {
+  # Add include path for generated ARMGenRegisterInfo.inc etc.
+  # FIXME: Should tablegen.gni have a public_config to set this automatically?
+  include_dirs = [ "$target_gen_dir" ]
+}
+
+group("tablegen") {
+  deps = []
+  foreach(tablegen_call, tablegen_calls) {
+    deps += [ ":${tablegen_call[0]}" ]
+  }
+  public_configs = [ ":tablegen_config" ]
+}
+
+static_library("ARMCodeGen") {
+  deps = [
+    ":tablegen",
+    "InstPrinter",
+    "MCTargetDesc",
+    "TargetInfo",
+    "Utils",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/GlobalISel",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "A15SDOptimizer.cpp",
+    "ARMAsmPrinter.cpp",
+    "ARMBaseInstrInfo.cpp",
+    "ARMBaseRegisterInfo.cpp",
+    "ARMCallLowering.cpp",
+    "ARMComputeBlockSize.cpp",
+    "ARMConstantIslandPass.cpp",
+    "ARMConstantPoolValue.cpp",
+    "ARMExpandPseudoInsts.cpp",
+    "ARMFastISel.cpp",
+    "ARMFrameLowering.cpp",
+    "ARMHazardRecognizer.cpp",
+    "ARMISelDAGToDAG.cpp",
+    "ARMISelLowering.cpp",
+    "ARMInstrInfo.cpp",
+    "ARMInstructionSelector.cpp",
+    "ARMLegalizerInfo.cpp",
+    "ARMLoadStoreOptimizer.cpp",
+    "ARMMCInstLower.cpp",
+    "ARMMachineFunctionInfo.cpp",
+    "ARMMacroFusion.cpp",
+    "ARMOptimizeBarriersPass.cpp",
+    "ARMRegisterBankInfo.cpp",
+    "ARMRegisterInfo.cpp",
+    "ARMSelectionDAGInfo.cpp",
+    "ARMSubtarget.cpp",
+    "ARMTargetMachine.cpp",
+    "ARMTargetObjectFile.cpp",
+    "ARMTargetTransformInfo.cpp",
+    "MLxExpansionPass.cpp",
+    "Thumb1FrameLowering.cpp",
+    "Thumb1InstrInfo.cpp",
+    "Thumb2ITBlockPass.cpp",
+    "Thumb2InstrInfo.cpp",
+    "Thumb2SizeReduction.cpp",
+    "ThumbRegisterInfo.cpp",
+  ]
+}

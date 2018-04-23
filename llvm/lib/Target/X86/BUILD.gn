@@ -13,19 +13,61 @@ group("X86") {
 }
 
 tablegen_calls = [
-  ["X86GenAsmMatcher", ["-gen-asm-matcher"]],
-  ["X86GenAsmWriter", ["-gen-asm-writer"]],
-  ["X86GenAsmWriter1", ["-gen-asm-writer", "-asmwriternum=1"]],
-  ["X86GenCallingConv", ["-gen-callingconv"]],
-  ["X86GenDAGISel", ["-gen-dag-isel"]],
-  ["X86GenDisassemblerTables", [ "-gen-disassembler" ]],
-  ["X86GenEVEX2VEXTables", [ "-gen-x86-EVEX2VEX-tables" ]],
-  ["X86GenFastISel", [ "-gen-fast-isel" ]],
-  ["X86GenGlobalISel", [ "-gen-global-isel" ]],
-  ["X86GenInstrInfo", [ "-gen-instr-info" ]],
-  ["X86GenRegisterBank", [ "-gen-register-bank" ]],
-  ["X86GenRegisterInfo", [ "-gen-register-info" ]],
-  ["X86GenSubtargetInfo", [ "-gen-subtarget" ]],
+  [
+    "X86GenAsmMatcher",
+    [ "-gen-asm-matcher" ],
+  ],
+  [
+    "X86GenAsmWriter",
+    [ "-gen-asm-writer" ],
+  ],
+  [
+    "X86GenAsmWriter1",
+    [
+      "-gen-asm-writer",
+      "-asmwriternum=1",
+    ],
+  ],
+  [
+    "X86GenCallingConv",
+    [ "-gen-callingconv" ],
+  ],
+  [
+    "X86GenDAGISel",
+    [ "-gen-dag-isel" ],
+  ],
+  [
+    "X86GenDisassemblerTables",
+    [ "-gen-disassembler" ],
+  ],
+  [
+    "X86GenEVEX2VEXTables",
+    [ "-gen-x86-EVEX2VEX-tables" ],
+  ],
+  [
+    "X86GenFastISel",
+    [ "-gen-fast-isel" ],
+  ],
+  [
+    "X86GenGlobalISel",
+    [ "-gen-global-isel" ],
+  ],
+  [
+    "X86GenInstrInfo",
+    [ "-gen-instr-info" ],
+  ],
+  [
+    "X86GenRegisterBank",
+    [ "-gen-register-bank" ],
+  ],
+  [
+    "X86GenRegisterInfo",
+    [ "-gen-register-info" ],
+  ],
+  [
+    "X86GenSubtargetInfo",
+    [ "-gen-subtarget" ],
+  ],
 ]
 foreach(tablegen_call, tablegen_calls) {
   tablegen(tablegen_call[0]) {
