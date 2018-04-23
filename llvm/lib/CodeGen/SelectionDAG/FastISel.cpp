@@ -113,6 +113,13 @@ using namespace llvm;
 
 #define DEBUG_TYPE "isel"
 
+// FIXME: Remove this when compile time issues are addressed. Do this by only
+// numbering instructions between local value map flush points instead of the
+// entire BB.
+static cl::opt<bool> SinkLocalValues("fast-isel-sink-local-values",
+                                     cl::init(false), cl::Hidden,
+                                     cl::desc("Sink local values in FastISel"));
+
 STATISTIC(NumFastIselSuccessIndependent, "Number of insts selected by "
                                          "target-independent selector");
 STATISTIC(NumFastIselSuccessTarget, "Number of insts selected by "
@@ -180,7 +187,7 @@ void FastISel::flushLocalValueMap() {
   // Try to sink local values down to their first use so that we can give them a
   // better debug location. This has the side effect of shrinking local value
   // live ranges, which helps out fast regalloc.
-  if (LastLocalValue != EmitStartPt) {
+  if (SinkLocalValues && LastLocalValue != EmitStartPt) {
     // Sink local value materialization instructions between EmitStartPt and
     // LastLocalValue. Visit them bottom-up, starting from LastLocalValue, to
     // avoid inserting into the range that we're iterating over.
@@ -1032,6 +1039,26 @@ bool FastISel::selectXRayCustomEvent(const CallInst *I) {
   return true;
 }
 
+bool FastISel::selectXRayTypedEvent(const CallInst *I) {
+  const auto &Triple = TM.getTargetTriple();
+  if (Triple.getArch() != Triple::x86_64 || !Triple.isOSLinux())
+    return true; // don't do anything to this instruction.
+  SmallVector<MachineOperand, 8> Ops;
+  Ops.push_back(MachineOperand::CreateReg(getRegForValue(I->getArgOperand(0)),
+                                          /*IsDef=*/false));
+  Ops.push_back(MachineOperand::CreateReg(getRegForValue(I->getArgOperand(1)),
+                                          /*IsDef=*/false));
+  Ops.push_back(MachineOperand::CreateReg(getRegForValue(I->getArgOperand(2)),
+                                          /*IsDef=*/false));
+  MachineInstrBuilder MIB =
+      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc,
+              TII.get(TargetOpcode::PATCHABLE_TYPED_EVENT_CALL));
+  for (auto &MO : Ops)
+    MIB.add(MO);
+
+  // Insert the Patchable Typed Event Call instruction, that gets lowered properly.
+  return true;
+}
 
 /// Returns an AttributeList representing the attributes applied to the return
 /// value of the given call.
@@ -1426,6 +1453,8 @@ bool FastISel::selectIntrinsicCall(const IntrinsicInst *II) {
 
   case Intrinsic::xray_customevent:
     return selectXRayCustomEvent(II);
+  case Intrinsic::xray_typedevent:
+    return selectXRayTypedEvent(II);
   }
 
   return fastLowerIntrinsicCall(II);

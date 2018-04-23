@@ -4670,10 +4670,10 @@ define i64 @test_movd_64(<2 x i64> %a0, i64 %a1, i64 *%a2) {
 ; ATOM:       # %bb.0:
 ; ATOM-NEXT:    movq {{.*#+}} xmm1 = mem[0],zero sched: [1:1.00]
 ; ATOM-NEXT:    movq %rdi, %xmm2 # sched: [1:1.00]
-; ATOM-NEXT:    paddq %xmm0, %xmm2 # sched: [2:1.00]
 ; ATOM-NEXT:    paddq %xmm0, %xmm1 # sched: [2:1.00]
-; ATOM-NEXT:    movq %xmm2, (%rsi) # sched: [1:1.00]
+; ATOM-NEXT:    paddq %xmm0, %xmm2 # sched: [2:1.00]
 ; ATOM-NEXT:    movq %xmm1, %rax # sched: [3:3.00]
+; ATOM-NEXT:    movq %xmm2, (%rsi) # sched: [1:1.00]
 ; ATOM-NEXT:    retq # sched: [79:39.50]
 ;
 ; SLM-LABEL: test_movd_64:
@@ -7122,6 +7122,7 @@ define <16 x i8> @test_paddsb(<16 x i8> %a0, <16 x i8> %a1, <16 x i8> *%a2) {
 }
 declare <16 x i8> @llvm.x86.sse2.padds.b(<16 x i8>, <16 x i8>) nounwind readnone
 
+
 define <8 x i16> @test_paddsw(<8 x i16> %a0, <8 x i16> %a1, <8 x i16> *%a2) {
 ; GENERIC-LABEL: test_paddsw:
 ; GENERIC:       # %bb.0:
@@ -7228,12 +7229,25 @@ define <8 x i16> @test_paddsw(<8 x i16> %a0, <8 x i16> %a1, <8 x i16> *%a2) {
 ; ZNVER1-NEXT:    vpaddsw %xmm1, %xmm0, %xmm0 # sched: [1:0.25]
 ; ZNVER1-NEXT:    vpaddsw (%rdi), %xmm0, %xmm0 # sched: [8:0.50]
 ; ZNVER1-NEXT:    retq # sched: [1:0.50]
-  %1 = call <8 x i16> @llvm.x86.sse2.padds.w(<8 x i16> %a0, <8 x i16> %a1)
-  %2 = load <8 x i16>, <8 x i16> *%a2, align 16
-  %3 = call <8 x i16> @llvm.x86.sse2.padds.w(<8 x i16> %1, <8 x i16> %2)
-  ret <8 x i16> %3
+  %1 = sext <8 x i16> %a0 to <8 x i32>
+  %2 = sext <8 x i16> %a1 to <8 x i32>
+  %3 = add nsw <8 x i32> %1, %2
+  %4 = icmp slt <8 x i32> %3, <i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767>
+  %5 = select <8 x i1> %4, <8 x i32> %3, <8 x i32> <i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767>
+  %6 = icmp sgt <8 x i32> %5, <i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768>
+  %7 = select <8 x i1> %6, <8 x i32> %5, <8 x i32> <i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768>
+  %8 = trunc <8 x i32> %7 to <8 x i16>
+  %9 = load <8 x i16>, <8 x i16> *%a2, align 16
+  %10 = sext <8 x i16> %8 to <8 x i32>
+  %11 = sext <8 x i16> %9 to <8 x i32>
+  %12 = add nsw <8 x i32> %10, %11
+  %13 = icmp slt <8 x i32> %12, <i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767>
+  %14 = select <8 x i1> %13, <8 x i32> %12, <8 x i32> <i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767>
+  %15 = icmp sgt <8 x i32> %14, <i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768>
+  %16 = select <8 x i1> %15, <8 x i32> %14, <8 x i32> <i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768>
+  %17 = trunc <8 x i32> %16 to <8 x i16>
+  ret <8 x i16> %17
 }
-declare <8 x i16> @llvm.x86.sse2.padds.w(<8 x i16>, <8 x i16>) nounwind readnone
 
 define <16 x i8> @test_paddusb(<16 x i8> %a0, <16 x i8> %a1, <16 x i8> *%a2) {
 ; GENERIC-LABEL: test_paddusb:
@@ -7341,12 +7355,21 @@ define <16 x i8> @test_paddusb(<16 x i8> %a0, <16 x i8> %a1, <16 x i8> *%a2) {
 ; ZNVER1-NEXT:    vpaddusb %xmm1, %xmm0, %xmm0 # sched: [1:0.25]
 ; ZNVER1-NEXT:    vpaddusb (%rdi), %xmm0, %xmm0 # sched: [8:0.50]
 ; ZNVER1-NEXT:    retq # sched: [1:0.50]
-  %1 = call <16 x i8> @llvm.x86.sse2.paddus.b(<16 x i8> %a0, <16 x i8> %a1)
-  %2 = load <16 x i8>, <16 x i8> *%a2, align 16
-  %3 = call <16 x i8> @llvm.x86.sse2.paddus.b(<16 x i8> %1, <16 x i8> %2)
-  ret <16 x i8> %3
+  %1 = zext <16 x i8> %a0 to <16 x i16>
+  %2 = zext <16 x i8> %a1 to <16 x i16>
+  %3 = add nsw <16 x i16> %1, %2
+  %4 = icmp ult <16 x i16> %3, <i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255>
+  %5 = select <16 x i1> %4, <16 x i16> %3, <16 x i16> <i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255>
+  %6 = trunc <16 x i16> %5 to <16 x i8>
+  %7 = load <16 x i8>, <16 x i8> *%a2, align 16
+  %8 = zext <16 x i8> %6 to <16 x i16>
+  %9 = zext <16 x i8> %7 to <16 x i16>
+  %10 = add nsw <16 x i16> %8, %9
+  %11 = icmp ult <16 x i16> %10, <i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255>
+  %12 = select <16 x i1> %11, <16 x i16> %10, <16 x i16> <i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255, i16 255>
+  %13 = trunc <16 x i16> %12 to <16 x i8>
+  ret <16 x i8> %13
 }
-declare <16 x i8> @llvm.x86.sse2.paddus.b(<16 x i8>, <16 x i8>) nounwind readnone
 
 define <8 x i16> @test_paddusw(<8 x i16> %a0, <8 x i16> %a1, <8 x i16> *%a2) {
 ; GENERIC-LABEL: test_paddusw:
@@ -7454,12 +7477,21 @@ define <8 x i16> @test_paddusw(<8 x i16> %a0, <8 x i16> %a1, <8 x i16> *%a2) {
 ; ZNVER1-NEXT:    vpaddusw %xmm1, %xmm0, %xmm0 # sched: [1:0.25]
 ; ZNVER1-NEXT:    vpaddusw (%rdi), %xmm0, %xmm0 # sched: [8:0.50]
 ; ZNVER1-NEXT:    retq # sched: [1:0.50]
-  %1 = call <8 x i16> @llvm.x86.sse2.paddus.w(<8 x i16> %a0, <8 x i16> %a1)
-  %2 = load <8 x i16>, <8 x i16> *%a2, align 16
-  %3 = call <8 x i16> @llvm.x86.sse2.paddus.w(<8 x i16> %1, <8 x i16> %2)
-  ret <8 x i16> %3
+  %1 = zext <8 x i16> %a0 to <8 x i32>
+  %2 = zext <8 x i16> %a1 to <8 x i32>
+  %3 = add nsw <8 x i32> %1, %2
+  %4 = icmp ult <8 x i32> %3, <i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535>
+  %5 = select <8 x i1> %4, <8 x i32> %3, <8 x i32> <i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535>
+  %6 = trunc <8 x i32> %5 to <8 x i16>
+  %7 = load <8 x i16>, <8 x i16> *%a2, align 16
+  %8 = zext <8 x i16> %6 to <8 x i32>
+  %9 = zext <8 x i16> %7 to <8 x i32>
+  %10 = add nsw <8 x i32> %8, %9
+  %11 = icmp ult <8 x i32> %10, <i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535>
+  %12 = select <8 x i1> %11, <8 x i32> %10, <8 x i32> <i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535, i32 65535>
+  %13 = trunc <8 x i32> %12 to <8 x i16>
+  ret <8 x i16> %13
 }
-declare <8 x i16> @llvm.x86.sse2.paddus.w(<8 x i16>, <8 x i16>) nounwind readnone
 
 define <8 x i16> @test_paddw(<8 x i16> %a0, <8 x i16> %a1, <8 x i16> *%a2) {
 ; GENERIC-LABEL: test_paddw:
@@ -8970,13 +9002,13 @@ define i16 @test_pextrw(<8 x i16> %a0) {
 ;
 ; BTVER2-SSE-LABEL: test_pextrw:
 ; BTVER2-SSE:       # %bb.0:
-; BTVER2-SSE-NEXT:    pextrw $6, %xmm0, %eax # sched: [1:0.50]
+; BTVER2-SSE-NEXT:    pextrw $6, %xmm0, %eax # sched: [3:1.00]
 ; BTVER2-SSE-NEXT:    # kill: def $ax killed $ax killed $eax
 ; BTVER2-SSE-NEXT:    retq # sched: [4:1.00]
 ;
 ; BTVER2-LABEL: test_pextrw:
 ; BTVER2:       # %bb.0:
-; BTVER2-NEXT:    vpextrw $6, %xmm0, %eax # sched: [1:0.50]
+; BTVER2-NEXT:    vpextrw $6, %xmm0, %eax # sched: [3:1.00]
 ; BTVER2-NEXT:    # kill: def $ax killed $ax killed $eax
 ; BTVER2-NEXT:    retq # sched: [4:1.00]
 ;
@@ -10332,18 +10364,14 @@ define <2 x i64> @test_psadbw(<16 x i8> %a0, <16 x i8> %a1, <16 x i8> *%a2) {
 ;
 ; ATOM-LABEL: test_psadbw:
 ; ATOM:       # %bb.0:
-; ATOM-NEXT:    psadbw %xmm1, %xmm0 # sched: [1:0.50]
-; ATOM-NEXT:    psadbw (%rdi), %xmm0 # sched: [1:1.00]
-; ATOM-NEXT:    nop # sched: [1:0.50]
-; ATOM-NEXT:    nop # sched: [1:0.50]
-; ATOM-NEXT:    nop # sched: [1:0.50]
-; ATOM-NEXT:    nop # sched: [1:0.50]
+; ATOM-NEXT:    psadbw %xmm1, %xmm0 # sched: [5:5.00]
+; ATOM-NEXT:    psadbw (%rdi), %xmm0 # sched: [5:5.00]
 ; ATOM-NEXT:    retq # sched: [79:39.50]
 ;
 ; SLM-LABEL: test_psadbw:
 ; SLM:       # %bb.0:
-; SLM-NEXT:    psadbw %xmm1, %xmm0 # sched: [1:0.50]
-; SLM-NEXT:    psadbw (%rdi), %xmm0 # sched: [4:1.00]
+; SLM-NEXT:    psadbw %xmm1, %xmm0 # sched: [4:1.00]
+; SLM-NEXT:    psadbw (%rdi), %xmm0 # sched: [7:1.00]
 ; SLM-NEXT:    retq # sched: [4:1.00]
 ;
 ; SANDY-SSE-LABEL: test_psadbw:
@@ -10408,26 +10436,26 @@ define <2 x i64> @test_psadbw(<16 x i8> %a0, <16 x i8> %a1, <16 x i8> *%a2) {
 ;
 ; BTVER2-SSE-LABEL: test_psadbw:
 ; BTVER2-SSE:       # %bb.0:
-; BTVER2-SSE-NEXT:    psadbw %xmm1, %xmm0 # sched: [1:0.50]
-; BTVER2-SSE-NEXT:    psadbw (%rdi), %xmm0 # sched: [6:1.00]
+; BTVER2-SSE-NEXT:    psadbw %xmm1, %xmm0 # sched: [2:0.50]
+; BTVER2-SSE-NEXT:    psadbw (%rdi), %xmm0 # sched: [7:1.00]
 ; BTVER2-SSE-NEXT:    retq # sched: [4:1.00]
 ;
 ; BTVER2-LABEL: test_psadbw:
 ; BTVER2:       # %bb.0:
-; BTVER2-NEXT:    vpsadbw %xmm1, %xmm0, %xmm0 # sched: [1:0.50]
-; BTVER2-NEXT:    vpsadbw (%rdi), %xmm0, %xmm0 # sched: [6:1.00]
+; BTVER2-NEXT:    vpsadbw %xmm1, %xmm0, %xmm0 # sched: [2:0.50]
+; BTVER2-NEXT:    vpsadbw (%rdi), %xmm0, %xmm0 # sched: [7:1.00]
 ; BTVER2-NEXT:    retq # sched: [4:1.00]
 ;
 ; ZNVER1-SSE-LABEL: test_psadbw:
 ; ZNVER1-SSE:       # %bb.0:
-; ZNVER1-SSE-NEXT:    psadbw %xmm1, %xmm0 # sched: [1:0.25]
-; ZNVER1-SSE-NEXT:    psadbw (%rdi), %xmm0 # sched: [8:0.50]
+; ZNVER1-SSE-NEXT:    psadbw %xmm1, %xmm0 # sched: [3:1.00]
+; ZNVER1-SSE-NEXT:    psadbw (%rdi), %xmm0 # sched: [10:1.00]
 ; ZNVER1-SSE-NEXT:    retq # sched: [1:0.50]
 ;
 ; ZNVER1-LABEL: test_psadbw:
 ; ZNVER1:       # %bb.0:
-; ZNVER1-NEXT:    vpsadbw %xmm1, %xmm0, %xmm0 # sched: [1:0.25]
-; ZNVER1-NEXT:    vpsadbw (%rdi), %xmm0, %xmm0 # sched: [8:0.50]
+; ZNVER1-NEXT:    vpsadbw %xmm1, %xmm0, %xmm0 # sched: [3:1.00]
+; ZNVER1-NEXT:    vpsadbw (%rdi), %xmm0, %xmm0 # sched: [10:1.00]
 ; ZNVER1-NEXT:    retq # sched: [1:0.50]
   %1 = call <2 x i64> @llvm.x86.sse2.psad.bw(<16 x i8> %a0, <16 x i8> %a1)
   %2 = bitcast <2 x i64> %1 to <16 x i8>
@@ -10447,10 +10475,11 @@ define <4 x i32> @test_pshufd(<4 x i32> %a0, <4 x i32> *%a1) {
 ;
 ; ATOM-LABEL: test_pshufd:
 ; ATOM:       # %bb.0:
-; ATOM-NEXT:    pshufd {{.*#+}} xmm1 = mem[3,2,1,0] sched: [1:1.00]
-; ATOM-NEXT:    pshufd {{.*#+}} xmm0 = xmm0[1,0,3,2] sched: [1:1.00]
-; ATOM-NEXT:    paddd %xmm0, %xmm1 # sched: [1:0.50]
-; ATOM-NEXT:    movdqa %xmm1, %xmm0 # sched: [1:0.50]
+; ATOM-NEXT:    pshufd {{.*#+}} xmm1 = xmm0[1,0,3,2] sched: [1:1.00]
+; ATOM-NEXT:    pshufd {{.*#+}} xmm0 = mem[3,2,1,0] sched: [1:1.00]
+; ATOM-NEXT:    paddd %xmm1, %xmm0 # sched: [1:0.50]
+; ATOM-NEXT:    nop # sched: [1:0.50]
+; ATOM-NEXT:    nop # sched: [1:0.50]
 ; ATOM-NEXT:    retq # sched: [79:39.50]
 ;
 ; SLM-LABEL: test_pshufd:
@@ -10575,10 +10604,11 @@ define <8 x i16> @test_pshufhw(<8 x i16> %a0, <8 x i16> *%a1) {
 ;
 ; ATOM-LABEL: test_pshufhw:
 ; ATOM:       # %bb.0:
-; ATOM-NEXT:    pshufhw {{.*#+}} xmm1 = mem[0,1,2,3,7,6,5,4] sched: [1:1.00]
-; ATOM-NEXT:    pshufhw {{.*#+}} xmm0 = xmm0[0,1,2,3,5,4,7,6] sched: [1:1.00]
-; ATOM-NEXT:    paddw %xmm0, %xmm1 # sched: [1:0.50]
-; ATOM-NEXT:    movdqa %xmm1, %xmm0 # sched: [1:0.50]
+; ATOM-NEXT:    pshufhw {{.*#+}} xmm1 = xmm0[0,1,2,3,5,4,7,6] sched: [1:1.00]
+; ATOM-NEXT:    pshufhw {{.*#+}} xmm0 = mem[0,1,2,3,7,6,5,4] sched: [1:1.00]
+; ATOM-NEXT:    paddw %xmm1, %xmm0 # sched: [1:0.50]
+; ATOM-NEXT:    nop # sched: [1:0.50]
+; ATOM-NEXT:    nop # sched: [1:0.50]
 ; ATOM-NEXT:    retq # sched: [79:39.50]
 ;
 ; SLM-LABEL: test_pshufhw:
@@ -10703,10 +10733,11 @@ define <8 x i16> @test_pshuflw(<8 x i16> %a0, <8 x i16> *%a1) {
 ;
 ; ATOM-LABEL: test_pshuflw:
 ; ATOM:       # %bb.0:
-; ATOM-NEXT:    pshuflw {{.*#+}} xmm1 = mem[3,2,1,0,4,5,6,7] sched: [1:1.00]
-; ATOM-NEXT:    pshuflw {{.*#+}} xmm0 = xmm0[1,0,3,2,4,5,6,7] sched: [1:1.00]
-; ATOM-NEXT:    paddw %xmm0, %xmm1 # sched: [1:0.50]
-; ATOM-NEXT:    movdqa %xmm1, %xmm0 # sched: [1:0.50]
+; ATOM-NEXT:    pshuflw {{.*#+}} xmm1 = xmm0[1,0,3,2,4,5,6,7] sched: [1:1.00]
+; ATOM-NEXT:    pshuflw {{.*#+}} xmm0 = mem[3,2,1,0,4,5,6,7] sched: [1:1.00]
+; ATOM-NEXT:    paddw %xmm1, %xmm0 # sched: [1:0.50]
+; ATOM-NEXT:    nop # sched: [1:0.50]
+; ATOM-NEXT:    nop # sched: [1:0.50]
 ; ATOM-NEXT:    retq # sched: [79:39.50]
 ;
 ; SLM-LABEL: test_pshuflw:
@@ -12586,12 +12617,25 @@ define <8 x i16> @test_psubsw(<8 x i16> %a0, <8 x i16> %a1, <8 x i16> *%a2) {
 ; ZNVER1-NEXT:    vpsubsw %xmm1, %xmm0, %xmm0 # sched: [1:0.25]
 ; ZNVER1-NEXT:    vpsubsw (%rdi), %xmm0, %xmm0 # sched: [8:0.50]
 ; ZNVER1-NEXT:    retq # sched: [1:0.50]
-  %1 = call <8 x i16> @llvm.x86.sse2.psubs.w(<8 x i16> %a0, <8 x i16> %a1)
-  %2 = load <8 x i16>, <8 x i16> *%a2, align 16
-  %3 = call <8 x i16> @llvm.x86.sse2.psubs.w(<8 x i16> %1, <8 x i16> %2)
-  ret <8 x i16> %3
+  %1 = sext <8 x i16> %a0 to <8 x i32>
+  %2 = sext <8 x i16> %a1 to <8 x i32>
+  %3 = sub nsw <8 x i32> %1, %2
+  %4 = icmp slt <8 x i32> %3, <i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767>
+  %5 = select <8 x i1> %4, <8 x i32> %3, <8 x i32> <i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767>
+  %6 = icmp sgt <8 x i32> %5, <i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768>
+  %7 = select <8 x i1> %6, <8 x i32> %5, <8 x i32> <i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768>
+  %8 = trunc <8 x i32> %7 to <8 x i16>
+  %9 = load <8 x i16>, <8 x i16> *%a2, align 16
+  %10 = sext <8 x i16> %8 to <8 x i32>
+  %11 = sext <8 x i16> %9 to <8 x i32>
+  %12 = sub nsw <8 x i32> %10, %11
+  %13 = icmp slt <8 x i32> %12, <i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767>
+  %14 = select <8 x i1> %13, <8 x i32> %12, <8 x i32> <i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767, i32 32767>
+  %15 = icmp sgt <8 x i32> %14, <i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768>
+  %16 = select <8 x i1> %15, <8 x i32> %14, <8 x i32> <i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768, i32 -32768>
+  %17 = trunc <8 x i32> %16 to <8 x i16>
+  ret <8 x i16> %17
 }
-declare <8 x i16> @llvm.x86.sse2.psubs.w(<8 x i16>, <8 x i16>) nounwind readnone
 
 define <16 x i8> @test_psubusb(<16 x i8> %a0, <16 x i8> %a1, <16 x i8> *%a2) {
 ; GENERIC-LABEL: test_psubusb:
@@ -12699,12 +12743,15 @@ define <16 x i8> @test_psubusb(<16 x i8> %a0, <16 x i8> %a1, <16 x i8> *%a2) {
 ; ZNVER1-NEXT:    vpsubusb %xmm1, %xmm0, %xmm0 # sched: [1:0.25]
 ; ZNVER1-NEXT:    vpsubusb (%rdi), %xmm0, %xmm0 # sched: [8:0.50]
 ; ZNVER1-NEXT:    retq # sched: [1:0.50]
-  %1 = call <16 x i8> @llvm.x86.sse2.psubus.b(<16 x i8> %a0, <16 x i8> %a1)
-  %2 = load <16 x i8>, <16 x i8> *%a2, align 16
-  %3 = call <16 x i8> @llvm.x86.sse2.psubus.b(<16 x i8> %1, <16 x i8> %2)
-  ret <16 x i8> %3
+  %1 = icmp ugt <16 x i8> %a0, %a1
+  %2 = select <16 x i1> %1, <16 x i8> %a0, <16 x i8> %a1
+  %3 = sub <16 x i8> %2, %a1
+  %4 = load <16 x i8>, <16 x i8> *%a2, align 16
+  %5 = icmp ugt <16 x i8> %3, %4
+  %6 = select <16 x i1> %5, <16 x i8> %3, <16 x i8> %4
+  %7 = sub <16 x i8> %6, %4
+  ret <16 x i8> %7
 }
-declare <16 x i8> @llvm.x86.sse2.psubus.b(<16 x i8>, <16 x i8>) nounwind readnone
 
 define <8 x i16> @test_psubusw(<8 x i16> %a0, <8 x i16> %a1, <8 x i16> *%a2) {
 ; GENERIC-LABEL: test_psubusw:
@@ -12812,12 +12859,15 @@ define <8 x i16> @test_psubusw(<8 x i16> %a0, <8 x i16> %a1, <8 x i16> *%a2) {
 ; ZNVER1-NEXT:    vpsubusw %xmm1, %xmm0, %xmm0 # sched: [1:0.25]
 ; ZNVER1-NEXT:    vpsubusw (%rdi), %xmm0, %xmm0 # sched: [8:0.50]
 ; ZNVER1-NEXT:    retq # sched: [1:0.50]
-  %1 = call <8 x i16> @llvm.x86.sse2.psubus.w(<8 x i16> %a0, <8 x i16> %a1)
-  %2 = load <8 x i16>, <8 x i16> *%a2, align 16
-  %3 = call <8 x i16> @llvm.x86.sse2.psubus.w(<8 x i16> %1, <8 x i16> %2)
-  ret <8 x i16> %3
+  %1 = icmp ugt <8 x i16> %a0, %a1
+  %2 = select <8 x i1> %1, <8 x i16> %a0, <8 x i16> %a1
+  %3 = sub <8 x i16> %2, %a1
+  %4 = load <8 x i16>, <8 x i16> *%a2, align 16
+  %5 = icmp ugt <8 x i16> %3, %4
+  %6 = select <8 x i1> %5, <8 x i16> %3, <8 x i16> %4
+  %7 = sub <8 x i16> %6, %4
+  ret <8 x i16> %7
 }
-declare <8 x i16> @llvm.x86.sse2.psubus.w(<8 x i16>, <8 x i16>) nounwind readnone
 
 define <8 x i16> @test_psubw(<8 x i16> %a0, <8 x i16> %a1, <8 x i16> *%a2) {
 ; GENERIC-LABEL: test_psubw:

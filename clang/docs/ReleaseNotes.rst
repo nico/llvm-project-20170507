@@ -59,6 +59,12 @@ Improvements to Clang's diagnostics
   ``-Wno-c++98-compat-extra-semi``, so if you want that diagnostic, you need
   to explicitly re-enable it (e.g. by appending ``-Wextra-semi``).
 
+- ``-Wself-assign`` and ``-Wself-assign-field`` were extended to diagnose
+  self-assignment operations using overloaded operators (i.e. classes).
+  If you are doing such an assignment intentionally, e.g. in a unit test for
+  a data structure, the warning can be suppressed by adding ``*&`` to the
+  right-hand side or casting it to the appropriate reference type.
+
 Non-comprehensive list of changes in this release
 -------------------------------------------------
 
@@ -156,6 +162,18 @@ OpenMP Support in Clang
 ----------------------------------
 
 - ...
+
+CUDA Support in Clang
+---------------------
+
+- Clang will now try to locate the CUDA installation next to :program:`ptxas`
+  in the `PATH` environment variable. This behavior can be turned off by passing
+  the new flag `--cuda-path-ignore-env`.
+
+- Clang now supports generating object files with relocatable device code. This
+  feature needs to be enabled with `-fcuda-rdc` and my result in performance
+  penalties compared to whole program compilation. Please note that NVIDIA's
+  :program:`nvcc` must be used for linking.
 
 Internal API Changes
 --------------------

@@ -2350,3 +2350,88 @@ loop_exit:
 ; CHECK-NEXT:    %[[LCSSA:.*]] = phi i32 [ %[[V]], %loop_begin ]
 ; CHECK-NEXT:    ret i32 %[[LCSSA]]
 }
+
+; Negative test: we do not switch when the loop contains unstructured control
+; flows as it would significantly complicate the process as novel loops might
+; be formed, etc.
+define void @test_no_unswitch_unstructured_cfg(i1* %ptr, i1 %cond) {
+; CHECK-LABEL: @test_no_unswitch_unstructured_cfg(
+entry:
+  br label %loop_begin
+
+loop_begin:
+  br i1 %cond, label %loop_left, label %loop_right
+
+loop_left:
+  %v1 = load i1, i1* %ptr
+  br i1 %v1, label %loop_right, label %loop_merge
+
+loop_right:
+  %v2 = load i1, i1* %ptr
+  br i1 %v2, label %loop_left, label %loop_merge
+
+loop_merge:
+  %v3 = load i1, i1* %ptr
+  br i1 %v3, label %loop_latch, label %loop_exit
+
+loop_latch:
+  br label %loop_begin
+
+loop_exit:
+  ret void
+}
+
+; A test reduced out of 403.gcc with interesting nested loops that trigger
+; multiple unswitches. A key component of this test is that there are multiple
+; paths to reach an inner loop after unswitching, and one of them is via the
+; predecessors of the unswitched loop header. That can allow us to find the loop
+; through multiple different paths.
+define void @test21(i1 %a, i1 %b) {
+; CHECK-LABEL: @test21(
+bb:
+  br label %bb3
+; CHECK-NOT:     br i1 %a
+;
+; CHECK:         br i1 %a, label %[[BB_SPLIT_US:.*]], label %[[BB_SPLIT:.*]]
+;
+; CHECK-NOT:     br i1 %a
+; CHECK-NOT:     br i1 %b
+;
+; CHECK:       [[BB_SPLIT]]:
+; CHECK:         br i1 %b
+;
+; CHECK-NOT:     br i1 %a
+; CHECK-NOT:     br i1 %b
+
+bb3:
+  %tmp1.0 = phi i32 [ 0, %bb ], [ %tmp1.3, %bb23 ]
+  br label %bb7
+
+bb7:
+  %tmp.0 = phi i1 [ true, %bb3 ], [ false, %bb19 ]
+  %tmp1.1 = phi i32 [ %tmp1.0, %bb3 ], [ %tmp1.2.lcssa, %bb19 ]
+  br i1 %tmp.0, label %bb11.preheader, label %bb23
+
+bb11.preheader:
+  br i1 %a, label %bb19, label %bb14.lr.ph
+
+bb14.lr.ph:
+  br label %bb14
+
+bb14:
+  %tmp2.02 = phi i32 [ 0, %bb14.lr.ph ], [ 1, %bb14 ]
+  br i1 %b, label %bb11.bb19_crit_edge, label %bb14
+
+bb11.bb19_crit_edge:
+  %split = phi i32 [ %tmp2.02, %bb14 ]
+  br label %bb19
+
+bb19:
+  %tmp1.2.lcssa = phi i32 [ %split, %bb11.bb19_crit_edge ], [ %tmp1.1, %bb11.preheader ]
+  %tmp21 = icmp eq i32 %tmp1.2.lcssa, 0
+  br i1 %tmp21, label %bb23, label %bb7
+
+bb23:
+  %tmp1.3 = phi i32 [ %tmp1.2.lcssa, %bb19 ], [ %tmp1.1, %bb7 ]
+  br label %bb3
+}

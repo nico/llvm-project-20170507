@@ -51,10 +51,8 @@
 #include "llvm/Support/Format.h"
 #include "llvm/Support/GraphWriter.h"
 #include "llvm/Support/Host.h"
-#include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
@@ -1496,6 +1494,13 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
 
       outs() << '\n' << std::get<1>(Symbols[si]) << ":\n";
 
+      // Don't print raw contents of a virtual section. A virtual section
+      // doesn't have any contents in the file.
+      if (Section.isVirtual()) {
+        outs() << "...\n";
+        continue;
+      }
+
 #ifndef NDEBUG
       raw_ostream &DebugOut = DebugFlag ? dbgs() : nulls();
 #else
@@ -2179,10 +2184,7 @@ static void DumpInput(StringRef file) {
 }
 
 int main(int argc, char **argv) {
-  // Print a stack trace if we signal out.
-  sys::PrintStackTraceOnErrorSignal(argv[0]);
-  PrettyStackTraceProgram X(argc, argv);
-  llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
+  InitLLVM X(argc, argv);
 
   // Initialize targets and assembly printers/parsers.
   llvm::InitializeAllTargetInfos();
