@@ -1,0 +1,21 @@
+executable("c-index-test") {
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/tools/libclang",
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/CodeGen",
+    "//clang/lib/Frontend",
+    "//clang/lib/Index",
+    "//clang/lib/Serialization",
+    "//gn/libs/xml",
+    "//llvm/lib/Support",
+  ]
+  if (host_os != "win") {
+    cflags_c = [ "-std=gnu89" ]
+  }
+  sources = [
+    "c-index-test.c",
+    "core_main.cpp",
+  ]
+}

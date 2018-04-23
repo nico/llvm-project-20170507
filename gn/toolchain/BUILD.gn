@@ -62,6 +62,24 @@ toolchain("cc") {
     output_prefix = "lib"
   }
 
+  tool("solink") {
+    outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
+    command = "$ld -shared {{ldflags}} -o $outfile {{libs}} {{inputs}}"
+    description = "SOLINK $outfile"
+    outputs = [
+      outfile,
+    ]
+    lib_switch = "-l"
+    output_prefix = "lib"
+    default_output_dir = "{{root_out_dir}}"
+    if (host_os == "mac") {
+      default_output_extension = ".dylib"
+    } else {
+      default_output_extension = ".so"
+    }
+  }
+
+
   tool("link") {
     outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
     if (host_os == "mac") {

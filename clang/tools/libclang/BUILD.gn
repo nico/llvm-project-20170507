@@ -1,0 +1,55 @@
+import("//clang/lib/ARCMigrate/enable.gni")
+
+shared_library("libclang") {
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Headers",
+    "//clang/lib/Index",
+    "//clang/lib/Lex",
+    "//clang/lib/Sema",
+    "//clang/lib/Tooling",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+  ]
+  if (clang_enable_arcmt) {
+    deps += [ "//clang/lib/ARCMigrate" ]
+  }
+  # FIXME: clangTidyPlugin
+  # FIXME: libclang_build_static?
+  # FIXME: libclang.exports
+  # FIXME: llvm_enable_pic
+  sources = [
+    "ARCMigrate.cpp",
+    "BuildSystem.cpp",
+    "CIndex.cpp",
+    "CIndexCXX.cpp",
+    "CIndexCodeCompletion.cpp",
+    "CIndexDiagnostic.cpp",
+    "CIndexHigh.cpp",
+    "CIndexInclusionStack.cpp",
+    "CIndexUSRs.cpp",
+    "CIndexer.cpp",
+    "CXComment.cpp",
+    "CXCursor.cpp",
+    "CXIndexDataConsumer.cpp",
+    "CXCompilationDatabase.cpp",
+    "CXLoadedDiagnostic.cpp",
+    "CXSourceLocation.cpp",
+    "CXStoredDiagnostic.cpp",
+    "CXString.cpp",
+    "CXType.cpp",
+    "Indexing.cpp",
+  ]
+  if (host_os == "mac") {
+    ldflags = [
+      "-Wl,-compatibility_version",
+      "-Wl,1",
+      "-Wl,-current_version",
+      "-Wl,9000.0.0",  # FIXME: Don't hardcode
+    ]
+  }
+}

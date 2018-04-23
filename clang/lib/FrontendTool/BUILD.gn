@@ -1,7 +1,6 @@
-declare_args() {
-  # Whether to include the arc migrate tool in the clang binary.
-  clang_enable_arcmt = true
+import("//clang/lib/ARCMigrate/enable.gni")
 
+declare_args() {
   # Whether to include the static analyzer in the clang binary.
   clang_enable_static_analyzer = true
 }

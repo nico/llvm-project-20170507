@@ -1,5 +1,6 @@
 group("all") {
   deps = [
+    "//clang/tools/c-index-test",
     "//clang/tools/clang-diff",
     "//clang/tools/clang-format",
     "//clang/tools/clang-import-test",
@@ -8,6 +9,7 @@ group("all") {
     "//clang/tools/clang-rename",
     "//clang/tools/diagtool",
     "//clang/tools/driver:clang",
+    "//clang/tools/libclang",
     "//lld/test",
     "//lld/tools/lld",
     "//llvm/tools/dsymutil",
