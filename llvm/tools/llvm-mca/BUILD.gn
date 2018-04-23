@@ -1,0 +1,36 @@
+executable("llvm-mca") {
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsAsmParsers",
+    "//llvm/lib/Target:AllTargetsAsmPrinters",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsDisassemblers",
+    "//llvm/lib/Target:AllTargetsInfos",
+  ]
+  sources = [
+    "Backend.cpp",
+    "BackendPrinter.cpp",
+    "CodeRegion.cpp",
+    "Dispatch.cpp",
+    "DispatchStatistics.cpp",
+    "HWEventListener.cpp",
+    "InstrBuilder.cpp",
+    "Instruction.cpp",
+    "InstructionInfoView.cpp",
+    "InstructionTables.cpp",
+    "LSUnit.cpp",
+    "RegisterFileStatistics.cpp",
+    "ResourcePressureView.cpp",
+    "RetireControlUnitStatistics.cpp",
+    "Scheduler.cpp",
+    "SchedulerStatistics.cpp",
+    "SummaryView.cpp",
+    "Support.cpp",
+    "TimelineView.cpp",
+    "View.cpp",
+    "llvm-mca.cpp",
+  ]
+}

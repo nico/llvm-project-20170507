@@ -1,0 +1,14 @@
+executable("verify-uselistorder") {
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRReader",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "verify-uselistorder.cpp",
+  ]
+}
