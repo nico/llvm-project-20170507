@@ -1,0 +1,157 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+group("AArch64") {
+  deps = [
+    ":AArch64CodeGen",
+    "AsmParser",
+    "Disassembler",
+    "InstPrinter",
+    "MCTargetDesc",
+    "TargetInfo",
+    "Utils",
+  ]
+}
+
+tablegen_calls = [
+  [
+    "AArch64GenAsmMatcher",
+    [ "-gen-asm-matcher" ],
+  ],
+  [
+    "AArch64GenAsmWriter",
+    [ "-gen-asm-writer" ],
+  ],
+  [
+    "AArch64GenAsmWriter1",
+    [
+      "-gen-asm-writer",
+      "-asmwriternum=1",
+    ],
+  ],
+  [
+    "AArch64GenCallingConv",
+    [ "-gen-callingconv" ],
+  ],
+  [
+    "AArch64GenDAGISel",
+    [ "-gen-dag-isel" ],
+  ],
+  [
+    "AArch64GenDisassemblerTables",
+    [ "-gen-disassembler" ],
+  ],
+  [
+    "AArch64GenFastISel",
+    [ "-gen-fast-isel" ],
+  ],
+  [
+    "AArch64GenGlobalISel",
+    [ "-gen-global-isel" ],
+  ],
+  [
+    "AArch64GenInstrInfo",
+    [ "-gen-instr-info" ],
+  ],
+  [
+    "AArch64GenMCCodeEmitter",
+    [ "-gen-emitter" ],
+  ],
+  [
+    "AArch64GenMCPseudoLowering",
+    [ "-gen-pseudo-lowering" ],
+  ],
+  [
+    "AArch64GenRegisterBank",
+    [ "-gen-register-bank" ],
+  ],
+  [
+    "AArch64GenRegisterInfo",
+    [ "-gen-register-info" ],
+  ],
+  [
+    "AArch64GenSubtargetInfo",
+    [ "-gen-subtarget" ],
+  ],
+  [
+    "AArch64GenSystemOperands",
+    [ "-gen-searchable-tables" ],
+  ],
+]
+foreach(tablegen_call, tablegen_calls) {
+  tablegen(tablegen_call[0]) {
+    args = tablegen_call[1]
+    td_file = "AArch64.td"
+  }
+}
+
+config("tablegen_config") {
+  # Add include path for generated AArch64GenRegisterInfo.inc etc.
+  # FIXME: Should tablegen.gni have a public_config to set this automatically?
+  include_dirs = [ "$target_gen_dir" ]
+}
+
+group("tablegen") {
+  deps = []
+  foreach(tablegen_call, tablegen_calls) {
+    deps += [ ":${tablegen_call[0]}" ]
+  }
+  public_configs = [ ":tablegen_config" ]
+}
+
+static_library("AArch64CodeGen") {
+  deps = [
+    ":tablegen",
+    "InstPrinter",
+    "MCTargetDesc",
+    "TargetInfo",
+    "Utils",
+    "//llvm/lib/Analysis",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/GlobalISel",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Transforms/Scalar",
+  ]
+  include_dirs = [ "." ]
+  sources = [
+    "AArch64A53Fix835769.cpp",
+    "AArch64A57FPLoadBalancing.cpp",
+    "AArch64AdvSIMDScalarPass.cpp",
+    "AArch64AsmPrinter.cpp",
+    "AArch64CallLowering.cpp",
+    "AArch64CleanupLocalDynamicTLSPass.cpp",
+    "AArch64CollectLOH.cpp",
+    "AArch64CondBrTuning.cpp",
+    "AArch64ConditionOptimizer.cpp",
+    "AArch64ConditionalCompares.cpp",
+    "AArch64DeadRegisterDefinitionsPass.cpp",
+    "AArch64ExpandPseudoInsts.cpp",
+    "AArch64FalkorHWPFFix.cpp",
+    "AArch64FastISel.cpp",
+    "AArch64FrameLowering.cpp",
+    "AArch64ISelDAGToDAG.cpp",
+    "AArch64ISelLowering.cpp",
+    "AArch64InstrInfo.cpp",
+    "AArch64InstructionSelector.cpp",
+    "AArch64LegalizerInfo.cpp",
+    "AArch64LoadStoreOptimizer.cpp",
+    "AArch64MCInstLower.cpp",
+    "AArch64MacroFusion.cpp",
+    "AArch64PBQPRegAlloc.cpp",
+    "AArch64PromoteConstant.cpp",
+    "AArch64RedundantCopyElimination.cpp",
+    "AArch64RegisterBankInfo.cpp",
+    "AArch64RegisterInfo.cpp",
+    "AArch64SIMDInstrOpt.cpp",
+    "AArch64SelectionDAGInfo.cpp",
+    "AArch64StorePairSuppress.cpp",
+    "AArch64Subtarget.cpp",
+    "AArch64TargetMachine.cpp",
+    "AArch64TargetObjectFile.cpp",
+    "AArch64TargetTransformInfo.cpp",
+  ]
+}

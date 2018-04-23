@@ -1,0 +1,14 @@
+static_library("Utils") {
+  output_name = "LLVMAArch64Utils"
+  deps = [
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/AArch64:tablegen",
+  ]
+
+  # AArch64BaseInfo.h includes a header from MCTargetDesc,
+  # see FIXME in that file :-/
+  include_dirs = [ ".." ]
+  sources = [
+    "AArch64BaseInfo.cpp",
+  ]
+}

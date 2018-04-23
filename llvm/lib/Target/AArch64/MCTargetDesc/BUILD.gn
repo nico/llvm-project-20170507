@@ -1,0 +1,28 @@
+static_library("MCTargetDesc") {
+  output_name = "LLVMAArch64Desc"
+  deps = [
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/AArch64/InstPrinter",
+    "//llvm/lib/Target/AArch64/TargetInfo",
+  ]
+  public_deps = [
+    "//llvm/lib/Target/AArch64:tablegen",
+  ]
+
+  # Hack: we need to include 'main' target directory to grab private headers
+  include_dirs = [ ".." ]
+  sources = [
+    "AArch64AsmBackend.cpp",
+    "AArch64ELFObjectWriter.cpp",
+    "AArch64ELFStreamer.cpp",
+    "AArch64MCAsmInfo.cpp",
+    "AArch64MCCodeEmitter.cpp",
+    "AArch64MCExpr.cpp",
+    "AArch64MCTargetDesc.cpp",
+    "AArch64MachObjectWriter.cpp",
+    "AArch64TargetStreamer.cpp",
+    "AArch64WinCOFFObjectWriter.cpp",
+    "AArch64WinCOFFStreamer.cpp",
+  ]
+}
