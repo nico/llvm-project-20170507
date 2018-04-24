@@ -1,4 +1,5 @@
 import("//clang/lib/ARCMigrate/enable.gni")
+import("//clang/lib/StaticAnalyzer/Frontend/enable.gni")
 
 template("write_lit_config") {
   action(target_name) {
@@ -33,7 +34,7 @@ template("write_lit_config") {
       "@CMAKE_CXX_COMPILER@=c++",  # FIXME: better
       "@ENABLE_SHARED@=0",
       "@ENABLE_BACKTRACES@=1",
-      "@HOST_ARCH@=x86_64",
+      "@HOST_ARCH@=x86_64",  # FIXME: better
       "@LLVM_BUILD_MODE@=.",
       "@LLVM_BINARY_DIR@=" +
           rebase_path(get_label_info("//llvm", "target_out_dir")),
@@ -54,7 +55,11 @@ template("write_lit_config") {
     } else {
       args += [ "@CLANG_ENABLE_ARCMT@=0" ]
     }
-    args += [ "@CLANG_ENABLE_STATIC_ANALYZER@=1" ]  # FIXME
+    if (clang_enable_static_analyzer) {
+      args += [ "@CLANG_ENABLE_STATIC_ANALYZER@=1" ]
+    } else {
+      args += [ "@CLANG_ENABLE_STATIC_ANALYZER@=0" ]
+    }
     outputs = [
       output,
     ]
@@ -129,14 +134,13 @@ action("check-clang") {
       "//clang/tools/c-arcmt-test",
     ]
   }
+  if (clang_enable_static_analyzer) {
+    deps += [
+      "//clang/tools/clang-check",
+      "//clang/tools/clang-func-mapping",
+    ]
+  }
 
-  #if (clang_enable_static_analyzer) {   # FIXME
-  deps += [
-    "//clang/tools/clang-check",
-    "//clang/tools/clang-func-mapping",
-  ]
-
-  #}
   # FIXME: clang_build_examples
   testonly = true
 

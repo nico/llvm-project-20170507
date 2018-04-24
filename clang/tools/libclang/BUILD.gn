@@ -1,4 +1,5 @@
 import("//clang/lib/ARCMigrate/enable.gni")
+import("//llvm/version.gni")
 
 shared_library("libclang") {
   configs += [ "//gn:clang_code" ]
@@ -48,7 +49,7 @@ shared_library("libclang") {
   if (host_os == "mac") {
     ldflags = [
       "-Wl,-compatibility_version,1",
-      "-Wl,-current_version,9000.0.0",  # FIXME: Don't hardcode
+      "-Wl,-current_version,$llvm_version",
       "-Wl,-install_name,@rpath/libclang.dylib",
     ]
   }

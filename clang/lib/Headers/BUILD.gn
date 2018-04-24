@@ -1,7 +1,7 @@
 import("//clang/utils/TableGen/tablegen.gni")
+import("//llvm/version.gni")
 
-# FIXME: Don't hardcode version number.
-output_dir = "$root_out_dir/lib/clang/9000.0.0/include"
+output_dir = "$root_out_dir/lib/clang/$llvm_version/include"
 
 files = [
   "adxintrin.h",

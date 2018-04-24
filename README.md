@@ -4,10 +4,9 @@ Goals:
   `gn/sync_source_lists_from_cmake.py` to keep the in sync after pulling
 
 Missing:
-- give clang and lld correct --version output (currently dummy values in
-  lld/Common/BUILD.gn and clang/lib/Basic/BUILD.gn)
-- omit check-lld from default target (see gn help on `ninja_rules`, `execution`)
-- hook up check-llvm, check-clang
+- omit check-lld, check-clang from default target
+  (see gn help on `ninja_rules`, `execution`)
+- hook up check-llvm, check-clang's unit tests
 - monorepro "projects to build" selection mechanism
 - actual compiler flags (dead code stripping etc)
 - optimized tablegen in debug builds (having an `add_tablegen` template might

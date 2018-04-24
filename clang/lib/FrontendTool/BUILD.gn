@@ -1,9 +1,5 @@
 import("//clang/lib/ARCMigrate/enable.gni")
-
-declare_args() {
-  # Whether to include the static analyzer in the clang binary.
-  clang_enable_static_analyzer = true
-}
+import("//clang/lib/StaticAnalyzer/Frontend/enable.gni")
 
 assert(clang_enable_static_analyzer || !clang_enable_arcmt,
        "Cannot disable static analyzer while enabling ARCMT")
@@ -22,12 +18,10 @@ static_library("FrontendTool") {
   ]
   defines = []
   if (clang_enable_arcmt) {
-    # FIXME: Make build header thingy so libclang can use this too.
     defines += [ "CLANG_ENABLE_ARCMT" ]
     deps += [ "//clang/lib/ARCMigrate" ]
   }
   if (clang_enable_static_analyzer) {
-    # FIXME: Make build header thingy so libclang can use this too.
     defines += [ "CLANG_ENABLE_STATIC_ANALYZER" ]
     deps += [ "//clang/lib/StaticAnalyzer/Frontend" ]
   }

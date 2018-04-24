@@ -1,3 +1,5 @@
+import("//llvm/version.gni")
+
 action("Version.inc") {
   script = "//gn/write_version_inc.py"
   input = "//lld/include/lld/Common/Version.inc.in"
@@ -12,10 +14,11 @@ action("Version.inc") {
     rebase_path(output, root_out_dir),
     "--from_to",
 
+    "@LLD_VERSION@=$llvm_version",
+    "@LLD_VERSION_MAJOR@=$llvm_version_major",
+    "@LLD_VERSION_MINOR@=$llvm_version_minor",
+
     # FIXME: Real values for this (maybe using write_vcsrevision.py?)
-    "@LLD_VERSION@=9000.0.0",
-    "@LLD_VERSION_MAJOR@=9000",
-    "@LLD_VERSION_MINOR@=0",
     "@LLD_REVISION@=12345",
     "@LLD_REPOSITORY@=repository goes here",
   ]
