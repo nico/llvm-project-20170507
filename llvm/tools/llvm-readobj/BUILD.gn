@@ -4,7 +4,7 @@ import("//gn/symlink.gni")
 
 symlink("llvm-readelf") {
   source = "llvm-readobj"
-  output = "$root_out_dir/llvm-readelf"
+  output = "$root_out_dir/bin/llvm-readelf"
 }
 
 executable("llvm-readobj") {

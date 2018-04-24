@@ -29,7 +29,7 @@ template("write_lit_config") {
       "@CLANG_BUILD_EXAMPLES@=0",
       "@CLANG_DEFAULT_CXX_STDLIB@=",
       "@CLANG_SOURCE_DIR@=" + rebase_path("//clang"),
-      "@CLANG_TOOLS_DIR@=" + rebase_path(root_out_dir),  # FIXME: bin/
+      "@CLANG_TOOLS_DIR@=" + rebase_path("$root_out_dir/bin"),
       "@CMAKE_CXX_COMPILER@=c++",  # FIXME: better
       "@ENABLE_SHARED@=0",
       "@ENABLE_BACKTRACES@=1",
@@ -43,7 +43,7 @@ template("write_lit_config") {
       "@LLVM_LIT_TOOLS_DIR@=",  # Intentionally empty, matches cmake build.
       "@LLVM_PLUGIN_EXT@=",  # FIXME
       "@LLVM_SOURCE_DIR@=" + rebase_path("//llvm"),  # FIXME: assumes monorepo
-      "@LLVM_TOOLS_DIR@=" + rebase_path(root_out_dir),  # FIXME: bin/
+      "@LLVM_TOOLS_DIR@=" + rebase_path("$root_out_dir/bin"),
       "@LLVM_USE_SANITIZER@=",
       "@PYTHON_EXECUTABLE@=$python_path",
       "@SHLIBDIR@=",  # FIXME!

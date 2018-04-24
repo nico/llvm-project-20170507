@@ -11,6 +11,11 @@ def main():
     parser.add_argument('output')
     args = parser.parse_args()
     try:
+        os.makedirs(os.path.dirname(args.output))
+    except OSError as err:
+        if err.errno != errno.EEXIST:
+            raise
+    try:
         os.symlink(args.source, args.output)
     except OSError as e:
       if e.errno == errno.EEXIST and args.force:

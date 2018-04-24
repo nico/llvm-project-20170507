@@ -18,7 +18,7 @@ symlinks = [
 foreach(target, symlinks) {
   symlink(target[0]) {
     source = "clang"
-    output = "$root_out_dir/${target[1]}"
+    output = "$root_out_dir/bin/${target[1]}"
   }
 }
 

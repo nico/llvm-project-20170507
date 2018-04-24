@@ -35,8 +35,8 @@ template("tablegen") {
 
     # FIXME: In cross builds, this should depend on the host binary.
     tblgen_target = "//clang/utils/TableGen:clang-tblgen"
-    tblgen_executable = get_label_info(tblgen_target, "root_out_dir") + "/" +
-                        get_label_info(tblgen_target, "name")
+    tblgen_executable = get_label_info(tblgen_target, "root_out_dir") +
+                        "/bin/" + get_label_info(tblgen_target, "name")
     deps = [
       tblgen_target,
     ]

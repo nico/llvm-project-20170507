@@ -8,7 +8,7 @@ symlinks = [
 foreach(target, symlinks) {
   symlink(target) {
     source = "llvm-ar"
-    output = "$root_out_dir/$target"
+    output = "$root_out_dir/bin/$target"
   }
 }
 

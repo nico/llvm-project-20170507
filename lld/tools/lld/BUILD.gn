@@ -9,7 +9,7 @@ symlinks = [
 foreach(target, symlinks) {
   symlink(target) {
     source = "lld"
-    output = "$root_out_dir/$target"
+    output = "$root_out_dir/bin/$target"
   }
 }
 

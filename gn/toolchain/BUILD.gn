@@ -94,9 +94,7 @@ toolchain("cc") {
 
     # Setting this allows targets to override the default executable output by
     # setting output_dir.
-    # FIXME: default to {{root_out_dir}}/bin? (need to change all scripts
-    # referring to build-time binaries then -- llvm-tblgen, clang-tblgen)
-    default_output_dir = "{{root_out_dir}}"
+    default_output_dir = "{{root_out_dir}}/bin"
   }
 
   tool("copy") {
