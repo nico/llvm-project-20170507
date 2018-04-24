@@ -125,6 +125,7 @@ tablegen("arm_neon") {
   td_file = "//clang/include/clang/Basic/arm_neon.td"
   output_name = "arm_neon.h"
 }
+
 # Generate arm_fp16.h
 tablegen("arm_fp16") {
   args = [ "-gen-arm-fp16" ]
@@ -134,13 +135,22 @@ tablegen("arm_fp16") {
 
 copy("arm_headers") {
   visibility = [ ":Headers" ]
-  deps = [ ":arm_neon", ":arm_fp16" ]
+  deps = [
+    ":arm_fp16",
+    ":arm_neon",
+  ]
   sources = get_target_outputs(":arm_neon") + get_target_outputs(":arm_fp16")
-  outputs = [ "$output_dir/{{source_file_part}}" ]
+  outputs = [
+    "$output_dir/{{source_file_part}}",
+  ]
 }
 
 copy("Headers") {
-  deps = [ ":arm_headers" ]
+  deps = [
+    ":arm_headers",
+  ]
   sources = files
-  outputs = [ "$output_dir/{{source_target_relative}}" ]
+  outputs = [
+    "$output_dir/{{source_target_relative}}",
+  ]
 }

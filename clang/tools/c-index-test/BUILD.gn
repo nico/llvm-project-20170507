@@ -1,13 +1,13 @@
 executable("c-index-test") {
   configs += [ "//gn:clang_code" ]
   deps = [
-    "//clang/tools/libclang",
     "//clang/lib/AST",
     "//clang/lib/Basic",
     "//clang/lib/CodeGen",
     "//clang/lib/Frontend",
     "//clang/lib/Index",
     "//clang/lib/Serialization",
+    "//clang/tools/libclang",
     "//gn/libs/xml",
     "//llvm/lib/Support",
   ]

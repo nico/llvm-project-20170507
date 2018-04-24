@@ -79,7 +79,6 @@ toolchain("cc") {
     }
   }
 
-
   tool("link") {
     outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
     if (host_os == "mac") {

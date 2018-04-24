@@ -2,6 +2,7 @@ import("//clang/lib/ARCMigrate/enable.gni")
 
 group("all") {
   deps = [
+    "//clang/test",
     "//clang/tools/c-index-test",
     "//clang/tools/clang-check",
     "//clang/tools/clang-diff",

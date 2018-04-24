@@ -18,6 +18,7 @@ shared_library("libclang") {
   if (clang_enable_arcmt) {
     deps += [ "//clang/lib/ARCMigrate" ]
   }
+
   # FIXME: clangTidyPlugin
   # FIXME: libclang_build_static?
   # FIXME: libclang.exports
@@ -34,9 +35,9 @@ shared_library("libclang") {
     "CIndexUSRs.cpp",
     "CIndexer.cpp",
     "CXComment.cpp",
+    "CXCompilationDatabase.cpp",
     "CXCursor.cpp",
     "CXIndexDataConsumer.cpp",
-    "CXCompilationDatabase.cpp",
     "CXLoadedDiagnostic.cpp",
     "CXSourceLocation.cpp",
     "CXStoredDiagnostic.cpp",
