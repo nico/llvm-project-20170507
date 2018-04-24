@@ -18,4 +18,7 @@ executable("c-index-test") {
     "c-index-test.c",
     "core_main.cpp",
   ]
+  if (host_os == "mac") {
+    ldflags = [ "-Wl,-rpath,@loader_path/../lib" ]
+  }
 }

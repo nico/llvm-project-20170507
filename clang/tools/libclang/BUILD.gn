@@ -47,10 +47,9 @@ shared_library("libclang") {
   ]
   if (host_os == "mac") {
     ldflags = [
-      "-Wl,-compatibility_version",
-      "-Wl,1",
-      "-Wl,-current_version",
-      "-Wl,9000.0.0",  # FIXME: Don't hardcode
+      "-Wl,-compatibility_version,1",
+      "-Wl,-current_version,9000.0.0",  # FIXME: Don't hardcode
+      "-Wl,-install_name,@rpath/libclang.dylib",
     ]
   }
 }

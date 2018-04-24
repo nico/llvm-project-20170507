@@ -6,4 +6,7 @@ executable("c-arcmt-test") {
   sources = [
     "c-arcmt-test.c",
   ]
+  if (host_os == "mac") {
+    ldflags = [ "-Wl,-rpath,@loader_path/../lib" ]
+  }
 }

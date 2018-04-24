@@ -71,7 +71,7 @@ toolchain("cc") {
     ]
     lib_switch = "-l"
     output_prefix = "lib"
-    default_output_dir = "{{root_out_dir}}"
+    default_output_dir = "{{root_out_dir}}/lib"
     if (host_os == "mac") {
       default_output_extension = ".dylib"
     } else {
