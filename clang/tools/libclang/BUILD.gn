@@ -1,7 +1,14 @@
 import("//clang/lib/ARCMigrate/enable.gni")
 import("//llvm/version.gni")
 
-shared_library("libclang") {
+libclang_target_type = "shared_library"
+if (host_os == "linux") {
+  # Linux needs -fPIC to build shared libs but they aren't on by default.
+  # For now, make libclang a static lib there.
+  libclang_target_type = "static_library"
+}
+
+target(libclang_target_type, "libclang") {
   configs += [ "//gn:clang_code" ]
   deps = [
     "//clang/lib/AST",
