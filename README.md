@@ -6,7 +6,7 @@ Goals:
 Missing:
 - omit check-lld, check-clang from default target
   (see gn help on `ninja_rules`, `execution`)
-- hook up check-llvm, check-clang's unit tests
+- hook up check-llvm
 - monorepro "projects to build" selection mechanism
 - actual compiler flags (dead code stripping etc)
 - optimized tablegen in debug builds (having an `add_tablegen` template might

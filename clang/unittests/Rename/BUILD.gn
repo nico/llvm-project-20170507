@@ -1,0 +1,31 @@
+executable("ClangRenameTests") {
+  # test/Unit/lit.cfg expects unittests in CLANG_BINARY_DIR/unittest
+  output_dir = target_out_dir
+
+  configs += [ "//gn:clang_code" ]
+
+  # We'd like clang/unittests/Tooling/RewriterTestContext.h in the test.
+  include_dirs = [ "../.." ]
+
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Frontend",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Tooling",
+    "//clang/lib/Tooling/Core",
+    "//clang/lib/Tooling/Refactoring",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "RenameClassTest.cpp",
+    "RenameEnumTest.cpp",
+    "RenameAliasTest.cpp",
+    "RenameMemberTest.cpp",
+    "RenameFunctionTest.cpp",
+  ]
+  testonly = true
+}

@@ -1,0 +1,33 @@
+executable("ASTTests") {
+  # test/Unit/lit.cfg expects unittests in CLANG_BINARY_DIR/unittest
+  output_dir = target_out_dir
+
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/Analysis",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "ASTContextParentMapTest.cpp",
+    "ASTImporterTest.cpp",
+    "ASTTypeTraitsTest.cpp",
+    "ASTVectorTest.cpp",
+    "CommentLexer.cpp",
+    "CommentParser.cpp",
+    "DataCollectionTest.cpp",
+    "DeclPrinterTest.cpp",
+    "DeclTest.cpp",
+    "EvaluateAsRValueTest.cpp",
+    "ExternalASTSourceTest.cpp",
+    "NamedDeclPrinterTest.cpp",
+    "SourceLocationTest.cpp",
+    "StmtPrinterTest.cpp",
+  ]
+  testonly = true
+}

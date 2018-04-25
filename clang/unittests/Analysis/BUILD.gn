@@ -1,0 +1,21 @@
+executable("ClangAnalysisTests") {
+  # test/Unit/lit.cfg expects unittests in CLANG_BINARY_DIR/unittest
+  output_dir = target_out_dir
+
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/Analysis",
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "CFGTest.cpp",
+    "CloneDetectionTest.cpp",
+  ]
+  testonly = true
+}

@@ -1,0 +1,21 @@
+executable("ClangDriverTests") {
+  # test/Unit/lit.cfg expects unittests in CLANG_BINARY_DIR/unittest
+  output_dir = target_out_dir
+
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/Basic",
+    "//clang/lib/Driver",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "DistroTest.cpp",
+    "ToolChainTest.cpp",
+    "ModuleCacheTest.cpp",
+    "MultilibTest.cpp",
+  ]
+  testonly = true
+}

@@ -1,0 +1,24 @@
+executable("ClangCodeGenTests") {
+  # test/Unit/lit.cfg expects unittests in CLANG_BINARY_DIR/unittest
+  output_dir = target_out_dir
+
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/CodeGen",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Parse",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "BufferSourceTest.cpp",
+    "CodeGenExternalTest.cpp",
+    "IncrementalProcessingTest.cpp",
+    "TBAAMetadataTest.cpp",
+  ]
+  testonly = true
+}

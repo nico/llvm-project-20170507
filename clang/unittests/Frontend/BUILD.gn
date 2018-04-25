@@ -1,0 +1,27 @@
+executable("FrontendTests") {
+  # test/Unit/lit.cfg expects unittests in CLANG_BINARY_DIR/unittest
+  output_dir = target_out_dir
+
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Lex",
+    "//clang/lib/Sema",
+    "//clang/lib/CodeGen",
+    "//clang/lib/FrontendTool",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "ASTUnitTest.cpp",
+    "CompilerInstanceTest.cpp",
+    "FrontendActionTest.cpp",
+    "CodeGenActionTest.cpp",
+    "ParsedSourceLocationTest.cpp",
+    "PCHPreambleTest.cpp",
+    "OutputStreamTest.cpp",
+  ]
+  testonly = true
+}

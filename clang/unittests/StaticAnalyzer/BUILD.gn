@@ -1,0 +1,17 @@
+executable("StaticAnalysisTests") {
+  # test/Unit/lit.cfg expects unittests in CLANG_BINARY_DIR/unittest
+  output_dir = target_out_dir
+
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/Basic",
+    "//clang/lib/Analysis",
+    "//clang/lib/StaticAnalyzer/Core",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "AnalyzerOptionsTest.cpp",
+  ]
+  testonly = true
+}

@@ -1,0 +1,17 @@
+static_library("Dynamic") {
+  output_name = "clangDynamicASTMatchers"
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/ASTMatchers",
+    "//clang/lib/Basic",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "Diagnostics.cpp",
+    "VariantValue.cpp",
+    "Parser.cpp",
+    "Registry.cpp",
+  ]
+  # FIXME: if msvc cflags += /bigobj
+}

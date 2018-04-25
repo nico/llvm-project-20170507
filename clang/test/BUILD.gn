@@ -110,8 +110,7 @@ action("check-clang") {
     "//llvm/tools/llc",
     "//llvm/tools/llvm-bcanalyzer",
     "//llvm/tools/llvm-cat",
-
-    #"//clang/unittests",
+    "//clang/unittests",
     "//llvm/tools/llvm-config",
     "//llvm/tools/llvm-dis",
     "//llvm/tools/llvm-lto",

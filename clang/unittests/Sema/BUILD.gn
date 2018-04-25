@@ -1,0 +1,21 @@
+executable("SemaTests") {
+  # test/Unit/lit.cfg expects unittests in CLANG_BINARY_DIR/unittest
+  output_dir = target_out_dir
+
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/Frontend",
+    "//clang/lib/Parse",
+    "//clang/lib/Sema",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "ExternalSemaSourceTest.cpp",
+    "CodeCompleteTest.cpp",
+  ]
+  testonly = true
+}

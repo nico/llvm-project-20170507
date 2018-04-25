@@ -1,0 +1,32 @@
+executable("FormatTests") {
+  # test/Unit/lit.cfg expects unittests in CLANG_BINARY_DIR/unittest
+  output_dir = target_out_dir
+
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/Basic",
+    "//clang/lib/Format",
+    "//clang/lib/Frontend",
+    "//clang/lib/Rewrite",
+    "//clang/lib/Tooling/Core",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "CleanupTest.cpp",
+    "FormatTest.cpp",
+    "FormatTestComments.cpp",
+    "FormatTestJS.cpp",
+    "FormatTestJava.cpp",
+    "FormatTestObjC.cpp",
+    "FormatTestProto.cpp",
+    "FormatTestRawStrings.cpp",
+    "FormatTestSelective.cpp",
+    "FormatTestTextProto.cpp",
+    "NamespaceEndCommentsFixerTest.cpp",
+    "SortImportsTestJS.cpp",
+    "SortIncludesTest.cpp",
+    "UsingDeclarationsSorterTest.cpp",
+  ]
+  testonly = true
+}

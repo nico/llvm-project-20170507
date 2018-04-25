@@ -1,0 +1,29 @@
+import("//clang/lib/StaticAnalyzer/Frontend/enable.gni")
+
+group("unittests") {
+  deps = [
+    "AST:ASTTests",
+    "ASTMatchers:ASTMatchersTests",
+    "ASTMatchers/Dynamic:DynamicASTMatchersTests",
+    "Basic:BasicTests",
+    "CodeGen:ClangCodeGenTests",
+    "CrossTU:CrossTUTests",
+    "Driver:ClangDriverTests",
+    "Format:FormatTests",
+    "Lex:LexTests",
+    "libclang:libclangTests",
+    "Rename:ClangRenameTests",
+    "Rewrite:RewriteTests",
+    "Sema:SemaTests",
+    "Tooling:ToolingTests",
+  ]
+  if (clang_enable_static_analyzer) {
+    deps += [
+      "Analysis:ClangAnalysisTests",
+      "Frontend:FrontendTests",
+      "StaticAnalyzer:StaticAnalysisTests",
+    ]
+  }
+  testonly = true
+}
+

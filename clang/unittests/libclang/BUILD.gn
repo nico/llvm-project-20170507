@@ -1,0 +1,17 @@
+executable("libclangTests") {
+  # test/Unit/lit.cfg expects unittests in CLANG_BINARY_DIR/unittest
+  output_dir = target_out_dir
+
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/tools/libclang",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "LibclangTest.cpp",
+  ]
+  if (host_os == "mac") {
+    ldflags = [ "-Wl,-rpath," + rebase_path("$root_out_dir/lib") ]
+  }
+  testonly = true
+}

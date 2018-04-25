@@ -1,0 +1,20 @@
+executable("CrossTUTests") {
+  # test/Unit/lit.cfg expects unittests in CLANG_BINARY_DIR/unittest
+  output_dir = target_out_dir
+
+  configs += [ "//gn:clang_code" ]
+  deps = [
+    "//clang/lib/AST",
+    "//clang/lib/Basic",
+    "//clang/lib/CrossTU",
+    "//clang/lib/Frontend",
+    "//clang/lib/Tooling",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "CrossTranslationUnitTest.cpp",
+  ]
+  testonly = true
+}
