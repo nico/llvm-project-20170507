@@ -11,7 +11,6 @@ Missing:
 - actual compiler flags (dead code stripping etc)
 - optimized tablegen in debug builds (having an `add_tablegen` template might
   make sense now that there's llvm-tblgen and clang-tblgen)
-- make tablegen() write nothing if the output didn't change
 - describe how to get or build a gn binary
 - configure step equivalent. For now,
   `cp /path/to/cmake/build/llvm/include/Config/{abi-breaking.h,config.h,llvm-config.h} llvm/include/llvm/Config`.

@@ -65,7 +65,5 @@ template("tablegen") {
     outputs = [
       gen_output,
     ]
-
-    # FIXME: write_if_different (sink into tablegen itself?)
   }
 }

@@ -42,6 +42,7 @@ static_library("CodeGen") {
     "FEntryInserter.cpp",
     "FaultMaps.cpp",
     "FuncletLayout.cpp",
+    "CFIInstrInserter.cpp",
     "GCMetadata.cpp",
     "GCMetadataPrinter.cpp",
     "GCRootLowering.cpp",
