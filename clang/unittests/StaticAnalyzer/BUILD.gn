@@ -4,8 +4,8 @@ executable("StaticAnalysisTests") {
 
   configs += [ "//gn:clang_code" ]
   deps = [
-    "//clang/lib/Basic",
     "//clang/lib/Analysis",
+    "//clang/lib/Basic",
     "//clang/lib/StaticAnalyzer/Core",
     "//llvm/lib/Support",
     "//llvm/utils/unittest/UnitTestMain",

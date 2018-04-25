@@ -20,4 +20,3 @@ executable("llvm-objcopy") {
     "llvm-objcopy.cpp",
   ]
 }
-

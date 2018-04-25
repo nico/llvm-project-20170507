@@ -9,9 +9,10 @@ static_library("Dynamic") {
   ]
   sources = [
     "Diagnostics.cpp",
-    "VariantValue.cpp",
     "Parser.cpp",
     "Registry.cpp",
+    "VariantValue.cpp",
   ]
+
   # FIXME: if msvc cflags += /bigobj
 }

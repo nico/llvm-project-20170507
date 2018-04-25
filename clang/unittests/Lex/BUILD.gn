@@ -7,8 +7,8 @@ executable("LexTests") {
     "//clang/lib/AST",
     "//clang/lib/Basic",
     "//clang/lib/Lex",
-    "//clang/lib/Sema",
     "//clang/lib/Parse",
+    "//clang/lib/Sema",
     "//llvm/lib/Support",
     "//llvm/utils/unittest/UnitTestMain",
   ]

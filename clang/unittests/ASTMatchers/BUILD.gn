@@ -14,8 +14,8 @@ executable("ASTMatchersTests") {
   ]
   sources = [
     "ASTMatchersInternalTest.cpp",
-    "ASTMatchersNodeTest.cpp",
     "ASTMatchersNarrowingTest.cpp",
+    "ASTMatchersNodeTest.cpp",
     "ASTMatchersTraversalTest.cpp",
   ]
   testonly = true

@@ -11,11 +11,11 @@ group("unittests") {
     "Driver:ClangDriverTests",
     "Format:FormatTests",
     "Lex:LexTests",
-    "libclang:libclangTests",
     "Rename:ClangRenameTests",
     "Rewrite:RewriteTests",
     "Sema:SemaTests",
     "Tooling:ToolingTests",
+    "libclang:libclangTests",
   ]
   if (clang_enable_static_analyzer) {
     deps += [
@@ -26,4 +26,3 @@ group("unittests") {
   }
   testonly = true
 }
-

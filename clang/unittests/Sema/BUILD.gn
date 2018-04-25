@@ -14,8 +14,8 @@ executable("SemaTests") {
     "//llvm/utils/unittest/UnitTestMain",
   ]
   sources = [
-    "ExternalSemaSourceTest.cpp",
     "CodeCompleteTest.cpp",
+    "ExternalSemaSourceTest.cpp",
   ]
   testonly = true
 }

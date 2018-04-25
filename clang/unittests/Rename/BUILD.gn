@@ -21,11 +21,11 @@ executable("ClangRenameTests") {
     "//llvm/utils/unittest/UnitTestMain",
   ]
   sources = [
+    "RenameAliasTest.cpp",
     "RenameClassTest.cpp",
     "RenameEnumTest.cpp",
-    "RenameAliasTest.cpp",
-    "RenameMemberTest.cpp",
     "RenameFunctionTest.cpp",
+    "RenameMemberTest.cpp",
   ]
   testonly = true
 }

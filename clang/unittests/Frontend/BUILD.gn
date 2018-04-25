@@ -6,22 +6,22 @@ executable("FrontendTests") {
   deps = [
     "//clang/lib/AST",
     "//clang/lib/Basic",
+    "//clang/lib/CodeGen",
     "//clang/lib/Frontend",
+    "//clang/lib/FrontendTool",
     "//clang/lib/Lex",
     "//clang/lib/Sema",
-    "//clang/lib/CodeGen",
-    "//clang/lib/FrontendTool",
     "//llvm/lib/Support",
     "//llvm/utils/unittest/UnitTestMain",
   ]
   sources = [
     "ASTUnitTest.cpp",
+    "CodeGenActionTest.cpp",
     "CompilerInstanceTest.cpp",
     "FrontendActionTest.cpp",
-    "CodeGenActionTest.cpp",
-    "ParsedSourceLocationTest.cpp",
-    "PCHPreambleTest.cpp",
     "OutputStreamTest.cpp",
+    "PCHPreambleTest.cpp",
+    "ParsedSourceLocationTest.cpp",
   ]
   testonly = true
 }

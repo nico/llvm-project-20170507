@@ -4,9 +4,9 @@ executable("ASTTests") {
 
   configs += [ "//gn:clang_code" ]
   deps = [
-    "//clang/lib/Analysis",
     "//clang/lib/AST",
     "//clang/lib/ASTMatchers",
+    "//clang/lib/Analysis",
     "//clang/lib/Basic",
     "//clang/lib/Frontend",
     "//clang/lib/Tooling",

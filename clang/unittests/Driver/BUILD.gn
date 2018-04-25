@@ -13,9 +13,9 @@ executable("ClangDriverTests") {
   ]
   sources = [
     "DistroTest.cpp",
-    "ToolChainTest.cpp",
     "ModuleCacheTest.cpp",
     "MultilibTest.cpp",
+    "ToolChainTest.cpp",
   ]
   testonly = true
 }

@@ -14,9 +14,9 @@ executable("DynamicASTMatchersTests") {
     "//llvm/utils/unittest/UnitTestMain",
   ]
   sources = [
-    "VariantValueTest.cpp",
     "ParserTest.cpp",
     "RegistryTest.cpp",
+    "VariantValueTest.cpp",
   ]
   testonly = true
 }
