@@ -1,8 +1,8 @@
 import("//llvm/utils/TableGen/tablegen.gni")
 
 tablegen("Opts") {
+  visibility = [ ":llvm-cvtres" ]
   args = [ "-gen-opt-parser-defs" ]
-  td_file = "Opts.td"
 }
 
 executable("llvm-cvtres") {

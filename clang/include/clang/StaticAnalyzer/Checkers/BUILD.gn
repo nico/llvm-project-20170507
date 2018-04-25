@@ -2,5 +2,4 @@ import("//clang/utils/TableGen/tablegen.gni")
 
 tablegen("Checkers") {
   args = [ "-gen-clang-sa-checkers" ]
-  td_file = "Checkers.td"
 }

@@ -6,11 +6,12 @@
 #       [list of strings] Flags to pass to llvm-tblgen.
 #
 #   output_name (optional)
-#       Basename of the generated output file. Defaults to target name with
-#       ".inc" appended.
+#       Basename of the generated output file.
+#       Defaults to target name with ".inc" appended.
 #
-#   td_file (required)
-#       [files] The .td file to pass to llvm-tblgen.
+#   td_file (roptional)
+#       The .td file to pass to llvm-tblgen.
+#       Defaults to target name with ".td" appended.
 #
 #   visibility (optional)
 #       GN's regular visibility attribute, see `gn help visibility`.
@@ -24,7 +25,6 @@
 #   }
 
 template("tablegen") {
-  assert(defined(invoker.td_file), "td_file must be defined for $target_name")
   assert(defined(invoker.args), "args must be defined for $target_name")
 
   action(target_name) {
@@ -37,17 +37,22 @@ template("tablegen") {
     deps = [
       tblgen_target,
     ]
+    if (defined(invoker.td_file)) {
+      td_file = invoker.td_file
+    } else {
+      td_file = "$target_name.td"
+    }
     sources = [
-      invoker.td_file,
+      td_file,
     ]
     script = "//gn/run_host_binary.py"
     if (defined(invoker.output_name)) {
       gen_output = "$target_gen_dir/" + invoker.output_name
     } else {
-      gen_output = "$target_gen_dir/${target_name}.inc"
+      gen_output = "$target_gen_dir/$target_name.inc"
     }
     depfile = "$gen_output.d"
-    td_file = rebase_path(invoker.td_file, root_build_dir)
+    td_file = rebase_path(td_file, root_build_dir)
     args = [
              rebase_path(tblgen_executable, root_build_dir),
              "-I",

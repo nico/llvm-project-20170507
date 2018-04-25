@@ -3,7 +3,6 @@ import("//llvm/utils/TableGen/tablegen.gni")
 tablegen("AttributesCompatFunc") {
   visibility = [ ":IR" ]
   args = [ "-gen-attrs" ]
-  td_file = "AttributesCompatFunc.td"
 }
 
 static_library("IR") {

@@ -3,7 +3,6 @@ import("//llvm/utils/TableGen/tablegen.gni")
 tablegen("Opts") {
   visibility = [ ":llvm-objcopy" ]
   args = [ "-gen-opt-parser-defs" ]
-  td_file = "Opts.td"
 }
 
 # FIXME: if llvm_install_binutils_symlinks, then symlink("objcopy")

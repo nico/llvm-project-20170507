@@ -86,12 +86,10 @@ group("attrs_tablegen") {
 
 tablegen("arm_neon") {
   args = [ "-gen-arm-neon-sema" ]
-  td_file = "arm_neon.td"
 }
 
 tablegen("arm_fp16") {
   args = [ "-gen-arm-neon-sema" ]
-  td_file = "arm_fp16.td"
 }
 
 # FIXME: Should this target exist or should clients decide what they want to

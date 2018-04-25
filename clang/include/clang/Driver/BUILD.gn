@@ -2,5 +2,4 @@ import("//llvm/utils/TableGen/tablegen.gni")
 
 tablegen("Options") {
   args = [ "-gen-opt-parser-defs" ]
-  td_file = "Options.td"
 }

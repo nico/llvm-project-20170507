@@ -3,7 +3,6 @@ import("//llvm/utils/TableGen/tablegen.gni")
 tablegen("Options") {
   visibility = [ ":COFF" ]
   args = [ "-gen-opt-parser-defs" ]
-  td_file = "Options.td"
 }
 
 static_library("COFF") {

@@ -53,7 +53,6 @@ tablegen("CommentNodes") {
 
 tablegen("CommentHTMLTags") {
   args = [ "-gen-clang-comment-html-tags" ]
-  td_file = "CommentHTMLTags.td"
 }
 
 tablegen("CommentHTMLTagsProperties") {
@@ -63,7 +62,6 @@ tablegen("CommentHTMLTagsProperties") {
 
 tablegen("CommentHTMLNamedCharacterReferences") {
   args = [ "-gen-clang-comment-html-named-character-references" ]
-  td_file = "CommentHTMLNamedCharacterReferences.td"
 }
 
 tablegen("CommentCommandInfo") {
@@ -78,5 +76,4 @@ tablegen("CommentCommandList") {
 
 tablegen("StmtDataCollectors") {
   args = [ "-gen-clang-data-collectors" ]
-  td_file = "StmtDataCollectors.td"
 }

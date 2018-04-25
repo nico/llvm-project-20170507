@@ -3,7 +3,6 @@ import("//llvm/utils/TableGen/tablegen.gni")
 tablegen("Opts") {
   visibility = [ ":llvm-mt" ]
   args = [ "-gen-opt-parser-defs" ]
-  td_file = "Opts.td"
 }
 
 executable("llvm-mt") {
