@@ -1,0 +1,29 @@
+executable("llvm-c-test") {
+  deps = [
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+  ]
+  if (host_os != "win") {
+    cflags_c = [ "-std=gnu99", "-Wstrict-prototypes" ]
+  }
+  sources = [
+    "attributes.c",
+    "calc.c",
+    "debuginfo.c",
+    "diagnostic.c",
+    "disassemble.c",
+    "echo.cpp",
+    "helpers.c",
+    "include-all.c",
+    "main.c",
+    "module.c",
+    "metadata.c",
+    "object.c",
+    "targets.c",
+  ]
+}
