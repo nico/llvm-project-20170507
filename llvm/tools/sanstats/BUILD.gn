@@ -1,0 +1,10 @@
+executable("sanstats") {
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/Support",
+    "//llvm/lib/DebugInfo/Symbolize",
+  ]
+  sources = [
+    "sanstats.cpp",
+  ]
+}

@@ -42,7 +42,11 @@ group("all") {
     "//llvm/tools/llvm-pdbutil",
     "//llvm/tools/llvm-profdata",
     "//llvm/tools/llvm-readobj",
+    "//llvm/tools/llvm-strings",
     "//llvm/tools/llvm-symbolizer",
+    "//llvm/tools/llvm-xray",
+    "//llvm/tools/sancov",
+    "//llvm/tools/sanstats",
     "//llvm/tools/obj2yaml",
     "//llvm/tools/opt",
     "//llvm/tools/verify-uselistorder",
@@ -51,6 +55,7 @@ group("all") {
     "//llvm/utils/TableGen:llvm-tblgen",
     "//llvm/utils/count",
     "//llvm/utils/not",
+    "//llvm/utils/yaml-bench",
   ]
   if (clang_enable_arcmt) {
     deps += [

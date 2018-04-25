@@ -1,0 +1,10 @@
+executable("llvm-strings") {
+  deps = [
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "llvm-strings.cpp",
+  ]
+}
