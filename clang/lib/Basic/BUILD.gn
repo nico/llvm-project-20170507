@@ -29,10 +29,11 @@ static_library("Basic") {
   deps = [
     ":Version.inc",
     "//clang/include/clang/Basic:AttrHasAttributeImpl",
+    "//clang/include/clang/Basic:AttrList",
+    "//clang/include/clang/Basic:AttrSubMatchRulesList",
     "//clang/include/clang/Basic:DiagnosticGroups",
     "//clang/include/clang/Basic:arm_fp16",
     "//clang/include/clang/Basic:arm_neon",
-    "//clang/include/clang/Basic:attrs_tablegen",
     "//clang/include/clang/Basic:diags_tablegen",
     "//llvm/lib/IR",
     "//llvm/lib/MC",

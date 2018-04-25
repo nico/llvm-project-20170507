@@ -26,10 +26,6 @@ static_library("COFF") {
     "//llvm/lib/ToolDrivers/llvm-lib:LibDriver",
     "//llvm/lib/WindowsManifest",
   ]
-
-  # Add include path for generated Opts.inc.
-  # FIXME: Should tablegen.gni have a public_config to set this automatically?
-  include_dirs = [ "$target_gen_dir" ]
   sources = [
     "Chunks.cpp",
     "DLL.cpp",

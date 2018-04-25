@@ -15,10 +15,6 @@ static_library("MinGW") {
     "//llvm/include/llvm/IR:tablegen",
     "//llvm/lib/Option",
   ]
-
-  # Add include path for generated Opts.inc.
-  # FIXME: Should tablegen.gni have a public_config to set this automatically?
-  include_dirs = [ "$target_gen_dir" ]
   sources = [
     "Driver.cpp",
   ]

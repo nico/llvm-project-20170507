@@ -23,10 +23,6 @@ static_library("ELF") {
     "//llvm/lib/Target:TargetsToBuild",
   ]
   include_dirs = [ "." ]
-
-  # Add include path for generated Opts.inc.
-  # FIXME: Should tablegen.gni have a public_config to set this automatically?
-  include_dirs += [ "$target_gen_dir" ]
   sources = [
     "AArch64ErrataFix.cpp",
     "Arch/AArch64.cpp",

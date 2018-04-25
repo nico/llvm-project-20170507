@@ -77,18 +77,11 @@ foreach(tablegen_call, tablegen_calls) {
   }
 }
 
-config("tablegen_config") {
-  # Add include path for generated ARMGenRegisterInfo.inc etc.
-  # FIXME: Should tablegen.gni have a public_config to set this automatically?
-  include_dirs = [ "$target_gen_dir" ]
-}
-
 group("tablegen") {
-  deps = []
+  public_deps = []
   foreach(tablegen_call, tablegen_calls) {
-    deps += [ ":${tablegen_call[0]}" ]
+    public_deps += [ ":${tablegen_call[0]}" ]
   }
-  public_configs = [ ":tablegen_config" ]
 }
 
 static_library("ARMCodeGen") {

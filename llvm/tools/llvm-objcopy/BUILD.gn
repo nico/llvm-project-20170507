@@ -15,10 +15,6 @@ executable("llvm-objcopy") {
     "//llvm/lib/Option",
     "//llvm/lib/Support",
   ]
-
-  # Add include path for generated Opts.inc.
-  # FIXME: Should tablegen.gni have a public_config to set this automatically?
-  include_dirs = [ "$target_gen_dir" ]
   sources = [
     "Object.cpp",
     "llvm-objcopy.cpp",

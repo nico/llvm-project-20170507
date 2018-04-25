@@ -13,10 +13,6 @@ static_library("IR") {
     "//llvm/lib/BinaryFormat",
     "//llvm/lib/Support",
   ]
-
-  # Add include path for generated AttributesCompatFunc.inc.
-  # FIXME: Should tablegen.gni have a public_config to set this automatically?
-  include_dirs = [ "$target_gen_dir" ]
   sources = [
     "AsmWriter.cpp",
     "Attributes.cpp",

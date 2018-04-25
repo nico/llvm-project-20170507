@@ -27,6 +27,12 @@
 template("tablegen") {
   assert(defined(invoker.args), "args must be defined for $target_name")
 
+  config_name = "${target_name}_config"
+  config(config_name) {
+    visibility = [ ":$target_name" ]
+    include_dirs = [ target_gen_dir ]
+  }
+
   action(target_name) {
     forward_variables_from(invoker, [ "visibility" ])
 
@@ -70,5 +76,8 @@ template("tablegen") {
     outputs = [
       gen_output,
     ]
+
+    # Let targets depending on this find the generated file.
+    public_configs = [ ":$config_name" ]
   }
 }

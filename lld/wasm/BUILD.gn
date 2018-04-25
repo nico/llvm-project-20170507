@@ -18,10 +18,6 @@ static_library("wasm") {
     "//llvm/lib/Object",
     "//llvm/lib/Option",
   ]
-
-  # Add include path for generated Opts.inc.
-  # FIXME: Should tablegen.gni have a public_config to set this automatically?
-  include_dirs = [ "$target_gen_dir" ]
   sources = [
     "Driver.cpp",
     "InputChunks.cpp",

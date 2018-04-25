@@ -29,9 +29,9 @@ group("diags_tablegen") {
   # DiagnosticGroups and DiagnosticIndexName are intentionally not part of this
   # group.  Much of clang depends on the DiagKinds.inc files transitively,
   # but almost nothing needs DiagnosticGroups.inc or DiagnosticIndexName.inc.
-  deps = []
+  public_deps = []
   foreach(diag_group, diag_groups) {
-    deps += [ ":Diagnostic${diag_group}Kinds" ]
+    public_deps += [ ":Diagnostic${diag_group}Kinds" ]
   }
 }
 
@@ -74,14 +74,6 @@ tablegen("AttrHasAttributeImpl") {
   td_file = "Attr.td"
 }
 
-# FIXME: Should this exist, or should clients depend on what they need?
-group("attrs_tablegen") {
-  deps = [
-    ":AttrList",
-    ":AttrSubMatchRulesList",
-  ]
-}
-
 # Misc
 
 tablegen("arm_neon") {
@@ -90,13 +82,4 @@ tablegen("arm_neon") {
 
 tablegen("arm_fp16") {
   args = [ "-gen-arm-neon-sema" ]
-}
-
-# FIXME: Should this target exist or should clients decide what they want to
-# depend on?
-group("tablegen") {
-  deps = [
-    ":attrs_tablegen",
-    ":diags_tablegen",
-  ]
 }

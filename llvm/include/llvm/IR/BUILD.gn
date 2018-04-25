@@ -13,7 +13,7 @@ tablegen("Attributes") {
 }
 
 group("tablegen") {
-  deps = [
+  public_deps = [
     ":Attributes",
     ":Intrinsics",
   ]
