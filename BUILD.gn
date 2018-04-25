@@ -17,6 +17,7 @@ group("all") {
     "//clang/tools/libclang",
     "//lld/test",
     "//lld/tools/lld",
+    "//llvm/tools/bugpoint",
     "//llvm/tools/dsymutil",
     "//llvm/tools/llc",
     "//llvm/tools/llvm-ar",
