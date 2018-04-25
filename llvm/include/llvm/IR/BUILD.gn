@@ -3,13 +3,11 @@ import("//llvm/utils/TableGen/tablegen.gni")
 tablegen("Intrinsics") {
   visibility = [ ":tablegen" ]
   args = [ "-gen-intrinsic" ]
-  output_name = "Intrinsics.gen"
 }
 
 tablegen("Attributes") {
   visibility = [ ":tablegen" ]
   args = [ "-gen-attrs" ]
-  output_name = "Attributes.gen"
 }
 
 group("tablegen") {

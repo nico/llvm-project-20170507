@@ -13,6 +13,6 @@ executable("sancov") {
     "//llvm/lib/Target:AllTargetsInfos",
   ]
   sources = [
-    "sancov.cc",
+    "sancov.cpp",
   ]
 }
