@@ -1,0 +1,9 @@
+executable("llvm-size") {
+  deps = [
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "llvm-size.cpp",
+  ]
+}

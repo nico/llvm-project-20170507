@@ -1,22 +1,22 @@
 executable("llvm-xray") {
   deps = [
-    "//llvm/lib/Target:TargetsToBuild",
-    "//llvm/lib/Support",
     "//llvm/lib/DebugInfo/DWARF",
     "//llvm/lib/DebugInfo/Symbolize",
     "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
     "//llvm/lib/XRay",
   ]
   sources = [
     "func-id-helper.cc",
+    "llvm-xray.cc",
     "xray-account.cc",
     "xray-color-helper.cc",
     "xray-converter.cc",
     "xray-extract.cc",
-    "xray-graph.cc",
     "xray-graph-diff.cc",
-    "xray-stacks.cc",
+    "xray-graph.cc",
     "xray-registry.cc",
-    "llvm-xray.cc",
+    "xray-stacks.cc",
   ]
 }

@@ -1,0 +1,17 @@
+static_library("ExecutionEngine") {
+  output_name = "LLVMExecutionEngine"
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Target",
+  ]
+  sources = [
+    "ExecutionEngine.cpp",
+    "ExecutionEngineBindings.cpp",
+    "GDBRegistrationListener.cpp",
+    "SectionMemoryManager.cpp",
+    "TargetSelect.cpp",
+  ]
+}

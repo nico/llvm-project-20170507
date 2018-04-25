@@ -1,0 +1,13 @@
+executable("llvm-split") {
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRReader",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [
+    "llvm-split.cpp",
+  ]
+}
