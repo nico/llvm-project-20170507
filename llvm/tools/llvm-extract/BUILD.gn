@@ -1,0 +1,13 @@
+executable("llvm-extract") {
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRReader",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/IPO",
+  ]
+  sources = [
+    "llvm-extract.cpp",
+  ]
+}

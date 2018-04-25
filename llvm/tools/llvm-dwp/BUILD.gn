@@ -1,0 +1,16 @@
+executable("llvm-dwp") {
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:TargetsToBuild",
+  ]
+  sources = [
+    "DWPError.cpp",
+    "llvm-dwp.cpp",
+  ]
+}
