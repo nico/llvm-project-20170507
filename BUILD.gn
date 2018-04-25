@@ -24,6 +24,7 @@ group("all") {
     "//llvm/tools/llvm-as",
     "//llvm/tools/llvm-bcanalyzer",
     "//llvm/tools/llvm-cat",
+    "//llvm/tools/llvm-cov",
     "//llvm/tools/llvm-cvtres",
     "//llvm/tools/llvm-cxxdump",
     "//llvm/tools/llvm-cxxfilt",
