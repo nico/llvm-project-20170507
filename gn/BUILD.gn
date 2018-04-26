@@ -3,7 +3,7 @@ import("//gn/mac_sdk.gni")
 
 declare_args() {
   # Whether to enable threading.
-  llvm_enable_threads = true
+  llvm_enable_threads = host_os != "win"  # FIXME: win threading
 }
 
 # args that depend on other args must live in a later declare_args() block.
@@ -14,7 +14,15 @@ declare_args() {
 
 config("compiler_defaults") {
   # FIXME: Don't define this globally here.
-  defines = [ "LLVM_ON_UNIX" ]
+  if (host_os != "win") {
+    defines = [ "LLVM_ON_UNIX" ]
+  } else {
+    defines = [ "LLVM_ON_WIN32" ]
+  }
+  if (!llvm_enable_assertions) {
+    defines += [ "NDEBUG" ]
+  }
+
   cflags = []
 
   if (host_os == "mac") {
@@ -25,17 +33,34 @@ config("compiler_defaults") {
     ]
   }
 
-  if (is_debug) {
-    cflags += [ "-g" ]
+  if (host_os != "win") {
+    if (is_debug) {
+      cflags += [ "-g" ]
+    } else {
+      cflags += [ "-O3" ]
+    }
+    cflags_cc = [ "-std=c++11" ]
   } else {
-    cflags += [ "-O3" ]
-  }
+    if (is_debug) {
+      cflags += [ "/Zi" ]
+    } else {
+      cflags += [ "/O2" ]
+    }
+    cflags += [
+      "/EHsc",
 
-  if (!llvm_enable_assertions) {
-    defines += [ "NDEBUG" ]
-  }
+      # Suppress ''modifier' : used more than once' (__forceinline and inline).
+      "-wd4141",
 
-  cflags_cc = [ "-std=c++11" ]
+      # Suppress 'conversion from 'type1' to 'type2', possible loss of data'.
+      "-wd4244", 
+
+      # Suppress 'no matching operator delete found'.
+      "-wd4291",
+
+
+    ]
+  }
 }
 
 config("llvm_code") {

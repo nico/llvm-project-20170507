@@ -21,4 +21,8 @@ set_defaults("source_set") {
   configs = _shared_binary_target_configs
 }
 
-set_default_toolchain("//gn/toolchain:cc")
+if (host_os == "win") {
+  set_default_toolchain("//gn/toolchain:win")
+} else {
+  set_default_toolchain("//gn/toolchain:posix")
+}

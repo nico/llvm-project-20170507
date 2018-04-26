@@ -1,9 +1,9 @@
 declare_args() {
   # Wether to link against terminfo.
-  llvm_enable_terminfo = true
+  llvm_enable_terminfo = false
 
   # Wether to link against zlib.
-  llvm_enable_zlib = true
+  llvm_enable_zlib = host_os != "win"
 }
 
 static_library("Support") {
