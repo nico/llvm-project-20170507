@@ -58,7 +58,8 @@ config("compiler_defaults") {
       # Suppress 'no matching operator delete found'.
       "-wd4291",
 
-
+      # Suppress 'destructor was implicitly defined as deleted'.
+      "-wd4624",
     ]
   }
 }

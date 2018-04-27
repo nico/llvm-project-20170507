@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import argparse
-import distutils.spawn
 import os
 import subprocess
 import sys
@@ -9,6 +8,16 @@ import sys
 THIS_DIR = os.path.abspath(os.path.dirname(__file__))
 LLVM_DIR = os.path.dirname(os.path.dirname(os.path.dirname(THIS_DIR)))
 MONO_DIR = os.path.dirname(LLVM_DIR)
+
+
+def which(program):
+    # distutils.spawn.which() doesn't find .bat files,
+    # https://bugs.python.org/issue2200
+    for path in os.environ["PATH"].split(os.pathsep):
+        candidate = os.path.join(path, program)
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return None
 
 def main():
     parser = argparse.ArgumentParser()
@@ -28,9 +37,14 @@ def main():
         print('.git dir not found at "%s"' % git_dir, file=sys.stderr)
         return 1
 
-    git = distutils.spawn.find_executable('git')
+    git, use_shell = which('git'), False
+    if not git:
+        git = which('git.exe')
+    if not git:
+        git = which('git.bat')
+        if git: use_shell = True
     rev = subprocess.check_output([git, 'rev-parse', '--short', 'HEAD'],
-                                  cwd=git_dir)
+                                  cwd=git_dir, shell=use_shell)
     # FIXME: In addition to .svn and non-monorepo .git, add pizzas such as
     # the svn revision read off a git note, git-svn info, etc.
     vcsrevision_contents = '#define LLVM_REVISION "git-%s"\n' % rev.strip()
