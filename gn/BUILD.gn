@@ -44,7 +44,10 @@ config("compiler_defaults") {
     if (is_debug) {
       cflags += [ "/Zi" ]
     } else {
-      cflags += [ "/O2" ]
+      cflags += [
+        "/O2",
+        "/Zc:inline",
+      ]
     }
     defines += [ "_HAS_EXCEPTIONS=0" ]
     cflags += [
