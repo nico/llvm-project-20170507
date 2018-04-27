@@ -1,4 +1,4 @@
-static_library("UnitTestMain") {
+source_set("UnitTestMain") {
   deps = [
     "//llvm/lib/Support",
   ]

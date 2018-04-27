@@ -27,6 +27,10 @@ target(libclang_target_type, "libclang") {
     deps += [ "//clang/lib/ARCMigrate" ]
   }
 
+  if (host_os == "win") {
+    defines = [ "_CINDEX_LIB_" ]
+  }
+
   # FIXME: clangTidyPlugin
   # FIXME: libclang_build_static?
   # FIXME: libclang.exports

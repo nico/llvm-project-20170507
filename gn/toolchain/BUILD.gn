@@ -149,11 +149,16 @@ toolchain("win") {
   }
 
   tool("solink") {
-    outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
-    command = "link /nologo /dll {{ldflags}} /out:$outfile {{libs}} /pdb:$outfile.pdb {{inputs}}"
-    description = "LINK $outfile"
+    dllfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
+    libfile = "$dllfile.lib"
+    command = "link /nologo /dll {{ldflags}} /out:$dllfile /implib:$libfile {{libs}} /pdb:$dllfile.pdb {{inputs}}"
+    description = "LINK $dllfile"
+    link_output =libfile
+    depend_output =libfile
+    runtime_outputs = [ dllfile ]
     outputs = [
-      outfile,
+      dllfile,
+      libfile,
     ]
     default_output_extension = ".dll"
     default_output_dir = "{{root_out_dir}}/lib"

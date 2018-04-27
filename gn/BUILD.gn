@@ -46,8 +46,10 @@ config("compiler_defaults") {
     } else {
       cflags += [ "/O2" ]
     }
+    defines += [ "_HAS_EXCEPTIONS=0" ]
     cflags += [
-      "/EHsc",
+      "/EHs-c-",
+      "/GR-",
 
       # Suppress ''modifier' : used more than once' (__forceinline and inline).
       "-wd4141",
@@ -57,6 +59,9 @@ config("compiler_defaults") {
 
       # Suppress 'no matching operator delete found'.
       "-wd4291",
+
+      # Suppress 'noexcept used with no exception handling mode specified'.
+      "-wd4577",
 
       # Suppress 'destructor was implicitly defined as deleted'.
       "-wd4624",
