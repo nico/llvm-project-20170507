@@ -49,7 +49,11 @@ config("compiler_defaults") {
         "/Zc:inline",
       ]
     }
-    defines += [ "_HAS_EXCEPTIONS=0" ]
+    defines += [
+      "_HAS_EXCEPTIONS=0",
+      "_UNICODE",
+      "UNICODE",
+    ]
     cflags += [
       "/EHs-c-",
       "/GR-",
