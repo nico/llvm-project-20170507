@@ -153,14 +153,15 @@ toolchain("win") {
     libfile = "$dllfile.lib"
     command = "link /nologo /dll {{ldflags}} /out:$dllfile /implib:$libfile {{libs}} /pdb:$dllfile.pdb {{inputs}}"
     description = "LINK $dllfile"
-    link_output =libfile
-    depend_output =libfile
+    link_output = libfile
+    depend_output = libfile
     runtime_outputs = [ dllfile ]
     outputs = [
       dllfile,
       libfile,
     ]
     default_output_extension = ".dll"
+    restat = true
     # Put dlls next to the executables in bin/ on Windows, since Windows
     # doesn't have a configurable rpath. This matches initialization of
     # module_dir to bin/ in AddLLVM.cmake's set_output_directory().

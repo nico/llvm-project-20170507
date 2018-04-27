@@ -4,12 +4,6 @@ import os
 import sys
 
 def main():
-    if sys.platform == 'win32':
-        # FIXME: Figure out symlink story under Windows. Probably just want to
-        # copy the file instead, but currently symlinks are created before the
-        # target exists.
-        return
-
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--force', action='store_true')
     parser.add_argument('--stamp')
@@ -22,7 +16,11 @@ def main():
         if err.errno != errno.EEXIST:
             raise
     try:
-        os.symlink(args.source, args.output)
+        # FIXME: Figure out symlink story under Windows. Probably just want to
+        # copy the file instead, but currently symlinks are created before the
+        # target exists.
+        if sys.platform != 'win32':
+            os.symlink(args.source, args.output)
     except OSError as e:
       if e.errno == errno.EEXIST and args.force:
           os.remove(args.output)
