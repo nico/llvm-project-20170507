@@ -381,7 +381,6 @@ namespace clang {
     void VisitBindingDecl(BindingDecl *BD);
     void VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D);
     DeclID VisitTemplateDecl(TemplateDecl *D);
-    void VisitConceptDecl(ConceptDecl *D);
     RedeclarableResult VisitRedeclarableTemplateDecl(RedeclarableTemplateDecl *D);
     void VisitClassTemplateDecl(ClassTemplateDecl *D);
     void VisitBuiltinTemplateDecl(BuiltinTemplateDecl *D);
@@ -1206,6 +1205,12 @@ void ASTDeclReader::VisitObjCCategoryDecl(ObjCCategoryDecl *CD) {
     ProtoLocs.push_back(ReadSourceLocation());
   CD->setProtocolList(ProtoRefs.data(), NumProtoRefs, ProtoLocs.data(),
                       Reader.getContext());
+
+  // Protocols in the class extension belong to the class.
+  if (NumProtoRefs > 0 && CD->ClassInterface && CD->IsClassExtension())
+    CD->ClassInterface->mergeClassExtensionProtocolList(
+        (ObjCProtocolDecl *const *)ProtoRefs.data(), NumProtoRefs,
+        Reader.getContext());
 }
 
 void ASTDeclReader::VisitObjCCompatibleAliasDecl(ObjCCompatibleAliasDecl *CAD) {
@@ -2030,11 +2035,6 @@ DeclID ASTDeclReader::VisitTemplateDecl(TemplateDecl *D) {
   D->init(TemplatedDecl, TemplateParams);
 
   return PatternID;
-}
-
-void ASTDeclReader::VisitConceptDecl(ConceptDecl *D) {
-  VisitTemplateDecl(D);
-  D->setConstraintExpr(Record.readExpr());
 }
 
 ASTDeclReader::RedeclarableResult
@@ -3600,9 +3600,6 @@ Decl *ASTReader::ReadDeclRecord(DeclID ID) {
     break;
   case DECL_TYPE_ALIAS_TEMPLATE:
     D = TypeAliasTemplateDecl::CreateDeserialized(Context, ID);
-    break;
-  case DECL_CONCEPT:
-    D = ConceptDecl::CreateDeserialized(Context, ID);
     break;
   case DECL_STATIC_ASSERT:
     D = StaticAssertDecl::CreateDeserialized(Context, ID);

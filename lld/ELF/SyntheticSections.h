@@ -670,7 +670,7 @@ template <class ELFT> class VersionNeedSection final : public SyntheticSection {
 
 public:
   VersionNeedSection();
-  void addSymbol(SharedSymbol *SS);
+  void addSymbol(Symbol *Sym);
   void finalizeContents() override;
   void writeTo(uint8_t *Buf) override;
   size_t getSize() const override;
@@ -834,6 +834,7 @@ private:
 InputSection *createInterpSection();
 MergeInputSection *createCommentSection();
 void decompressSections();
+template <class ELFT> void splitSections();
 void mergeSections();
 
 Defined *addSyntheticLocal(StringRef Name, uint8_t Type, uint64_t Value,

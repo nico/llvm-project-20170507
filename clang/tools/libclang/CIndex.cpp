@@ -6173,7 +6173,6 @@ CXCursor clang_getCursorDefinition(CXCursor C) {
   case Decl::PragmaComment:
   case Decl::PragmaDetectMismatch:
   case Decl::UsingPack:
-  case Decl::Concept:
     return C;
 
   // Declaration kinds that don't make any sense here, but are
@@ -8473,7 +8472,7 @@ void cxindex::printDiagsToStderr(ASTUnit *Unit) {
     fprintf(stderr, "%s\n", clang_getCString(Msg));
     clang_disposeString(Msg);
   }
-#ifdef LLVM_ON_WIN32
+#ifdef _WIN32
   // On Windows, force a flush, since there may be multiple copies of
   // stderr and stdout in the file system, all with different buffers
   // but writing to the same device.

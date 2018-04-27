@@ -163,11 +163,15 @@ defm : SKLWriteResPair<WriteFMA,    [SKLPort01], 4, [1], 1, 6>; // Fused Multipl
 defm : SKLWriteResPair<WriteFMAS,   [SKLPort01], 4, [1], 1, 5>; // Fused Multiply Add (Scalar).
 defm : SKLWriteResPair<WriteFMAY,   [SKLPort01], 4, [1], 1, 7>; // Fused Multiply Add (YMM/ZMM).
 defm : SKLWriteResPair<WriteFSign,   [SKLPort0], 1>; // Floating point fabs/fchs.
-defm : SKLWriteResPair<WriteFLogic, [SKLPort015], 1, [1], 1, 6>; // Floating point and/or/xor logicals.
+defm : SKLWriteResPair<WriteFLogic,  [SKLPort015], 1, [1], 1, 6>; // Floating point and/or/xor logicals.
+defm : SKLWriteResPair<WriteFLogicY, [SKLPort015], 1, [1], 1, 7>; // Floating point and/or/xor logicals (YMM/ZMM).
 defm : SKLWriteResPair<WriteFShuffle,  [SKLPort5],  1>; // Floating point vector shuffles.
 defm : SKLWriteResPair<WriteFVarShuffle,  [SKLPort5],  1>; // Floating point vector shuffles.
+defm : SKLWriteResPair<WriteFVarShuffleY, [SKLPort5],  1>; // Floating point vector shuffles.
 defm : SKLWriteResPair<WriteFBlend,  [SKLPort015], 1, [1], 1, 6>; // Floating point vector blends.
+defm : SKLWriteResPair<WriteFBlendY, [SKLPort015], 1, [1], 1, 7>; // Floating point vector blends.
 defm : SKLWriteResPair<WriteFVarBlend, [SKLPort015], 2, [2], 2, 6>; // Fp vector variable blends.
+defm : SKLWriteResPair<WriteFVarBlendY,[SKLPort015], 2, [2], 2, 7>; // Fp vector variable blends.
 
 def  : WriteRes<WriteCvtF2FSt, [SKLPort4,SKLPort5,SKLPort237,SKLPort01]> {
   let Latency = 6;
@@ -349,7 +353,8 @@ def : WriteRes<WriteNop, []>;
 // Horizontal add/sub  instructions.
 ////////////////////////////////////////////////////////////////////////////////
 
-defm : SKLWriteResPair<WriteFHAdd, [SKLPort5,SKLPort01], 6, [2,1], 3, 6>;
+defm : SKLWriteResPair<WriteFHAdd,  [SKLPort5,SKLPort01], 6, [2,1], 3, 6>;
+defm : SKLWriteResPair<WriteFHAddY, [SKLPort5,SKLPort01], 6, [2,1], 3, 7>;
 defm : SKLWriteResPair<WritePHAdd,  [SKLPort15], 1>;
 
 // Remaining instrs.
@@ -627,9 +632,9 @@ def SKLWriteResGroup17 : SchedWriteRes<[SKLPort0156]> {
   let NumMicroOps = 2;
   let ResourceCycles = [2];
 }
-def: InstRW<[SKLWriteResGroup17], (instregex "LFENCE",
-                                             "WAIT",
-                                             "XGETBV")>;
+def: InstRW<[SKLWriteResGroup17], (instrs LFENCE,
+                                          WAIT,
+                                          XGETBV)>;
 
 def SKLWriteResGroup18 : SchedWriteRes<[SKLPort0,SKLPort237]> {
   let Latency = 2;
@@ -714,13 +719,10 @@ def SKLWriteResGroup28 : SchedWriteRes<[SKLPort4,SKLPort237,SKLPort0156]> {
   let NumMicroOps = 3;
   let ResourceCycles = [1,1,1];
 }
-def: InstRW<[SKLWriteResGroup28], (instrs PUSH16r, PUSH32r, PUSH64r)>;
+def: InstRW<[SKLWriteResGroup28], (instrs PUSH16r, PUSH32r, PUSH64r,
+                                          STOSB, STOSL, STOSQ, STOSW)>;
 def: InstRW<[SKLWriteResGroup28], (instregex "PUSH(16|32|64)rmr",
-                                             "PUSH64i8",
-                                             "STOSB",
-                                             "STOSL",
-                                             "STOSQ",
-                                             "STOSW")>;
+                                             "PUSH64i8")>;
 
 def SKLWriteResGroup29 : SchedWriteRes<[SKLPort1]> {
   let Latency = 3;
@@ -856,7 +858,7 @@ def SKLWriteResGroup41 : SchedWriteRes<[SKLPort237,SKLPort0156]> {
   let NumMicroOps = 3;
   let ResourceCycles = [1,2];
 }
-def: InstRW<[SKLWriteResGroup41], (instregex "MFENCE")>;
+def: InstRW<[SKLWriteResGroup41], (instrs MFENCE)>;
 
 def SKLWriteResGroup42 : SchedWriteRes<[SKLPort06,SKLPort0156]> {
   let Latency = 3;
@@ -1004,7 +1006,7 @@ def SKLWriteResGroup56 : SchedWriteRes<[SKLPort015,SKLPort0156]> {
   let NumMicroOps = 4;
   let ResourceCycles = [1,3];
 }
-def: InstRW<[SKLWriteResGroup56], (instregex "VZEROUPPER")>;
+def: InstRW<[SKLWriteResGroup56], (instrs VZEROUPPER)>;
 
 def SKLWriteResGroup57 : SchedWriteRes<[SKLPort1,SKLPort6,SKLPort0156]> {
   let Latency = 4;
@@ -1627,16 +1629,8 @@ def SKLWriteResGroup110 : SchedWriteRes<[SKLPort23,SKLPort015]> {
   let NumMicroOps = 2;
   let ResourceCycles = [1,1];
 }
-def: InstRW<[SKLWriteResGroup110], (instregex "VANDNPDYrm",
-                                              "VANDNPSYrm",
-                                              "VANDPDYrm",
-                                              "VANDPSYrm",
-                                              "VBLENDPDYrmi",
-                                              "VBLENDPSYrmi",
-                                              "VMASKMOVPDYrm",
+def: InstRW<[SKLWriteResGroup110], (instregex "VMASKMOVPDYrm",
                                               "VMASKMOVPSYrm",
-                                              "VORPDYrm",
-                                              "VORPSYrm",
                                               "VPADDBYrm",
                                               "VPADDDYrm",
                                               "VPADDQYrm",
@@ -1651,9 +1645,7 @@ def: InstRW<[SKLWriteResGroup110], (instregex "VANDNPDYrm",
                                               "VPSUBDYrm",
                                               "VPSUBQYrm",
                                               "VPSUBWYrm",
-                                              "VPXORYrm",
-                                              "VXORPDYrm",
-                                              "VXORPSYrm")>;
+                                              "VPXORYrm")>;
 
 def SKLWriteResGroup112 : SchedWriteRes<[SKLPort0,SKLPort5,SKLPort23]> {
   let Latency = 8;
@@ -1776,14 +1768,6 @@ def SKLWriteResGroup124 : SchedWriteRes<[SKLPort5,SKLPort01]> {
   let ResourceCycles = [1,2];
 }
 def: InstRW<[SKLWriteResGroup124], (instregex "(V?)DPPDrri")>;
-
-def SKLWriteResGroup125 : SchedWriteRes<[SKLPort23,SKLPort015]> {
-  let Latency = 9;
-  let NumMicroOps = 3;
-  let ResourceCycles = [1,2];
-}
-def: InstRW<[SKLWriteResGroup125], (instregex "VBLENDVPDYrm",
-                                              "VBLENDVPSYrm")>;
 
 def SKLWriteResGroup126 : SchedWriteRes<[SKLPort0,SKLPort5,SKLPort23]> {
   let Latency = 9;
@@ -2128,16 +2112,6 @@ def SKLWriteResGroup164 : SchedWriteRes<[SKLPort5,SKLPort01]> {
 }
 def: InstRW<[SKLWriteResGroup164], (instregex "(V?)DPPS(Y?)rri")>;
 
-def SKLWriteResGroup165 : SchedWriteRes<[SKLPort5,SKLPort01,SKLPort23]> {
-  let Latency = 13;
-  let NumMicroOps = 4;
-  let ResourceCycles = [2,1,1];
-}
-def: InstRW<[SKLWriteResGroup165], (instregex "VHADDPDYrm",
-                                              "VHADDPSYrm",
-                                              "VHSUBPDYrm",
-                                              "VHSUBPSYrm")>;
-
 def SKLWriteResGroup166 : SchedWriteRes<[SKLPort0,SKLFPDivider]> {
   let Latency = 14;
   let NumMicroOps = 1;
@@ -2235,7 +2209,7 @@ def SKLWriteResGroup178 : SchedWriteRes<[SKLPort0156]> {
   let NumMicroOps = 16;
   let ResourceCycles = [16];
 }
-def: InstRW<[SKLWriteResGroup178], (instregex "VZEROALL")>;
+def: InstRW<[SKLWriteResGroup178], (instrs VZEROALL)>;
 
 def SKLWriteResGroup179 : SchedWriteRes<[SKLPort0,SKLPort23,SKLFPDivider]> {
   let Latency = 17;
@@ -2256,7 +2230,7 @@ def SKLWriteResGroup180 : SchedWriteRes<[SKLPort0,SKLPort1,SKLPort5,SKLPort6,SKL
   let NumMicroOps = 15;
   let ResourceCycles = [2,1,2,4,2,4];
 }
-def: InstRW<[SKLWriteResGroup180], (instregex "XCH_F")>;
+def: InstRW<[SKLWriteResGroup180], (instrs XCH_F)>;
 
 def SKLWriteResGroup181 : SchedWriteRes<[SKLPort0,SKLFPDivider]> {
   let Latency = 18;
@@ -2350,9 +2324,7 @@ def SKLWriteResGroup192 : SchedWriteRes<[SKLPort4,SKLPort5,SKLPort6,SKLPort23,SK
   let NumMicroOps = 8;
   let ResourceCycles = [1,1,1,1,1,1,2];
 }
-def: InstRW<[SKLWriteResGroup192], (instregex "INSB",
-                                              "INSL",
-                                              "INSW")>;
+def: InstRW<[SKLWriteResGroup192], (instrs INSB, INSL, INSW)>;
 
 def SKLWriteResGroup193 : SchedWriteRes<[SKLPort5,SKLPort6,SKLPort0156]> {
   let Latency = 20;

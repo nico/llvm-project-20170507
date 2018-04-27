@@ -2241,6 +2241,11 @@ static void RenderFloatingPointOptions(const ToolChain &TC, const Driver &D,
     CmdArgs.push_back("-mfpmath");
     CmdArgs.push_back(A->getValue());
   }
+
+  // Disable a codegen optimization for floating-point casts.
+  if (Args.hasFlag(options::OPT_ffp_cast_overflow_workaround,
+                   options::OPT_fno_fp_cast_overflow_workaround, false))
+    CmdArgs.push_back("-ffp-cast-overflow-workaround");
 }
 
 static void RenderAnalyzerOptions(const ArgList &Args, ArgStringList &CmdArgs,
@@ -4194,7 +4199,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   if (Args.hasFlag(options::OPT_fregister_global_dtors_with_atexit,
                    options::OPT_fno_register_global_dtors_with_atexit,
-                   RawTriple.isOSDarwin()))
+                   RawTriple.isOSDarwin() && !KernelOrKext))
     CmdArgs.push_back("-fregister-global-dtors-with-atexit");
 
   // -fms-extensions=0 is default.
