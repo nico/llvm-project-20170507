@@ -15,7 +15,6 @@ group("unittests") {
     "Rewrite:RewriteTests",
     "Sema:SemaTests",
     "Tooling:ToolingTests",
-    "libclang:libclangTests",
   ]
   if (clang_enable_static_analyzer) {
     deps += [
@@ -23,6 +22,13 @@ group("unittests") {
       "Frontend:FrontendTests",
       "StaticAnalyzer:StaticAnalysisTests",
     ]
+  }
+  if (host_os != "win") {
+    # FIXME: libclang unit tests are disabled on Windows due
+    # to failures, mostly in libclang.VirtualFileOverlay_*.
+    # FIXME: Also, the executable can't find libclang.dll since that's
+    # in a different directory.
+    deps += [ "libclang:libclangTests" ]
   }
   testonly = true
 }

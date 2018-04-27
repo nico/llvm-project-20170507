@@ -161,7 +161,10 @@ toolchain("win") {
       libfile,
     ]
     default_output_extension = ".dll"
-    default_output_dir = "{{root_out_dir}}/lib"
+    # Put dlls next to the executables in bin/ on Windows, since Windows
+    # doesn't have a configurable rpath. This matches initialization of
+    # module_dir to bin/ in AddLLVM.cmake's set_output_directory().
+    default_output_dir = "{{root_out_dir}}/bin"
   }
 
   tool("link") {
