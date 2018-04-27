@@ -174,7 +174,9 @@ toolchain("win") {
   }
 
   tool("copy") {
-    command = "ln -f {{source}} {{output}} 2>/dev/null || (rm -rf {{output}} && cp -af {{source}} {{output}})"  # FIXME
+    # GN hands out slash-using paths, but cmd's copy needs backslashes.
+    # Use cmd's %foo:a=b% substitution feature to convert.
+    command = "cmd /c set source=\"{{source}}\" & set output=\"{{output}}\" & call copy /Y %source:/=\% %output:\=/% > nul"
     description = "COPY {{source}} {{output}}"
   }
 

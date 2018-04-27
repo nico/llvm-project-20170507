@@ -12,11 +12,10 @@ static_library("Driver") {
     "//llvm/lib/Option",
     "//llvm/lib/Support",
   ]
-
-  # FIXME:
-  # if (is_win) {
-  #   libs = [ "version" ]
-  # }
+  if (host_os == "win") {
+    # MSVCToolChain.cpp uses version.dll.
+    libs = [ "version.lib" ]
+  }
   sources = [
     "Action.cpp",
     "Compilation.cpp",
