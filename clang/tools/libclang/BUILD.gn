@@ -11,6 +11,7 @@ if (host_os == "linux") {
 target(libclang_target_type, "libclang") {
   configs += [ "//gn:clang_code" ]
   deps = [
+    "//clang/include/clang/Config",
     "//clang/lib/AST",
     "//clang/lib/Basic",
     "//clang/lib/Frontend",

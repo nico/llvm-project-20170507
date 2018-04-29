@@ -2,6 +2,7 @@ static_library("Core") {
   output_name = "clangStaticAnalyzerCore"
   configs += [ "//gn:clang_code" ]
   deps = [
+    "//clang/include/clang/Config",
     "//clang/lib/AST",
     "//clang/lib/ASTMatchers",
     "//clang/lib/Analysis",

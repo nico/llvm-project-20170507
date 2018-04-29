@@ -25,6 +25,7 @@ foreach(target, symlinks) {
 executable("clang") {
   configs += [ "//gn:clang_code" ]
   deps = [
+    "//clang/include/clang/Config",
     "//clang/lib/Basic",
     "//clang/lib/CodeGen",
     "//clang/lib/Driver",

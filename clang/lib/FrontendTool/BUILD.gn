@@ -8,6 +8,7 @@ static_library("FrontendTool") {
   output_name = "clangFrontendTool"
   configs += [ "//gn:clang_code" ]
   deps = [
+    "//clang/include/clang/Config",
     "//clang/lib/Basic",
     "//clang/lib/CodeGen",
     "//clang/lib/Driver",

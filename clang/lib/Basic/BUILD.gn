@@ -35,6 +35,7 @@ static_library("Basic") {
     "//clang/include/clang/Basic:arm_fp16",
     "//clang/include/clang/Basic:arm_neon",
     "//clang/include/clang/Basic:diags_tablegen",
+    "//clang/include/clang/Config",
     "//llvm/lib/IR",
     "//llvm/lib/MC",
     "//llvm/lib/Support",
