@@ -2,13 +2,11 @@ executable("llvm-cov") {
   deps = [
     "//llvm/lib/IR",
     "//llvm/lib/Object",
-    "//llvm/lib/Support",
     "//llvm/lib/ProfileData",
     "//llvm/lib/ProfileData/Coverage",
+    "//llvm/lib/Support",
   ]
   sources = [
-    "llvm-cov.cpp",
-    "gcov.cpp",
     "CodeCoverage.cpp",
     "CoverageExporterJson.cpp",
     "CoverageFilters.cpp",
@@ -18,5 +16,7 @@ executable("llvm-cov") {
     "SourceCoverageViewHTML.cpp",
     "SourceCoverageViewText.cpp",
     "TestingSupport.cpp",
+    "gcov.cpp",
+    "llvm-cov.cpp",
   ]
 }

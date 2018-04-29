@@ -4,6 +4,7 @@ config("googletest_config") {
     "googlemock/include",
     "googletest/include",
   ]
+
   # LLVM requires C++11 but gtest doesn't correctly detect the availability
   # of C++11 on MSVC, so we force it on.
   defines = [

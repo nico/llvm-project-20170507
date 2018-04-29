@@ -12,10 +12,10 @@ action("Config") {
   script = "//gn/write_cmake_config.py"
 
   sources = [
-    "config.h.cmake"
+    "config.h.cmake",
   ]
   outputs = [
-    "$target_gen_dir/config.h"
+    "$target_gen_dir/config.h",
   ]
   args = [
     rebase_path(sources[0], root_out_dir),
@@ -68,4 +68,3 @@ action("Config") {
   # Let targets depending on this find the generated file.
   public_configs = [ ":Config_config" ]
 }
-

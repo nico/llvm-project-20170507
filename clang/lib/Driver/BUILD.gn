@@ -4,6 +4,7 @@ static_library("Driver") {
   include_dirs = [ "." ]
   deps = [
     "//clang/include/clang/Config",
+
     # See clang r311958.  The CMake build runs all clang tablegen steps
     # before all lib compilations via the clang-tablegen-targets target instead.
     "//clang/include/clang/Driver:Options",

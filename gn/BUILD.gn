@@ -62,7 +62,7 @@ config("compiler_defaults") {
       "-wd4141",
 
       # Suppress 'conversion from 'type1' to 'type2', possible loss of data'.
-      "-wd4244", 
+      "-wd4244",
 
       # Suppress 'no matching operator delete found'.
       "-wd4291",
