@@ -9,6 +9,7 @@ static_library("Vectorize") {
   ]
   sources = [
     "LoadStoreVectorizer.cpp",
+    "LoopVectorizationLegality.cpp",
     "LoopVectorize.cpp",
     "SLPVectorizer.cpp",
     "VPlan.cpp",
