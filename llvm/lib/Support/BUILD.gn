@@ -12,6 +12,13 @@ static_library("Support") {
     "//gn:pthread",
     "//llvm/lib/Demangle",
   ]
+  public_deps = [
+    # abi-breaking.h is also include by public headers in ADT, but ADT has
+    # no target in the gn build (yet?).  Since everything depends on Support,
+    # this public_dep does double duty of abi-breaking.h uses in public headers
+    # of both Support and ADT.
+    "//llvm/include/llvm/Config:abi-breaking",
+  ]
   include_dirs = [
     "Unix",
     "Windows",

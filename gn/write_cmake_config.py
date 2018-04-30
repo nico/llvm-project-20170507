@@ -35,8 +35,8 @@ def main():
             except:
                 var, val = var.rstrip(), '\n'
             if values[var]:
-                out_lines.append('#define %s %s\n' % (var,
-                                                      var_re.sub(repl, val)))
+                out_lines.append('#define %s %s' % (var,
+                                                    var_re.sub(repl, val)))
             else:
                 out_lines.append('/* #undef %s */\n' % var)
         else:

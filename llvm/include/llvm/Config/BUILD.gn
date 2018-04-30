@@ -1,0 +1,22 @@
+import("//gn/libs/xml/enable.gni")
+import("//llvm/version.gni")
+
+action("abi-breaking") {
+  script = "//gn/write_cmake_config.py"
+
+  sources = [
+    "abi-breaking.h.cmake",
+  ]
+  outputs = [
+    "$target_gen_dir/abi-breaking.h",
+  ]
+  args = [
+    rebase_path(sources[0], root_out_dir),
+    "-o",
+    rebase_path(outputs[0], root_out_dir),
+
+    "--values",
+    "LLVM_ENABLE_ABI_BREAKING_CHECKS=",  # FIXME: flag?
+    "LLVM_ENABLE_REVERSE_ITERATION=",  # FIXME: flag?
+  ]
+}
