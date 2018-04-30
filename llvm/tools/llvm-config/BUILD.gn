@@ -66,6 +66,7 @@ executable("llvm-config") {
   deps = [
     ":BuildVariables.inc",
     ":LibraryDependencies.inc",
+    "//llvm/include/llvm/Config:llvm-config",
     "//llvm/lib/Support",
   ]
 

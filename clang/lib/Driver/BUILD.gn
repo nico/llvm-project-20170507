@@ -10,6 +10,7 @@ static_library("Driver") {
     "//clang/include/clang/Driver:Options",
     "//clang/include/clang/StaticAnalyzer/Checkers",
     "//clang/lib/Basic",
+    "//llvm/include/llvm/Config:llvm-config",
     "//llvm/lib/BinaryFormat",
     "//llvm/lib/Option",
     "//llvm/lib/Support",

@@ -1,5 +1,6 @@
 executable("llvm-cov") {
   deps = [
+    "//llvm/include/llvm/Config:llvm-config",
     "//llvm/lib/IR",
     "//llvm/lib/Object",
     "//llvm/lib/ProfileData",

@@ -11,6 +11,7 @@ static_library("Frontend") {
     "//clang/lib/Parse",
     "//clang/lib/Sema",
     "//clang/lib/Serialization",
+    "//llvm/include/llvm/Config:llvm-config",
     "//llvm/lib/Bitcode/Reader",
     "//llvm/lib/Option",
     "//llvm/lib/ProfileData",

@@ -20,6 +20,7 @@ target(libclang_target_type, "libclang") {
     "//clang/lib/Lex",
     "//clang/lib/Sema",
     "//clang/lib/Tooling",
+    "//llvm/include/llvm/Config:llvm-config",
     "//llvm/lib/IR",
     "//llvm/lib/Support",
     "//llvm/lib/Target:TargetsToBuild",

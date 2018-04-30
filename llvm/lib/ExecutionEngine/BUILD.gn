@@ -1,5 +1,10 @@
 static_library("ExecutionEngine") {
   output_name = "LLVMExecutionEngine"
+  public_deps = [
+    # Must be a public_dep because ExecutionEngine's headers include
+    # llvm-config.h.
+    "//llvm/include/llvm/Config:llvm-config",
+  ]
   deps = [
     "//llvm/include/llvm/IR:tablegen",
     "//llvm/lib/IR",

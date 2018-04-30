@@ -18,6 +18,7 @@ static_library("Support") {
     # this public_dep does double duty of abi-breaking.h uses in public headers
     # of both Support and ADT.
     "//llvm/include/llvm/Config:abi-breaking",
+    "//llvm/include/llvm/Config:llvm-config",
   ]
   include_dirs = [
     "Unix",

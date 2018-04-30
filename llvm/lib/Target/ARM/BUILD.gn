@@ -91,6 +91,7 @@ static_library("ARMCodeGen") {
     "MCTargetDesc",
     "TargetInfo",
     "Utils",
+    "//llvm/include/llvm/Config:llvm-config",
     "//llvm/lib/Analysis",
     "//llvm/lib/CodeGen",
     "//llvm/lib/CodeGen/AsmPrinter",

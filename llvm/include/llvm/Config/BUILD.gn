@@ -1,3 +1,4 @@
+import("//gn/enable_threads.gni")
 import("//gn/libs/xml/enable.gni")
 import("//llvm/version.gni")
 
@@ -19,4 +20,54 @@ action("abi-breaking") {
     "LLVM_ENABLE_ABI_BREAKING_CHECKS=",  # FIXME: flag?
     "LLVM_ENABLE_REVERSE_ITERATION=",  # FIXME: flag?
   ]
+}
+
+action("llvm-config") {
+  script = "//gn/write_cmake_config.py"
+
+  sources = [
+    "llvm-config.h.cmake",
+  ]
+  outputs = [
+    "$target_gen_dir/llvm-config.h",
+  ]
+  args = [
+    rebase_path(sources[0], root_out_dir),
+    "-o",
+    rebase_path(outputs[0], root_out_dir),
+
+    "--values",
+    "LLVM_ENABLE_DUMP=",  # FIXME: flag?
+    "LINK_POLLY_INTO_TOOLS=",
+    "LLVM_HAS_ATOMICS=1",
+    "LLVM_NATIVE_ARCH=X86",  # FIXME
+    "LLVM_NATIVE_ASMPARSER=1",
+    "LLVM_NATIVE_ASMPRINTER=1",
+    "LLVM_NATIVE_DISASSEMBLER=1",
+    "LLVM_NATIVE_TARGET=1",
+    "LLVM_NATIVE_TARGETINFO=1",
+    "LLVM_NATIVE_TARGETMC=1",
+    "LLVM_USE_INTEL_JITEVENTS=",
+    "LLVM_USE_OPROFILE=",
+    "LLVM_VERSION_MAJOR=$llvm_version_major",
+    "LLVM_VERSION_MINOR=$llvm_version_minor",
+    "LLVM_VERSION_PATCH=$llvm_version_patch",
+    "PACKAGE_VERSION=${llvm_version}svn",
+    "LLVM_FORCE_ENABLE_STATS=",
+  ]
+
+  if (host_os == "linux") {
+    args += [
+      "LLVM_DEFAULT_TARGET_TRIPLE=x86_64-unknown-linux-gnu",
+      "LLVM_HOST_TRIPLE=x86_64-unknown-linux-gnu",
+      "LLVM_ON_UNIX=1",
+      "LLVM_ON_WIN32=0",
+    ]
+  }
+
+  if (llvm_enable_threads) {
+    args += [ "LLVM_ENABLE_THREADS=1" ]
+  } else {
+    args += [ "LLVM_ENABLE_THREADS=" ]
+  }
 }
