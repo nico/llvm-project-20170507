@@ -2,6 +2,7 @@ static_library("Reader") {
   output_name = "LLVMBitReader"
   deps = [
     "//llvm/include/llvm/Config:llvm-config",
+    "//llvm/include/llvm/Config:config",
     "//llvm/include/llvm/IR:tablegen",
     "//llvm/lib/IR",
     "//llvm/lib/Support",

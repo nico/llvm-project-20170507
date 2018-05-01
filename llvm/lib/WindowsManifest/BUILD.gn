@@ -2,6 +2,7 @@ static_library("WindowsManifest") {
   output_name = "LLVMWindowsManifest"
   deps = [
     "//gn/libs/xml",
+    "//llvm/include/llvm/Config:config",
     "//llvm/lib/Support",
   ]
   sources = [

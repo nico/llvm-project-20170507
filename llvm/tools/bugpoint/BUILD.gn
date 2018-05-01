@@ -2,6 +2,7 @@ executable("bugpoint") {
   # FIXME: Disable dead stripping once other binaries are dead-stripped, for
   # Support plugins.
   deps = [
+    "//llvm/include/llvm/Config:config",
     "//llvm/include/llvm/Config:llvm-config",
     "//llvm/include/llvm/IR:tablegen",
     "//llvm/lib/Analysis",

@@ -1,6 +1,7 @@
 static_library("Object") {
   output_name = "LLVMObject"
   deps = [
+    "//llvm/include/llvm/Config:llvm-config",
     "//llvm/include/llvm/IR:tablegen",
     "//llvm/include/llvm/Support:vcsrevision",
     "//llvm/lib/BinaryFormat",

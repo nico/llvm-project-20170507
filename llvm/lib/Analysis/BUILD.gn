@@ -5,6 +5,7 @@ static_library("Analysis") {
     "//llvm/include/llvm/Config:llvm-config",
   ]
   deps = [
+    "//llvm/include/llvm/Config:config",
     "//llvm/include/llvm/IR:tablegen",
     "//llvm/lib/BinaryFormat",
     "//llvm/lib/IR",

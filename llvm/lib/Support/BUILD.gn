@@ -10,6 +10,7 @@ static_library("Support") {
   output_name = "LLVMSupport"
   deps = [
     "//gn:pthread",
+    "//llvm/include/llvm/Config:config",
     "//llvm/lib/Demangle",
   ]
   public_deps = [

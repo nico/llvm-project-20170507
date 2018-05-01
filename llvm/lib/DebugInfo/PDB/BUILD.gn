@@ -6,6 +6,7 @@ declare_args() {
 static_library("PDB") {
   output_name = "LLVMDebugInfoPDB"
   deps = [
+    "//llvm/include/llvm/Config:config",
     "//llvm/lib/DebugInfo/CodeView",
     "//llvm/lib/DebugInfo/MSF",
     "//llvm/lib/Object",

@@ -12,11 +12,9 @@ Missing:
 - optimized tablegen in debug builds (having an `add_tablegen` template might
   make sense now that there's llvm-tblgen and clang-tblgen)
 - describe how to get or build a gn binary
-- configure step equivalent. For now,
-  `cp /path/to/cmake/build/llvm/include/Config/config.h llvm/include/llvm/Config`.
-  For now, the `declare_args` need to match the copied-over config files.
-  Probably want small feature headers for the feature config toggles, and
+- Probably want small feature headers for the feature config toggles, and
   per-platform defaults instead of configure for things like headers to use.
+  (e.g. `llvm_have_xar` only used by llvm-objdump?)
 - cross build
 - bootstrap build
 - a better place to put the main gn config; new folder in monorepro isn't great

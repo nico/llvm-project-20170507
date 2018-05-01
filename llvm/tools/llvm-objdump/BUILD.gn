@@ -6,6 +6,7 @@ declare_args() {
 
 executable("llvm-objdump") {
   deps = [
+    "//llvm/include/llvm/Config:config",
     "//llvm/lib/CodeGen",
     "//llvm/lib/DebugInfo/DWARF",
     "//llvm/lib/DebugInfo/PDB",
@@ -29,6 +30,7 @@ executable("llvm-objdump") {
   ]
 
   if (llvm_have_libxar) {
+    # FIXME: redundant with Config:config above.
     defines = [ "HAVE_LIBXAR" ]
     libs = [ "xar" ]
   }
