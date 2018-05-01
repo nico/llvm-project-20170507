@@ -13,8 +13,10 @@ def main():
     args = parser.parse_args()
 
     values = {}
+    unused_values = set()
     for value in args.values:
         key, val = value.split('=', 1)
+        unused_values.add(key)
         values[key] = val
 
     # Matches e.g. '${CLANG_FOO}' and captures CLANG_FOO in group 1.
@@ -24,10 +26,12 @@ def main():
     out_lines = []
     for in_line in in_lines:
         def repl(m):
+            unused_values.discard(m.group(1))
             return values[m.group(1)]
         if in_line.startswith('#cmakedefine01 '):
             _, var = in_line.split()
             out_lines.append('#define %s %d\n' % (var, 1 if values[var] else 0))
+            unused_values.discard(var)
         elif in_line.startswith('#cmakedefine '):
             _, var = in_line.split(None, 1)
             try:
@@ -39,9 +43,14 @@ def main():
                                                     var_re.sub(repl, val)))
             else:
                 out_lines.append('/* #undef %s */\n' % var)
+            unused_values.discard(var)
         else:
             # In particular, handles `#define FOO ${FOO}` lines.
             out_lines.append(var_re.sub(repl, in_line))
+
+    if unused_values:
+        print 'Unused --values args:\n    ', '\n    '.join(unused_values)
+        return 1
 
     output = ''.join(out_lines)
 
