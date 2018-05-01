@@ -45,43 +45,30 @@ action("config") {
     "HAVE_BACKTRACE=1",
     "BACKTRACE_HEADER=execinfo.h",
     "HAVE_CRASHREPORTERCLIENT_H=",
-    "HAVE_CRASHREPORTER_INFO=",
-    "HAVE_DECL_ARC4RANDOM=",
     "HAVE_DECL_FE_ALL_EXCEPT=1",
     "HAVE_DECL_FE_INEXACT=1",
     "HAVE_DECL_STRERROR_S=",  # FIXME: huh?
     "LLVM_ENABLE_DIA_SDK=",
     "HAVE_DLFCN_H=1",
     "HAVE_DLOPEN=1",
-    "HAVE_DLADDR=",
     "HAVE_ERRNO_H=1",
     "HAVE_FCNTL_H=1",
     "HAVE_FENV_H=1",
     "HAVE_FFI_CALL=",
     "HAVE_FFI_FFI_H=",
     "HAVE_FFI_H=",
-    "HAVE_FUTIMENS=1",
     "HAVE_FUTIMES=1",
     "HAVE_GETPAGESIZE=1",
     "HAVE_GETRLIMIT=1",
     "HAVE_GETRUSAGE=1",
     "HAVE_ISATTY=1",
-    "HAVE_LIBEDIT=",
     "HAVE_LIBPFM=",
     "HAVE_LIBPSAPI=",
     "HAVE_LIBPTHREAD=1",
     "HAVE_PTHREAD_GETNAME_NP=1",
     "HAVE_PTHREAD_SETNAME_NP=1",
     "HAVE_LIBZ=1",
-    "HAVE_LINK_H=1",
-    "HAVE_LSEEK64=1",
-    "HAVE_MACH_MACH_H=",
     "HAVE_MALLCTL=",
-    "HAVE_MALLINFO=1",
-    "HAVE_MALLOC_H=1",
-    "HAVE_MALLOC_MALLOC_H=",
-    "HAVE_MALLOC_ZONE_STATISTICS=",
-    "HAVE_POSIX_FALLOCATE=1",
     "HAVE_POSIX_SPAWN=1",
     "HAVE_PREAD=1",
     "HAVE_PTHREAD_GETSPECIFIC=1",
@@ -91,8 +78,6 @@ action("config") {
     "HAVE_REALPATH=1",
     "HAVE_SBRK=1",
     "HAVE_SETENV=1",
-    "HAVE_SCHED_GETAFFINITY=1",
-    "HAVE_CPU_COUNT=1",
     "HAVE_SETRLIMIT=1",
     "HAVE_SIGALTSTACK=1",
     "HAVE_SIGNAL_H=1",
@@ -107,10 +92,8 @@ action("config") {
     "HAVE_SYS_TIME_H=1",
     "HAVE_SYS_TYPES_H=1",
     "HAVE_TERMINFO=1",
-    "HAVE_LIBXAR=",
     "HAVE_TERMIOS_H=1",
     "HAVE_UNISTD_H=1",
-    "HAVE_VALGRIND_VALGRIND_H=1",
     "HAVE_ZLIB_H=1",
     "HAVE__ALLOCA=",
     "HAVE__CHSIZE_S=",
@@ -138,7 +121,6 @@ action("config") {
     "LLVM_VERSION_INFO=",
     "LLVM_VERSION_PRINTER_SHOW_HOST_TARGET_INFO=1",  # FIXME: Huh? Probably make off by default?
     "LLVM_LIBXML2_ENABLED=1",
-    "LTDL_SHLIB_EXT=.so",
     "PACKAGE_BUGREPORT=https://bugs.llvm.org/",
     "PACKAGE_NAME=LLVM",
     "PACKAGE_STRING=LLVM ${llvm_version}svn",
@@ -164,9 +146,67 @@ action("config") {
 
   if (host_os == "linux") {
     args += [
+      "HAVE_FUTIMENS=1",
+      "HAVE_LINK_H=1",
+      "HAVE_LSEEK64=1",
+      "HAVE_MALLINFO=1",
+      "HAVE_MALLOC_H=1",
+      "HAVE_POSIX_FALLOCATE=1",
+      "HAVE_SCHED_GETAFFINITY=1",
+      "HAVE_CPU_COUNT=1",
+      "HAVE_VALGRIND_VALGRIND_H=1",
+    ]
+  } else {
+    args += [
+      "HAVE_FUTIMENS=",
+      "HAVE_LINK_H=",
+      "HAVE_LSEEK64=",
+      "HAVE_MALLINFO=",
+      "HAVE_MALLOC_H=",
+      "HAVE_POSIX_FALLOCATE=",
+      "HAVE_SCHED_GETAFFINITY=",
+      "HAVE_CPU_COUNT=",
+      "HAVE_VALGRIND_VALGRIND_H=",
+    ]
+  }
+
+  if (host_os == "mac") {
+    args += [
+      "HAVE_CRASHREPORTER_INFO=1",
+      "HAVE_DECL_ARC4RANDOM=1",
+      "HAVE_DLADDR=1",
+      "HAVE_LIBEDIT=1",
+      "HAVE_MACH_MACH_H=1",
+      "HAVE_MALLOC_MALLOC_H=1",
+      "HAVE_MALLOC_ZONE_STATISTICS=1",
+      "HAVE_LIBXAR=1",
+    ]
+  } else {
+    args += [
+      "HAVE_CRASHREPORTER_INFO=",
+      "HAVE_DECL_ARC4RANDOM=",
+      "HAVE_DLADDR=",
+      "HAVE_LIBEDIT=",
+      "HAVE_MACH_MACH_H=",
+      "HAVE_MALLOC_MALLOC_H=",
+      "HAVE_MALLOC_ZONE_STATISTICS=",
+      "HAVE_LIBXAR=",
+    ]
+  }
+
+  if (host_os == "linux") {
+    args += [
       "LLVM_DEFAULT_TARGET_TRIPLE=x86_64-unknown-linux-gnu",
       "LLVM_HOST_TRIPLE=x86_64-unknown-linux-gnu",
       "LLVM_ON_UNIX=1",
+      "LTDL_SHLIB_EXT=.so",
+    ]
+  } else if (host_os == "mac") {
+    args += [
+      "LLVM_DEFAULT_TARGET_TRIPLE=x86_64-apple-darwin13.0.0",
+      "LLVM_HOST_TRIPLE=x86_64-apple-darwin13.0.0",
+      "LLVM_ON_UNIX=1",
+      "LTDL_SHLIB_EXT=.dylib",
     ]
   }
 
@@ -215,6 +255,12 @@ action("llvm-config") {
     args += [
       "LLVM_DEFAULT_TARGET_TRIPLE=x86_64-unknown-linux-gnu",
       "LLVM_HOST_TRIPLE=x86_64-unknown-linux-gnu",
+      "LLVM_ON_UNIX=1",
+    ]
+  } else if (host_os == "mac") {
+    args += [
+      "LLVM_DEFAULT_TARGET_TRIPLE=x86_64-apple-darwin13.0.0",
+      "LLVM_HOST_TRIPLE=x86_64-apple-darwin13.0.0",
       "LLVM_ON_UNIX=1",
     ]
   }
