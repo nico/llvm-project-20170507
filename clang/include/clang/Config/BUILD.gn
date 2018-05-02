@@ -23,7 +23,7 @@ action("Config") {
     rebase_path(outputs[0], root_out_dir),
 
     "--values",
-    "BUG_REPORT_URL=https://bugs.llvm.org",
+    "BUG_REPORT_URL=https://bugs.llvm.org/",
     "CLANG_DEFAULT_LINKER=",
     "CLANG_DEFAULT_STD_C=",
     "CLANG_DEFAULT_STD_CXX=",
@@ -39,9 +39,8 @@ action("Config") {
     "CLANG_CONFIG_FILE_USER_DIR=",
     "DEFAULT_SYSROOT=",
     "GCC_INSTALL_PREFIX=",
-    "CLANG_HAVE_LIBXML=$llvm_enable_libxml2",
     "CLANG_ANALYZER_WITH_Z3=",
-    "BACKEND_PACKAGE_STRING=LLVM $llvm_version",
+    "BACKEND_PACKAGE_STRING=LLVM ${llvm_version}svn",
     "ENABLE_LINKER_BUILD_ID=",
     "ENABLE_X86_RELAX_RELOCATIONS=",
     "ENABLE_EXPERIMENTAL_NEW_PASS_MANAGER=",
@@ -53,7 +52,13 @@ action("Config") {
   if (host_os != "win") {
     args += [ "CLANG_HAVE_RLIMITS=1" ]
   } else {
-    args += [ "CLANG_HAVE_RLIMITS=0" ]
+    args += [ "CLANG_HAVE_RLIMITS=" ]
+  }
+
+  if (llvm_enable_libxml2) {
+    args += [ "CLANG_HAVE_LIBXML=1" ]
+  } else {
+    args += [ "CLANG_HAVE_LIBXML=" ]
   }
 
   if (host_os == "mac") {
