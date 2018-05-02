@@ -1,5 +1,5 @@
 declare_args() {
   # Whether to enable threading.
-  llvm_enable_threads = host_os != "win"  # FIXME: win threading
+  llvm_enable_threads = true
 }
 

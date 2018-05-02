@@ -96,13 +96,10 @@ config("clang_code") {
 config("pthread_config") {
   visibility = [ ":pthread" ]
   libs = [ "pthread" ]
-
-  # FIXME: currently must match config.h
-  defines = [ "LLVM_ENABLE_THREADS" ]
 }
 
 group("pthread") {
-  if (llvm_enable_threads) {
+  if (llvm_enable_threads && host_os != "win") {
     public_configs = [ ":pthread_config" ]
   }
 }
