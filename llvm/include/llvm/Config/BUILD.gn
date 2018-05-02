@@ -95,7 +95,9 @@ action("config") {
     # config.h includes a redundant copy of some of the things in llvm-config.h
     # FIXME: Remove this once https://reviews.llvm.org/D46288 is in.
     "LINK_POLLY_INTO_TOOLS=",
+    "LLVM_DEFAULT_TARGET_TRIPLE=$llvm_target_triple",
     "LLVM_HAS_ATOMICS=1",
+    "LLVM_HOST_TRIPLE=$llvm_host_triple",
     "LLVM_USE_INTEL_JITEVENTS=",
     "LLVM_USE_OPROFILE=",
     "LLVM_VERSION_MAJOR=$llvm_version_major",
@@ -193,6 +195,7 @@ action("config") {
       "HAVE_ZLIB_H=",
       "HAVE__CHSIZE_S=1",
       "HAVE__UNWIND_BACKTRACE=",
+      "LLVM_ON_UNIX=",
       "stricmp=_stricmp",
       "strdup=_strdup",
     ]
@@ -236,6 +239,7 @@ action("config") {
       "HAVE_ZLIB_H=1",
       "HAVE__CHSIZE_S=",
       "HAVE__UNWIND_BACKTRACE=1",
+      "LLVM_ON_UNIX=1",
       "stricmp=",
       "strdup=",
     ]
@@ -243,23 +247,14 @@ action("config") {
 
   if (host_os == "linux") {
     args += [
-      "LLVM_DEFAULT_TARGET_TRIPLE=x86_64-unknown-linux-gnu",
-      "LLVM_HOST_TRIPLE=x86_64-unknown-linux-gnu",
-      "LLVM_ON_UNIX=1",
       "LTDL_SHLIB_EXT=.so",
     ]
   } else if (host_os == "mac") {
     args += [
-      "LLVM_DEFAULT_TARGET_TRIPLE=x86_64-apple-darwin13.0.0",
-      "LLVM_HOST_TRIPLE=x86_64-apple-darwin13.0.0",
-      "LLVM_ON_UNIX=1",
       "LTDL_SHLIB_EXT=.dylib",
     ]
   } else if (host_os == "win") {
     args += [
-      "LLVM_DEFAULT_TARGET_TRIPLE=i686-pc-win32",  # FIXME: 32-bit
-      "LLVM_HOST_TRIPLE=i686-pc-win32",
-      "LLVM_ON_UNIX=",
       "LTDL_SHLIB_EXT=.dll",
     ]
   }
@@ -300,7 +295,9 @@ action("llvm-config") {
     "--values",
     "LLVM_ENABLE_DUMP=",  # FIXME: flag?
     "LINK_POLLY_INTO_TOOLS=",
+    "LLVM_DEFAULT_TARGET_TRIPLE=$llvm_target_triple",
     "LLVM_HAS_ATOMICS=1",
+    "LLVM_HOST_TRIPLE=$llvm_host_triple",
     "LLVM_NATIVE_ARCH=X86",  # FIXME
     "LLVM_NATIVE_ASMPARSER=1",
     "LLVM_NATIVE_ASMPRINTER=1",
@@ -317,24 +314,10 @@ action("llvm-config") {
     "LLVM_FORCE_ENABLE_STATS=",
   ]
 
-  if (host_os == "linux") {
-    args += [
-      "LLVM_DEFAULT_TARGET_TRIPLE=x86_64-unknown-linux-gnu",
-      "LLVM_HOST_TRIPLE=x86_64-unknown-linux-gnu",
-      "LLVM_ON_UNIX=1",
-    ]
-  } else if (host_os == "mac") {
-    args += [
-      "LLVM_DEFAULT_TARGET_TRIPLE=x86_64-apple-darwin13.0.0",
-      "LLVM_HOST_TRIPLE=x86_64-apple-darwin13.0.0",
-      "LLVM_ON_UNIX=1",
-    ]
-  } else if (host_os == "win") {
-    args += [
-      "LLVM_DEFAULT_TARGET_TRIPLE=i686-pc-win32",  # FIXME: 32-bit
-      "LLVM_HOST_TRIPLE=i686-pc-win32",
-      "LLVM_ON_UNIX=",
-    ]
+  if (host_os == "win") {
+    args += [ "LLVM_ON_UNIX=" ]
+  } else {
+    args += [ "LLVM_ON_UNIX=1" ]
   }
 
   if (llvm_enable_threads) {

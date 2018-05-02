@@ -36,7 +36,7 @@ template("write_lit_config") {
       "@LLVM_SOURCE_DIR@=" + rebase_path("//llvm"),  # FIXME: assumes monorepo
       "@LLVM_TOOLS_DIR@=" + rebase_path("$root_out_dir/bin"),
       "@PYTHON_EXECUTABLE@=$python_path",
-      "@TARGET_TRIPLE@=i386-apple-darwin16.7.0",  # FIXME: better
+      "@TARGET_TRIPLE@=$llvm_target_triple",
     ]
     outputs = [
       output,
