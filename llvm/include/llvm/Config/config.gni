@@ -1,0 +1,4 @@
+# These are not declare_args and hence not user-settable, they're just needed
+# in several places.  Some of them should probably be declare_args.
+llvm_libxml2_enabled = host_os != "win"
+llvm_enable_zlib = host_os != "win"

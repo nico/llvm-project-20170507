@@ -1,5 +1,6 @@
 import("//gn/enable_threads.gni")
 import("//gn/libs/xml/enable.gni")
+import("//llvm/include/llvm/Config/config.gni")
 import("//llvm/version.gni")
 
 action("abi-breaking") {
@@ -192,8 +193,6 @@ action("config") {
       "HAVE_ZLIB_H=",
       "HAVE__CHSIZE_S=1",
       "HAVE__UNWIND_BACKTRACE=",
-      "LLVM_ENABLE_ZLIB=",
-      "LLVM_LIBXML2_ENABLED=",
       "stricmp=_stricmp",
       "strdup=_strdup",
     ]
@@ -237,8 +236,6 @@ action("config") {
       "HAVE_ZLIB_H=1",
       "HAVE__CHSIZE_S=",
       "HAVE__UNWIND_BACKTRACE=1",
-      "LLVM_ENABLE_ZLIB=1",
-      "LLVM_LIBXML2_ENABLED=1",
       "stricmp=",
       "strdup=",
     ]
@@ -271,6 +268,18 @@ action("config") {
     args += [ "LLVM_ENABLE_THREADS=1" ]
   } else {
     args += [ "LLVM_ENABLE_THREADS=" ]
+  }
+
+  if (llvm_enable_zlib) {
+    args += [ "LLVM_ENABLE_ZLIB=1" ]
+  } else {
+    args += [ "LLVM_ENABLE_ZLIB=" ]
+  }
+
+  if (llvm_libxml2_enabled) {
+    args += [ "LLVM_LIBXML2_ENABLED=1" ]
+  } else {
+    args += [ "LLVM_LIBXML2_ENABLED=" ]
   }
 }
 
