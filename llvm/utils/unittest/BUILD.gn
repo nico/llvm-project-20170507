@@ -1,3 +1,5 @@
+import("//gn/enable_threads.gni")
+
 # Used to push the gtest include directories to things depending on :googletest.
 config("googletest_config") {
   include_dirs = [
@@ -26,8 +28,9 @@ static_library("googletest") {
     "googlemock",  # For including src/gmock.cc
   ]
   public_configs = [ ":googletest_config" ]
-
-  # FIXME: if (!llvm_enable_threads) GTEST_HAS_PTHREAD=0
+  if (!llvm_enable_threads) {
+    defines = [ "GTEST_HAS_PTHREAD=0" ]
+  }
   sources = [
     "googlemock/src/gmock-all.cc",
     "googletest/src/gtest-all.cc",
