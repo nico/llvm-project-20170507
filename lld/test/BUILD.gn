@@ -42,7 +42,7 @@ template("write_lit_config") {
       output,
     ]
 
-    if (llvm_libxml2_enabled) {
+    if (llvm_enable_zlib) {
       args += [ "@HAVE_LIBZ@=1" ]
     } else {
       args += [ "@HAVE_LIBZ@=0" ]  # Must be 0.
