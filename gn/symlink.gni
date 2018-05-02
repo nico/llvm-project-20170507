@@ -1,9 +1,11 @@
-# Creates a symlink.
+# Creates a symlink (or, on Windows, copies).
 # Args:
 #   source: Path to link to.
 #   output: Where to create the symlink.
-template("symlink") {
+template("symlink_or_copy") {
   action(target_name) {
+    forward_variables_from(invoker, [ "deps" ])
+
     # Make a stamp file the output to work around
     # https://github.com/ninja-build/ninja/issues/1186
     stamp =

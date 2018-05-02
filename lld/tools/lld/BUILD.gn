@@ -7,9 +7,18 @@ symlinks = [
   "wasm-ld",
 ]
 foreach(target, symlinks) {
-  symlink(target) {
+  symlink_or_copy(target) {
+    deps = [ ":lld" ]
     source = "lld"
     output = "$root_out_dir/bin/$target"
+  }
+}
+
+# //:lld depends on this symlink target, see comment in //BUILD.gn.
+group("symlinks") {
+  deps = []
+  foreach(target, symlinks) {
+    deps += [ ":$target" ]
   }
 }
 
@@ -23,10 +32,7 @@ executable("lld") {
     "//lld/wasm",
     "//llvm/lib/Support",
   ]
-  foreach(target, symlinks) {
-    deps += [ ":$target" ]
-  }
-  sources = [
+ sources = [
     "lld.cpp",
   ]
 }

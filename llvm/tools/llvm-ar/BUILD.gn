@@ -6,9 +6,18 @@ symlinks = [
   "llvm-dlltool",
 ]
 foreach(target, symlinks) {
-  symlink(target) {
+  symlink_or_copy(target) {
+    deps = [ ":llvm-ar" ]
     source = "llvm-ar"
     output = "$root_out_dir/bin/$target"
+  }
+}
+
+# //:llvm-ar depends on this symlink target, see comment in //BUILD.gn.
+group("symlinks") {
+  deps = []
+  foreach(target, symlinks) {
+    deps += [ ":$target" ]
   }
 }
 
@@ -21,9 +30,6 @@ executable("llvm-ar") {
     "//llvm/lib/ToolDrivers/llvm-dlltool:DlltoolDriver",
     "//llvm/lib/ToolDrivers/llvm-lib:LibDriver",
   ]
-  foreach(target, symlinks) {
-    deps += [ ":$target" ]
-  }
   sources = [
     "llvm-ar.cpp",
   ]

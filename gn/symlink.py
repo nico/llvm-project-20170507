@@ -16,13 +16,17 @@ def main():
         if err.errno != errno.EEXIST:
             raise
     try:
-        # FIXME: Figure out symlink story under Windows. Probably just want to
-        # copy the file instead, but currently symlinks are created before the
-        # target exists.
         if sys.platform != 'win32':
             os.symlink(args.source, args.output)
+        else:
+            import shutil
+            output = args.output + ".exe"
+            source = args.source + ".exe"
+            shutil.copyfile(os.path.join(os.path.dirname(output), source),
+                            output)
     except OSError as e:
       if e.errno == errno.EEXIST and args.force:
+          assert sys.platform != 'win32'
           os.remove(args.output)
           os.symlink(args.source, args.output)
       else:
