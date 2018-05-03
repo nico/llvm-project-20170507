@@ -15,6 +15,8 @@
 #ifndef LLVM_SUPPORT_COMPILER_H
 #define LLVM_SUPPORT_COMPILER_H
 
+#include "llvm/Config/llvm-config.h"
+
 #if defined(_MSC_VER)
 #include <sal.h>
 #endif
