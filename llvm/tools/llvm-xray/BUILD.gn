@@ -8,15 +8,15 @@ executable("llvm-xray") {
     "//llvm/lib/XRay",
   ]
   sources = [
-    "func-id-helper.cc",
-    "llvm-xray.cc",
-    "xray-account.cc",
-    "xray-color-helper.cc",
-    "xray-converter.cc",
-    "xray-extract.cc",
-    "xray-graph-diff.cc",
-    "xray-graph.cc",
-    "xray-registry.cc",
-    "xray-stacks.cc",
+    "func-id-helper.cpp",
+    "llvm-xray.cpp",
+    "xray-account.cpp",
+    "xray-color-helper.cpp",
+    "xray-converter.cpp",
+    "xray-extract.cpp",
+    "xray-graph-diff.cpp",
+    "xray-graph.cpp",
+    "xray-registry.cpp",
+    "xray-stacks.cpp",
   ]
 }

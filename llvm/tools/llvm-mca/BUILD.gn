@@ -24,6 +24,7 @@ executable("llvm-mca") {
     "LSUnit.cpp",
     "RegisterFileStatistics.cpp",
     "ResourcePressureView.cpp",
+    "RetireControlUnit.cpp",
     "RetireControlUnitStatistics.cpp",
     "Scheduler.cpp",
     "SchedulerStatistics.cpp",
