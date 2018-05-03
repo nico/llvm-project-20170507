@@ -1,4 +1,8 @@
 static_library("Demangle") {
+  public_deps = [
+    # Must be a public_dep because Demangle's headers include llvm-config.h.
+    "//llvm/include/llvm/Config:llvm-config",
+  ]
   sources = [
     "ItaniumDemangle.cpp",
   ]
