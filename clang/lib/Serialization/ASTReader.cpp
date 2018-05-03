@@ -6392,7 +6392,7 @@ void ASTReader::readExceptionSpec(ModuleFile &ModuleFile,
     for (unsigned I = 0, N = Record[Idx++]; I != N; ++I)
       Exceptions.push_back(readType(ModuleFile, Record, Idx));
     ESI.Exceptions = Exceptions;
-  } else if (EST == EST_ComputedNoexcept) {
+  } else if (isComputedNoexcept(EST)) {
     ESI.NoexceptExpr = ReadExpr(ModuleFile);
   } else if (EST == EST_Uninstantiated) {
     ESI.SourceDecl = ReadDeclAs<FunctionDecl>(ModuleFile, Record, Idx);
@@ -6840,6 +6840,9 @@ QualType ASTReader::GetType(TypeID ID) {
       break;
     case PREDEF_TYPE_NULLPTR_ID:
       T = Context.NullPtrTy;
+      break;
+    case PREDEF_TYPE_CHAR8_ID:
+      T = Context.Char8Ty;
       break;
     case PREDEF_TYPE_CHAR16_ID:
       T = Context.Char16Ty;

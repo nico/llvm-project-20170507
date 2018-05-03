@@ -2525,6 +2525,9 @@ void CXXNameMangler::mangleType(const BuiltinType *T) {
   case BuiltinType::WChar_U:
     Out << 'w';
     break;
+  case BuiltinType::Char8:
+    Out << "Du";
+    break;
   case BuiltinType::Char16:
     Out << "Ds";
     break;
@@ -2699,7 +2702,7 @@ void CXXNameMangler::mangleType(const FunctionProtoType *T) {
   // Mangle instantiation-dependent exception-specification, if present,
   // per cxx-abi-dev proposal on 2016-10-11.
   if (T->hasInstantiationDependentExceptionSpec()) {
-    if (T->getExceptionSpecType() == EST_ComputedNoexcept) {
+    if (isComputedNoexcept(T->getExceptionSpecType())) {
       Out << "DO";
       mangleExpression(T->getNoexceptExpr());
       Out << "E";
@@ -2710,7 +2713,7 @@ void CXXNameMangler::mangleType(const FunctionProtoType *T) {
         mangleType(ExceptTy);
       Out << "E";
     }
-  } else if (T->isNothrow(getASTContext())) {
+  } else if (T->isNothrow()) {
     Out << "Do";
   }
 

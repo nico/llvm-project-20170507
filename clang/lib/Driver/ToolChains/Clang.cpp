@@ -1484,6 +1484,11 @@ void Clang::AddAArch64TargetArgs(const ArgList &Args,
     else
       CmdArgs.push_back("-aarch64-enable-global-merge=true");
   }
+
+  if (Args.getLastArg(options::OPT_foutline)) {
+    CmdArgs.push_back("-mllvm");
+    CmdArgs.push_back("-enable-machine-outliner");
+  }
 }
 
 void Clang::AddMIPSTargetArgs(const ArgList &Args,
@@ -2686,6 +2691,9 @@ static void RenderCharacterOptions(const ArgList &Args, const llvm::Triple &T,
   } else if (!isSignedCharDefault(T)) {
     CmdArgs.push_back("-fno-signed-char");
   }
+
+  if (Args.hasFlag(options::OPT_fchar8__t, options::OPT_fno_char8__t, false))
+    CmdArgs.push_back("-fchar8_t");
 
   if (const Arg *A = Args.getLastArg(options::OPT_fshort_wchar,
                                      options::OPT_fno_short_wchar)) {
