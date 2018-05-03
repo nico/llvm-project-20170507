@@ -189,7 +189,6 @@ action("config") {
       "HAVE_SYS_PARAM_H=",
       "HAVE_SYS_RESOURCE_H=",
       "HAVE_SYS_TIME_H=",
-      "HAVE_TERMINFO=",
       "HAVE_TERMIOS_H=",
       "HAVE_UNISTD_H=",
       "HAVE_ZLIB_H=",
@@ -233,7 +232,6 @@ action("config") {
       "HAVE_SYS_PARAM_H=1",
       "HAVE_SYS_RESOURCE_H=1",
       "HAVE_SYS_TIME_H=1",
-      "HAVE_TERMINFO=1",
       "HAVE_TERMIOS_H=1",
       "HAVE_UNISTD_H=1",
       "HAVE_ZLIB_H=1",
@@ -257,6 +255,12 @@ action("config") {
     args += [
       "LTDL_SHLIB_EXT=.dll",
     ]
+  }
+
+  if (llvm_enable_terminfo) {
+    args += [ "HAVE_TERMINFO=1" ]
+  } else {
+    args += [ "HAVE_TERMINFO=" ]
   }
 
   if (llvm_enable_threads) {

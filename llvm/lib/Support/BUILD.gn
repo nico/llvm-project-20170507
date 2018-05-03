@@ -1,10 +1,4 @@
-declare_args() {
-  # Wether to link against terminfo.
-  llvm_enable_terminfo = false
-
-  # Wether to link against zlib.
-  llvm_enable_zlib = host_os != "win"
-}
+import("//llvm/include/llvm/Config/config.gni")
 
 static_library("Support") {
   output_name = "LLVMSupport"
@@ -142,23 +136,17 @@ static_library("Support") {
     "Watchdog.cpp",
   ]
 
-  defines = []
   libs = []
 
   if (host_os == "linux") {
     libs += [ "dl" ]
   }
 
-  # FIXME: Use feature headers instead of flags?
   if (llvm_enable_terminfo) {
-    defines += [ "HAVE_TERMINFO" ]
     libs += [ "ncurses" ]
   }
-  if (llvm_enable_terminfo) {
-    defines += [
-      "HAVE_ZLIB_H",
-      "LLVM_ENABLE_ZLIB",
-    ]
+
+  if (llvm_enable_zlib) {
     libs += [ "z" ]
   }
 }

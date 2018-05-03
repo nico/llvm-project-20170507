@@ -1,3 +1,14 @@
+# FIXME: Several of the values in this file go to a global config header but
+# are only used in a single translation unit -- so toggling that value
+# only should recompile a single file, but causes a full rebuild do to the
+# monolithing config headers. Should use something like
+# https://is.gd/buildflag_header_gni instead.
+
+declare_args() {
+  # Wether to link against terminfo.
+  llvm_enable_terminfo = false
+}
+
 # These are not declare_args and hence not user-settable, they're just needed
 # in several places.  Some of them should probably be declare_args.
 llvm_enable_zlib = host_os != "win"

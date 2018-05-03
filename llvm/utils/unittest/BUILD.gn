@@ -16,6 +16,9 @@ config("googletest_config") {
   if (host_os == "win") {
     defines += [ "GTEST_OS_WINDOWS" ]
   }
+  if (!llvm_enable_threads) {
+    defines += [ "GTEST_HAS_PTHREAD=0" ]
+  }
   defines += [ "GTEST_HAS_RTTI=0" ]
 }
 
@@ -28,9 +31,6 @@ static_library("googletest") {
     "googlemock",  # For including src/gmock.cc
   ]
   public_configs = [ ":googletest_config" ]
-  if (!llvm_enable_threads) {
-    defines = [ "GTEST_HAS_PTHREAD=0" ]
-  }
   sources = [
     "googlemock/src/gmock-all.cc",
     "googletest/src/gtest-all.cc",
