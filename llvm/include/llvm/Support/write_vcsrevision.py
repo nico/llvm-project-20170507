@@ -19,6 +19,7 @@ def which(program):
             return candidate
     return None
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--depfile')
@@ -64,6 +65,7 @@ def main():
     open(args.vcs_header, 'w').write(vcsrevision_contents)
 
     return 0
+
 
 if __name__ == '__main__':
     sys.exit(main())
