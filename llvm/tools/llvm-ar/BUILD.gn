@@ -7,7 +7,9 @@ symlinks = [
 ]
 foreach(target, symlinks) {
   symlink_or_copy(target) {
-    deps = [ ":llvm-ar" ]
+    deps = [
+      ":llvm-ar",
+    ]
     source = "llvm-ar"
     output = "$root_out_dir/bin/$target"
   }

@@ -69,6 +69,7 @@ config("compiler_defaults") {
       # Suppress 'destructor was implicitly defined as deleted'.
       "-wd4624",
     ]
+
     # The MSVC default value (1 MB) is not enough for parsing recursive C++
     # templates in Clang.
     ldflags = [ "/STACK:10000000" ]

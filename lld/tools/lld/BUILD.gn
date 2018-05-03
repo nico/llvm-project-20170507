@@ -8,7 +8,9 @@ symlinks = [
 ]
 foreach(target, symlinks) {
   symlink_or_copy(target) {
-    deps = [ ":lld" ]
+    deps = [
+      ":lld",
+    ]
     source = "lld"
     output = "$root_out_dir/bin/$target"
   }
@@ -32,7 +34,7 @@ executable("lld") {
     "//lld/wasm",
     "//llvm/lib/Support",
   ]
- sources = [
+  sources = [
     "lld.cpp",
   ]
 }

@@ -26,7 +26,9 @@ action("abi-breaking") {
 action("config") {
   script = "//gn/write_cmake_config.py"
 
-  public_deps = [ ":llvm-config" ]
+  public_deps = [
+    ":llvm-config",
+  ]
 
   sources = [
     "config.h.cmake",
@@ -244,17 +246,11 @@ action("config") {
   }
 
   if (host_os == "linux") {
-    args += [
-      "LTDL_SHLIB_EXT=.so",
-    ]
+    args += [ "LTDL_SHLIB_EXT=.so" ]
   } else if (host_os == "mac") {
-    args += [
-      "LTDL_SHLIB_EXT=.dylib",
-    ]
+    args += [ "LTDL_SHLIB_EXT=.dylib" ]
   } else if (host_os == "win") {
-    args += [
-      "LTDL_SHLIB_EXT=.dll",
-    ]
+    args += [ "LTDL_SHLIB_EXT=.dll" ]
   }
 
   if (llvm_enable_terminfo) {
