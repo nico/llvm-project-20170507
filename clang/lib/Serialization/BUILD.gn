@@ -13,8 +13,10 @@ static_library("Serialization") {
   ]
   sources = [
     "ASTCommon.cpp",
+    "ASTCommon.h",
     "ASTReader.cpp",
     "ASTReaderDecl.cpp",
+    "ASTReaderInternals.h",
     "ASTReaderStmt.cpp",
     "ASTWriter.cpp",
     "ASTWriterDecl.cpp",

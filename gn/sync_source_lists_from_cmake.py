@@ -15,9 +15,10 @@ def main():
             ['git', 'ls-files', '*BUILD.gn']).splitlines()
 
     # Matches e.g. |   "foo.cpp",|.
-    gn_cpp_re = re.compile(r'^\s*"([^"]+\.cpp)",$', re.MULTILINE)
+    gn_cpp_re = re.compile(r'^\s*"([^"]+\.(?:cpp|h))",$', re.MULTILINE)
     # Matches e.g. |   "foo.cpp"|.
-    cmake_cpp_re = re.compile(r'^\s*([A-Za-z_0-9/-]+\.cpp)$', re.MULTILINE)
+    cmake_cpp_re = re.compile(r'^\s*([A-Za-z_0-9/-]+\.(?:cpp|h))$',
+                              re.MULTILINE)
 
     for gn_file in gn_files:
         cmake_file = os.path.join(os.path.dirname(gn_file), 'CMakeLists.txt')
