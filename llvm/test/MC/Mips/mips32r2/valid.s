@@ -80,7 +80,9 @@ a:
         ceil.w.s  $f6,$f20
         cfc1      $s1,$21
         clo       $11,$a1              # CHECK: clo $11, $5   # encoding: [0x70,0xab,0x58,0x21]
+                                       # CHECK-NEXT:          # <MCInst #{{.*}} CLO
         clz       $sp,$gp              # CHECK: clz $sp, $gp  # encoding: [0x73,0x9d,0xe8,0x20]
+                                       # CHECK-NEXT:          # <MCInst #{{.*}} CLZ
         ctc1      $a2,$26
         cvt.d.s   $f0,$f2              # CHECK: cvt.d.s $f0, $f2         # encoding: [0x46,0x00,0x10,0x21]
                                        # CHECK-NEXT:                     # <MCInst #{{[0-9]+}} CVT_D32_S
@@ -235,9 +237,13 @@ a:
         sdc2      $20,23157($s2)       # CHECK: sdc2 $20, 23157($18)   # encoding: [0xfa,0x54,0x5a,0x75]
         sdxc1     $f11,$10($14)
         seb       $25, $15             # CHECK: seb $25, $15           # encoding: [0x7c,0x0f,0xcc,0x20]
+                                       # CHECK-NOT:                    # <MCInst #{{[0-9]+}} SEB_MM
         seb       $25                  # CHECK: seb $25, $25           # encoding: [0x7c,0x19,0xcc,0x20]
+                                       # CHECK-NOT:                    # <MCInst #{{[0-9]+}} SEB_MM
         seh       $3, $12              # CHECK: seh $3, $12            # encoding: [0x7c,0x0c,0x1e,0x20]
+                                       # CHECK-NOT:                    # <MCInst #{{[0-9]+}} SEH_MM
         seh       $3                   # CHECK: seh $3, $3             # encoding: [0x7c,0x03,0x1e,0x20]
+                                       # CHECK-NOT:                    # <MCInst #{{[0-9]+}} SEH_MM
         sgt       $4, $5               # CHECK: slt $4, $5, $4         # encoding: [0x00,0xa4,0x20,0x2a]
         sgt       $4, $5, $6           # CHECK: slt $4, $6, $5         # encoding: [0x00,0xc5,0x20,0x2a]
         sgtu      $4, $5               # CHECK: sltu $4, $5, $4        # encoding: [0x00,0xa4,0x20,0x2b]
