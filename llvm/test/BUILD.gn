@@ -31,7 +31,7 @@ template("write_lit_config") {
           rebase_path(get_label_info("//llvm", "target_out_dir")),
       "@LLVM_TOOLS_DIR@=" + rebase_path("$root_out_dir/bin"),
       "@LLVM_LIBRARY_DIR@=" + rebase_path("$root_out_dir/lib"),
-      "@SHLIBDIR@=",  # FIXME!
+      "@SHLIBDIR@=" + rebase_path("$root_out_dir/lib"),  # FIXME: bin on windows
       "@LLVM_LIT_TOOLS_DIR@=",  # Intentionally empty, matches cmake build.
       "@PYTHON_EXECUTABLE@=$python_path",
 
@@ -153,7 +153,9 @@ group("test") {
   deps = [
     ":lit_site_cfg",
     ":lit_unit_site_cfg",
+    "//llvm/lib/Transforms/Hello",
     "//llvm/tools/bugpoint",
+    "//llvm/tools/bugpoint-passes",
     "//llvm/tools/dsymutil",
     "//llvm/tools/llc",
     "//llvm/tools/llvm-ar:symlinks",
@@ -203,8 +205,7 @@ group("test") {
     "//llvm/utils/count",
     "//llvm/utils/not",
     "//llvm/utils/yaml-bench",
-    # FIXME: LLVMHello, lli, BugpointPasses,
-    #        llvm-isel-fuzzer, llvm-opt-fuzzer, UnitTests
+    # FIXME: lli, llvm-isel-fuzzer, llvm-opt-fuzzer, UnitTests
   ]
   testonly = true
 }

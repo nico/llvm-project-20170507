@@ -66,13 +66,37 @@ toolchain("posix") {
 
   tool("solink") {
     outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
-    command = "$ld -shared {{ldflags}} -o $outfile {{libs}} {{inputs}}"
+    if (host_os == "linux") {
+      command = "$ld -shared {{ldflags}} -Wl,-z,defs -o $outfile {{libs}} {{inputs}}"
+    } else {
+      command = "$ld -shared {{ldflags}} -o $outfile {{libs}} {{inputs}}"
+    }
     description = "SOLINK $outfile"
     outputs = [
       outfile,
     ]
     lib_switch = "-l"
     output_prefix = "lib"
+    default_output_dir = "{{root_out_dir}}/lib"
+    if (host_os == "mac") {
+      default_output_extension = ".dylib"
+    } else {
+      default_output_extension = ".so"
+    }
+  }
+
+  tool("solink_module") {
+    outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
+    if (host_os == "linux") {
+      command = "$ld -shared {{ldflags}} -o $outfile {{libs}} {{inputs}}"
+    } else {
+      command = "$ld -shared {{ldflags}} -Wl,-flat_namespace -Wl,-undefined,suppress -o $outfile {{libs}} {{inputs}}"
+    }
+    description = "SOLINK $outfile"
+    outputs = [
+      outfile,
+    ]
+    lib_switch = "-l"
     default_output_dir = "{{root_out_dir}}/lib"
     if (host_os == "mac") {
       default_output_extension = ".dylib"
@@ -161,6 +185,19 @@ toolchain("win") {
     ]
     default_output_extension = ".dll"
     restat = true
+
+    # Put dlls next to the executables in bin/ on Windows, since Windows
+    # doesn't have a configurable rpath. This matches initialization of
+    # module_dir to bin/ in AddLLVM.cmake's set_output_directory().
+    default_output_dir = "{{root_out_dir}}/bin"
+  }
+
+  tool("solink_module") {
+    dllfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
+    command = "link /nologo /dll {{ldflags}} /out:$dllfile {{libs}} /pdb:$dllfile.pdb {{inputs}}"
+    description = "LINK $dllfile"
+    outputs = [ dllfile ]
+    default_output_extension = ".dll"
 
     # Put dlls next to the executables in bin/ on Windows, since Windows
     # doesn't have a configurable rpath. This matches initialization of

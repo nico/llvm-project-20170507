@@ -1,0 +1,10 @@
+loadable_module("bugpoint-passes") {
+  output_name = "BugpointPasses"
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+  ]
+  sources = [
+    "TestPasses.cpp"
+  ]
+  # FIXME: Use bugpoint.exports to remove all exports.
+}

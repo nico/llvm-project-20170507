@@ -1,0 +1,11 @@
+loadable_module("Hello") {
+  output_name = "LLVMHello"
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+  ]
+  sources = [
+    "Hello.cpp"
+  ]
+
+  # FIXME: Use Hello.exports to remove all exports.
+}
