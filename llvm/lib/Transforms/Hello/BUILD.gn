@@ -1,3 +1,5 @@
+assert (host_os != "win", "loadable modules not supported on win")
+
 loadable_module("Hello") {
   output_name = "LLVMHello"
   deps = [

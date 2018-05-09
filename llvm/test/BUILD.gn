@@ -154,9 +154,7 @@ group("test") {
   deps = [
     ":lit_site_cfg",
     ":lit_unit_site_cfg",
-    "//llvm/lib/Transforms/Hello",
     "//llvm/tools/bugpoint",
-    "//llvm/tools/bugpoint-passes",
     "//llvm/tools/dsymutil",
     "//llvm/tools/llc",
     "//llvm/tools/llvm-ar:symlinks",
@@ -209,5 +207,14 @@ group("test") {
 
     # FIXME: lli, llvm-isel-fuzzer, llvm-opt-fuzzer, UnitTests
   ]
+  if (host_os != "win") {
+    # loadable_modules don't work on Windows.
+    # FIXME: In the CMake build, ENABLE_SHARED makes them work somehow
+    # (but they're off by default there too).
+    deps += [
+      "//llvm/lib/Transforms/Hello",
+      "//llvm/tools/bugpoint-passes",
+    ]
+  }
   testonly = true
 }

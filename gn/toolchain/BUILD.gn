@@ -193,20 +193,8 @@ toolchain("win") {
     default_output_dir = "{{root_out_dir}}/bin"
   }
 
-  tool("solink_module") {
-    dllfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
-    command = "link /nologo /dll {{ldflags}} /out:$dllfile {{libs}} /pdb:$dllfile.pdb {{inputs}}"
-    description = "LINK $dllfile"
-    outputs = [
-      dllfile,
-    ]
-    default_output_extension = ".dll"
-
-    # Put dlls next to the executables in bin/ on Windows, since Windows
-    # doesn't have a configurable rpath. This matches initialization of
-    # module_dir to bin/ in AddLLVM.cmake's set_output_directory().
-    default_output_dir = "{{root_out_dir}}/bin"
-  }
+  # No solink_module tool in Windows because loadable_modules don't work
+  # in LLVM's Windows build.
 
   tool("link") {
     outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
