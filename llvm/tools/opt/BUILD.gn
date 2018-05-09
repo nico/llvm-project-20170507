@@ -32,4 +32,8 @@ executable("opt") {
     "PrintSCC.cpp",
     "opt.cpp",
   ]
+  if (host_os == "linux") {
+    # Make sure bugpoint plugins can access bugpoint's symbols.
+    ldflags = [ "-rdynamic" ]
+  }
 }

@@ -33,4 +33,8 @@ executable("bugpoint") {
     "ToolRunner.cpp",
     "bugpoint.cpp",
   ]
+  if (host_os == "linux") {
+    # Make sure bugpoint plugins can access bugpoint's symbols.
+    ldflags = [ "-rdynamic" ]
+  }
 }
