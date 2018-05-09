@@ -13,15 +13,14 @@ group("default") {
     "//clang/tools/clang-refactor",
     "//clang/tools/clang-rename",
     "//clang/tools/diagtool",
-    "//clang/tools/driver:clang",
+    "//clang/tools/driver:symlinks",
     "//clang/tools/libclang",
     "//lld/test",
-    "//lld/tools/lld",
+    "//lld/tools/lld:symlinks",
     "//llvm/tools/bugpoint",
     "//llvm/tools/dsymutil",
     "//llvm/tools/llc",
-    "//llvm/tools/llvm-ar",
-    "//llvm/tools/llvm-ar:llvm-lib",
+    "//llvm/tools/llvm-ar:symlinks",
     "//llvm/tools/llvm-as",
     "//llvm/tools/llvm-bcanalyzer",
     "//llvm/tools/llvm-c-test",
@@ -43,13 +42,13 @@ group("default") {
     "//llvm/tools/llvm-modextract",
     "//llvm/tools/llvm-mt",
     "//llvm/tools/llvm-nm",
-    "//llvm/tools/llvm-objcopy",
+    "//llvm/tools/llvm-objcopy:symlinks",
     "//llvm/tools/llvm-objdump",
     "//llvm/tools/llvm-opt-report",
     "//llvm/tools/llvm-pdbutil",
     "//llvm/tools/llvm-profdata",
     "//llvm/tools/llvm-rc",
-    "//llvm/tools/llvm-readobj",
+    "//llvm/tools/llvm-readobj:symlinks",
     "//llvm/tools/llvm-rtdyld",
     "//llvm/tools/llvm-size",
     "//llvm/tools/llvm-split",
@@ -113,6 +112,11 @@ group("lld") {
 group("llvm-ar") {
   deps = [
     "//llvm/tools/llvm-ar:symlinks",
+  ]
+}
+group("llvm-objcopy") {
+  deps = [
+    "//llvm/tools/llvm-objcopy:symlinks",
   ]
 }
 group("llvm-readobj") {
