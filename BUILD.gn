@@ -17,6 +17,7 @@ group("default") {
     "//clang/tools/libclang",
     "//lld/test",
     "//lld/tools/lld:symlinks",
+    "//llvm/test",
     "//llvm/tools/bugpoint",
     "//llvm/tools/dsymutil",
     "//llvm/tools/llc",

@@ -2,12 +2,6 @@ import("//gn/buildflags.gni")
 import("//gn/mac_sdk.gni")
 import("//gn/enable_threads.gni")
 
-# args that depend on other args must live in a later declare_args() block.
-declare_args() {
-  # Whether to enable assertions.
-  llvm_enable_assertions = is_debug
-}
-
 config("compiler_defaults") {
   # FIXME: Don't define this globally here.
   if (host_os != "win") {

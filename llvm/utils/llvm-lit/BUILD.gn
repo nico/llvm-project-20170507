@@ -20,6 +20,8 @@ action("llvm-lit") {
     "//clang/test:lit_unit_site_cfg",
     "//lld/test:lit_site_cfg",
     "//lld/test:lit_unit_site_cfg",
+    "//llvm/test:lit_site_cfg",
+    #"//llvm/test:lit_unit_site_cfg",
   ]
 
   # $0x0A is how you write \n in a gn string literal.
@@ -37,6 +39,12 @@ action("llvm-lit") {
   config_map +=
       "map_config(\"" + rebase_path("//lld/test/Unit/lit.cfg.py") + "\", \"" +
       rebase_path("$root_gen_dir/lld/test/Unit/lit.site.cfg.py") + "\");"
+  config_map +=
+      "map_config(\"" + rebase_path("//llvm/test/lit.cfg.py") + "\", \"" +
+      rebase_path("$root_gen_dir/llvm/test/lit.site.cfg.py") + "\");"
+  config_map +=
+      "map_config(\"" + rebase_path("//llvm/test/Unit/lit.cfg.py") + "\", \"" +
+      rebase_path("$root_gen_dir/llvm/test/Unit/lit.site.cfg.py") + "\");"
 
   sources = [
     input,
