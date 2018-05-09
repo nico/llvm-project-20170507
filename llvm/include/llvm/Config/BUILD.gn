@@ -271,7 +271,7 @@ action("config") {
     args += [ "LLVM_ENABLE_ZLIB=" ]
   }
 
-  if (llvm_libxml2_enabled) {
+  if (llvm_enable_libxml2) {
     args += [ "LLVM_LIBXML2_ENABLED=1" ]
   } else {
     args += [ "LLVM_LIBXML2_ENABLED=" ]
