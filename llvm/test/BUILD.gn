@@ -64,7 +64,7 @@ template("write_lit_config") {
       "@LLVM_HAVE_OPT_VIEWER_MODULES@=0",
     ]
 
-    if (host_os == "mac" ) {
+    if (host_os == "mac") {
       args += [
         "@SHLIBEXT@=.dylib",
         "@EXEEXT@=",
@@ -127,7 +127,8 @@ action("check-llvm") {
     "--param",
     "llvm_site_config=" + rebase_path(lit_site_cfg_file, root_out_dir),
     "--param",
-    "llvm_unit_site_config=" + rebase_path(lit_unit_site_cfg_file, root_out_dir),
+    "llvm_unit_site_config=" +
+        rebase_path(lit_unit_site_cfg_file, root_out_dir),
     rebase_path(".", root_out_dir),
   ]
   outputs = [
@@ -205,6 +206,7 @@ group("test") {
     "//llvm/utils/count",
     "//llvm/utils/not",
     "//llvm/utils/yaml-bench",
+
     # FIXME: lli, llvm-isel-fuzzer, llvm-opt-fuzzer, UnitTests
   ]
   testonly = true

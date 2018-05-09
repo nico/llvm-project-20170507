@@ -92,7 +92,8 @@ action("check-clang") {
     "--param",
     "clang_site_config=" + rebase_path(lit_site_cfg_file, root_out_dir),
     "--param",
-    "clang_unit_site_config=" + rebase_path(lit_unit_site_cfg_file, root_out_dir),
+    "clang_unit_site_config=" +
+        rebase_path(lit_unit_site_cfg_file, root_out_dir),
     rebase_path(".", root_out_dir),
   ]
   outputs = [

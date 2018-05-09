@@ -67,7 +67,8 @@ toolchain("posix") {
   tool("solink") {
     outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
     if (host_os == "linux") {
-      command = "$ld -shared {{ldflags}} -Wl,-z,defs -o $outfile {{libs}} {{inputs}}"
+      command =
+          "$ld -shared {{ldflags}} -Wl,-z,defs -o $outfile {{libs}} {{inputs}}"
     } else {
       command = "$ld -shared {{ldflags}} -o $outfile {{libs}} {{inputs}}"
     }
@@ -196,7 +197,9 @@ toolchain("win") {
     dllfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
     command = "link /nologo /dll {{ldflags}} /out:$dllfile {{libs}} /pdb:$dllfile.pdb {{inputs}}"
     description = "LINK $dllfile"
-    outputs = [ dllfile ]
+    outputs = [
+      dllfile,
+    ]
     default_output_extension = ".dll"
 
     # Put dlls next to the executables in bin/ on Windows, since Windows

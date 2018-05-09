@@ -21,7 +21,7 @@ action("llvm-lit") {
     "//lld/test:lit_site_cfg",
     "//lld/test:lit_unit_site_cfg",
     "//llvm/test:lit_site_cfg",
-    #"//llvm/test:lit_unit_site_cfg",
+    "//llvm/test:lit_unit_site_cfg",
   ]
 
   # $0x0A is how you write \n in a gn string literal.
