@@ -4,8 +4,6 @@ Goals:
   `gn/sync_source_lists_from_cmake.py` to keep the in sync after pulling
 
 Missing:
-- omit check-lld, check-clang from default target
-  (see gn help on `ninja_rules`, `execution`)
 - hook up check-llvm
 - monorepro "projects to build" selection mechanism
 - actual compiler flags (dead code stripping etc)

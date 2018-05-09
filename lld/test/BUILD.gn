@@ -68,11 +68,6 @@ write_lit_config("lit_unit_site_cfg") {
   output = lit_unit_site_cfg_file
 }
 
-# FIXME: omit from build by default since it's always dirty?
-# FIXME: should it be always dirty? Or could lit write a depfile of all
-#        test inputs? Hm, would require compiler to write depfiles for all
-#        inputs encountered during running tests too, or lit would have to add
-#        files below Inputs/ to its depfile.
 action("check-lld") {
   script = "$root_out_dir/llvm-lit"
   args = [
@@ -86,6 +81,20 @@ action("check-lld") {
   outputs = [
     "$target_gen_dir/run-lit",  # Non-existing, so that ninja runs it each time.
   ]
+  # Since check-lld is always dirty, //:default doesn't depend on it so that
+  # it's not part of the default ninja target.  Hence, check-lld shouldn't
+  # have any deps except :test. so that the default target is sure to build
+  # all the deps.
+  deps = [ ":test" ]
+  testonly = true
+
+  pool = "//:console"
+}
+
+# This target should contain all dependencies of check-lld.
+# //:default depends on it, so that ninja's default target builds all
+# prerequisites for check-lld but doesn't run check-lld itself.
+group("test") {
   deps = [
     ":lit_site_cfg",
     ":lit_unit_site_cfg",
@@ -111,11 +120,4 @@ action("check-lld") {
     "//llvm/utils/not",
   ]
   testonly = true
-
-  pool = "//:console"
-}
-
-# Empty default target that 'all' in //BUILD.gn can depend on.
-# check-lld is testonly, and I don't want to mark 'all' testonly.
-group("test") {
 }

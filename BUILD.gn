@@ -1,6 +1,6 @@
 import("//clang/lib/ARCMigrate/enable.gni")
 
-group("all") {
+group("default") {
   deps = [
     "//clang/test",
     "//clang/tools/c-index-test",
@@ -74,6 +74,7 @@ group("all") {
       "//clang/tools/c-arcmt-test",
     ]
   }
+  testonly = true
 }
 
 # Symlink handling.

@@ -85,7 +85,6 @@ write_lit_config("lit_unit_site_cfg") {
   output = lit_unit_site_cfg_file
 }
 
-# FIXME: See FIXMEs for check-lld in lld/test/BUILD.gn, they apply here too.
 action("check-clang") {
   script = "$root_out_dir/llvm-lit"
   args = [
@@ -100,6 +99,20 @@ action("check-clang") {
   outputs = [
     "$target_gen_dir/run-lit",  # Non-existing, so that ninja runs it each time.
   ]
+  # Since check-clang is always dirty, //:default doesn't depend on it so that
+  # it's not part of the default ninja target.  Hence, check-clang shouldn't
+  # have any deps except :test. so that the default target is sure to build
+  # all the deps.
+  deps = [ ":test" ]
+  testonly = true
+
+  pool = "//:console"
+}
+
+# This target should contain all dependencies of check-clang.
+# //:default depends on it, so that ninja's default target builds all
+# prerequisites for check-clang but doesn't run check-clang itself.
+group("test") {
   deps = [
     ":lit_site_cfg",
     ":lit_unit_site_cfg",
@@ -149,11 +162,4 @@ action("check-clang") {
 
   # FIXME: clang_build_examples
   testonly = true
-
-  pool = "//:console"
-}
-
-# Empty default target that 'all' in //BUILD.gn can depend on.
-# check-clang is testonly, and I don't want to mark 'all' testonly.
-group("test") {
 }
