@@ -81,11 +81,14 @@ action("check-lld") {
   outputs = [
     "$target_gen_dir/run-lit",  # Non-existing, so that ninja runs it each time.
   ]
+
   # Since check-lld is always dirty, //:default doesn't depend on it so that
   # it's not part of the default ninja target.  Hence, check-lld shouldn't
   # have any deps except :test. so that the default target is sure to build
   # all the deps.
-  deps = [ ":test" ]
+  deps = [
+    ":test",
+  ]
   testonly = true
 
   pool = "//:console"
