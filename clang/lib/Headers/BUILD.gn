@@ -81,6 +81,7 @@ files = [
   "pmmintrin.h",
   "popcntintrin.h",
   "prfchwintrin.h",
+  "ptwriteintrin.h",
   "rdseedintrin.h",
   "rtmintrin.h",
   "s390intrin.h",

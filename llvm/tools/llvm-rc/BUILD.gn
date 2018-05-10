@@ -13,6 +13,7 @@ executable("llvm-rc") {
   ]
   sources = [
     "ResourceFileWriter.cpp",
+    "ResourceScriptCppFilter.cpp",
     "ResourceScriptParser.cpp",
     "ResourceScriptStmt.cpp",
     "ResourceScriptToken.cpp",
