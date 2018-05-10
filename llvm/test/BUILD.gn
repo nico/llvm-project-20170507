@@ -61,6 +61,7 @@ template("write_lit_config") {
       "@LLVM_LINK_LLVM_DYLIB@=0",
       "@HOST_ARCH@=x86_64",  # FIXME: better
       "@LLVM_HAVE_OPT_VIEWER_MODULES@=0",
+      "@LLVM_BUILD_MODE@=.",
     ]
 
     if (host_os == "mac") {
