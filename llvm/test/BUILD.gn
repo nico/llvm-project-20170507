@@ -46,7 +46,6 @@ template("write_lit_config") {
       "@LLVM_INCLUDE_GO_TESTS@=0",
       "@GO_EXECUTABLE@=",
       "@ENABLE_SHARED@=0",  # Must be 0.
-      "@LLVM_ENABLE_ABI_BREAKING_CHECKS@=",
       "@TARGETS_TO_BUILD@=X86",  # FIXME!!
       "@LLVM_NATIVE_ARCH@=X86",  # FIXME!!
       "@LLVM_BINDINGS@=",
