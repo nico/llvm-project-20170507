@@ -6,13 +6,13 @@ executable("lli") {
     "//llvm/lib/Bitcode/Reader",
     "//llvm/lib/CodeGen",
     "//llvm/lib/CodeGen/SelectionDAG",
-    "//llvm/lib/IR",
-    "//llvm/lib/IRReader",
     "//llvm/lib/ExecutionEngine",
     "//llvm/lib/ExecutionEngine/Interpreter",
     "//llvm/lib/ExecutionEngine/MCJIT",
     "//llvm/lib/ExecutionEngine/Orc",
     "//llvm/lib/ExecutionEngine/RuntimeDyld",
+    "//llvm/lib/IR",
+    "//llvm/lib/IRReader",
     "//llvm/lib/MC",
     "//llvm/lib/Support",
     "//llvm/lib/Target",
@@ -21,8 +21,8 @@ executable("lli") {
     "//llvm/lib/Transforms/Utils",
   ]
   sources = [
-    "lli.cpp",
     "OrcLazyJIT.cpp",
+    "lli.cpp",
   ]
   if (host_os == "linux") {
     # Corresponds to export_executable_symbols() in cmake.
