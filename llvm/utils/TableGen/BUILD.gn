@@ -45,6 +45,7 @@ executable("llvm-tblgen") {
     "SubtargetFeatureInfo.cpp",
     "TableGen.cpp",
     "Types.cpp",
+    "WebAssemblyDisassemblerEmitter.cpp",
     "X86DisassemblerTables.cpp",
     "X86EVEX2VEXTablesEmitter.cpp",
     "X86FoldTablesEmitter.cpp",
