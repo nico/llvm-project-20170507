@@ -68,6 +68,27 @@ class X86SchedWriteSizes<X86SchedWriteWidths sPS,
   X86SchedWriteWidths PD = sPD;
 }
 
+// Multiclass that wraps move/load/store triple for a vector width.
+class X86SchedWriteMoveLS<SchedWrite MoveRR,
+                          SchedWrite LoadRM,
+                          SchedWrite StoreMR> {
+  SchedWrite RR = MoveRR;
+  SchedWrite RM = LoadRM;
+  SchedWrite MR = StoreMR;
+}
+
+// Multiclass that wraps X86SchedWriteMoveLS for each vector width.
+class X86SchedWriteMoveLSWidths<X86SchedWriteMoveLS sScl,
+                                X86SchedWriteMoveLS s128,
+                                X86SchedWriteMoveLS s256,
+                                X86SchedWriteMoveLS s512> {
+  X86SchedWriteMoveLS Scl = sScl; // Scalar float/double operations.
+  X86SchedWriteMoveLS MMX = sScl; // MMX operations.
+  X86SchedWriteMoveLS XMM = s128; // XMM operations.
+  X86SchedWriteMoveLS YMM = s256; // YMM operations.
+  X86SchedWriteMoveLS ZMM = s512; // ZMM operations.
+}
+
 // Loads, stores, and moves, not folded with other operations.
 def WriteLoad  : SchedWrite;
 def WriteStore : SchedWrite;
@@ -75,7 +96,7 @@ def WriteMove  : SchedWrite;
 
 // Arithmetic.
 defm WriteALU    : X86SchedWritePair; // Simple integer ALU op.
-def WriteALURMW  : WriteSequence<[WriteALULd, WriteStore]>;
+def  WriteALURMW : WriteSequence<[WriteALULd, WriteStore]>;
 defm WriteIMul   : X86SchedWritePair; // Integer multiplication.
 defm WriteIMul64 : X86SchedWritePair; // Integer 64-bit multiplication.
 def  WriteIMulH  : SchedWrite;        // Integer multiplication, high part.
@@ -116,12 +137,18 @@ defm WriteJump : X86SchedWritePair;
 
 // Floating point. This covers both scalar and vector operations.
 def  WriteFLoad         : SchedWrite;
+def  WriteFLoadX        : SchedWrite;
+def  WriteFLoadY        : SchedWrite;
 def  WriteFMaskedLoad   : SchedWrite;
 def  WriteFMaskedLoadY  : SchedWrite;
 def  WriteFStore        : SchedWrite;
+def  WriteFStoreX       : SchedWrite;
+def  WriteFStoreY       : SchedWrite;
 def  WriteFMaskedStore  : SchedWrite;
 def  WriteFMaskedStoreY : SchedWrite;
 def  WriteFMove         : SchedWrite;
+def  WriteFMoveX        : SchedWrite;
+def  WriteFMoveY        : SchedWrite;
 
 defm WriteFAdd    : X86SchedWritePair; // Floating point add/sub.
 defm WriteFAddX   : X86SchedWritePair; // Floating point add/sub (XMM).
@@ -194,21 +221,30 @@ class FMASC { X86FoldableSchedWrite Sched = WriteFAdd; }
 defm WriteFHAdd  : X86SchedWritePair;
 defm WriteFHAddY : X86SchedWritePair; // YMM/ZMM.
 defm WritePHAdd  : X86SchedWritePair;
+defm WritePHAddX : X86SchedWritePair; // XMM.
 defm WritePHAddY : X86SchedWritePair; // YMM/ZMM.
 
 // Vector integer operations.
 def  WriteVecLoad         : SchedWrite;
+def  WriteVecLoadX        : SchedWrite;
+def  WriteVecLoadY        : SchedWrite;
 def  WriteVecMaskedLoad   : SchedWrite;
 def  WriteVecMaskedLoadY  : SchedWrite;
 def  WriteVecStore        : SchedWrite;
+def  WriteVecStoreX       : SchedWrite;
+def  WriteVecStoreY       : SchedWrite;
 def  WriteVecMaskedStore  : SchedWrite;
 def  WriteVecMaskedStoreY : SchedWrite;
 def  WriteVecMove         : SchedWrite;
+def  WriteVecMoveX        : SchedWrite;
+def  WriteVecMoveY        : SchedWrite;
 
-defm WriteVecALU   : X86SchedWritePair; // Vector integer ALU op, no logicals.
-defm WriteVecALUY  : X86SchedWritePair; // Vector integer ALU op, no logicals (YMM/ZMM).
-defm WriteVecLogic : X86SchedWritePair; // Vector integer and/or/xor logicals.
-defm WriteVecLogicY: X86SchedWritePair; // Vector integer and/or/xor logicals (YMM/ZMM).
+defm WriteVecALU    : X86SchedWritePair; // Vector integer ALU op, no logicals.
+defm WriteVecALUX   : X86SchedWritePair; // Vector integer ALU op, no logicals (XMM).
+defm WriteVecALUY   : X86SchedWritePair; // Vector integer ALU op, no logicals (YMM/ZMM).
+defm WriteVecLogic  : X86SchedWritePair; // Vector integer and/or/xor logicals.
+defm WriteVecLogicX : X86SchedWritePair; // Vector integer and/or/xor logicals (XMM).
+defm WriteVecLogicY : X86SchedWritePair; // Vector integer and/or/xor logicals (YMM/ZMM).
 defm WriteVecTest  : X86SchedWritePair; // Vector integer TEST instructions.
 defm WriteVecTestY : X86SchedWritePair; // Vector integer TEST instructions (YMM/ZMM).
 defm WriteVecShift  : X86SchedWritePair; // Vector integer shifts (default).
@@ -223,14 +259,17 @@ defm WriteVecIMulY : X86SchedWritePair; // Vector integer multiply (YMM/ZMM).
 defm WritePMULLD   : X86SchedWritePair; // Vector PMULLD.
 defm WritePMULLDY   : X86SchedWritePair; // Vector PMULLD (YMM/ZMM).
 defm WriteShuffle  : X86SchedWritePair; // Vector shuffles.
+defm WriteShuffleX : X86SchedWritePair; // Vector shuffles (XMM).
 defm WriteShuffleY : X86SchedWritePair; // Vector shuffles (YMM/ZMM).
 defm WriteVarShuffle  : X86SchedWritePair; // Vector variable shuffles.
+defm WriteVarShuffleX : X86SchedWritePair; // Vector variable shuffles (XMM).
 defm WriteVarShuffleY : X86SchedWritePair; // Vector variable shuffles (YMM/ZMM).
 defm WriteBlend  : X86SchedWritePair; // Vector blends.
 defm WriteBlendY : X86SchedWritePair; // Vector blends (YMM/ZMM).
 defm WriteVarBlend  : X86SchedWritePair; // Vector variable blends.
 defm WriteVarBlendY : X86SchedWritePair; // Vector variable blends (YMM/ZMM).
 defm WritePSADBW  : X86SchedWritePair; // Vector PSADBW.
+defm WritePSADBWX : X86SchedWritePair; // Vector PSADBW (XMM).
 defm WritePSADBWY : X86SchedWritePair; // Vector PSADBW (YMM/ZMM).
 defm WriteMPSAD  : X86SchedWritePair; // Vector MPSAD.
 defm WriteMPSADY : X86SchedWritePair; // Vector MPSAD (YMM/ZMM).
@@ -301,6 +340,27 @@ def WriteFence : SchedWrite;
 // Nop, not very useful expect it provides a model for nops!
 def WriteNop : SchedWrite;
 
+// Move/Load/Store wrappers.
+def WriteFMoveLS
+ : X86SchedWriteMoveLS<WriteFMove, WriteFLoad, WriteFStore>;
+def WriteFMoveLSX
+ : X86SchedWriteMoveLS<WriteFMoveX, WriteFLoadX, WriteFStoreX>;
+def WriteFMoveLSY
+ : X86SchedWriteMoveLS<WriteFMoveY, WriteFLoadY, WriteFStoreY>;
+def SchedWriteFMoveLS
+  : X86SchedWriteMoveLSWidths<WriteFMoveLS, WriteFMoveLSX,
+                              WriteFMoveLSY, WriteFMoveLSY>;
+
+def WriteVecMoveLS
+ : X86SchedWriteMoveLS<WriteVecMove, WriteVecLoad, WriteVecStore>;
+def WriteVecMoveLSX
+ : X86SchedWriteMoveLS<WriteVecMoveX, WriteVecLoadX, WriteVecStoreX>;
+def WriteVecMoveLSY
+ : X86SchedWriteMoveLS<WriteVecMoveY, WriteVecLoadY, WriteVecStoreY>;
+def SchedWriteVecMoveLS
+  : X86SchedWriteMoveLSWidths<WriteVecMoveLS, WriteVecMoveLSX,
+                              WriteVecMoveLSY, WriteVecMoveLSY>;
+
 // Vector width wrappers.
 def SchedWriteFAdd
  : X86SchedWriteWidths<WriteFAdd, WriteFAddX, WriteFAddY, WriteFAddY>;
@@ -356,11 +416,11 @@ def SchedWriteFVarBlend
                        WriteFVarBlendY, WriteFVarBlendY>;
 
 def SchedWriteVecALU
- : X86SchedWriteWidths<WriteVecALU, WriteVecALU, WriteVecALUY, WriteVecALUY>;
+ : X86SchedWriteWidths<WriteVecALU, WriteVecALUX, WriteVecALUY, WriteVecALUY>;
 def SchedWritePHAdd
- : X86SchedWriteWidths<WritePHAdd, WritePHAdd, WritePHAddY, WritePHAddY>;
+ : X86SchedWriteWidths<WritePHAdd, WritePHAddX, WritePHAddY, WritePHAddY>;
 def SchedWriteVecLogic
- : X86SchedWriteWidths<WriteVecLogic, WriteVecLogic,
+ : X86SchedWriteWidths<WriteVecLogic, WriteVecLogicX,
                        WriteVecLogicY, WriteVecLogicY>;
 def SchedWriteVecTest
  : X86SchedWriteWidths<WriteVecTest, WriteVecTest,
@@ -384,14 +444,14 @@ def SchedWriteMPSAD
  : X86SchedWriteWidths<WriteMPSAD, WriteMPSAD,
                        WriteMPSADY, WriteMPSADY>;
 def SchedWritePSADBW
- : X86SchedWriteWidths<WritePSADBW, WritePSADBW,
+ : X86SchedWriteWidths<WritePSADBW, WritePSADBWX,
                        WritePSADBWY, WritePSADBWY>;
 
 def SchedWriteShuffle
- : X86SchedWriteWidths<WriteShuffle, WriteShuffle,
+ : X86SchedWriteWidths<WriteShuffle, WriteShuffleX,
                        WriteShuffleY, WriteShuffleY>;
 def SchedWriteVarShuffle
- : X86SchedWriteWidths<WriteVarShuffle, WriteVarShuffle,
+ : X86SchedWriteWidths<WriteVarShuffle, WriteVarShuffleX,
                        WriteVarShuffleY, WriteVarShuffleY>;
 def SchedWriteBlend
  : X86SchedWriteWidths<WriteBlend, WriteBlend, WriteBlendY, WriteBlendY>;
