@@ -53,7 +53,7 @@ toolchain("posix") {
 
   tool("alink") {
     if (host_os == "mac") {
-      command = "libtool -static {{arflags}} -o {{output}} {{inputs}}"
+      command = "libtool -static -no_warning_for_no_symbols {{arflags}} -o {{output}} {{inputs}}"
     } else {
       command = "ar rcsDT {{arflags}} -o {{output}} {{inputs}}"
     }
