@@ -1,11 +1,21 @@
 declare_args() {
   # The target archs LLVM should support. Defaults to the host arch.
   # Set to a list, e.g. `llvm_targets_to_build = [ "X86", "ARM" ]`,
-  # or to the string "all" to get all known targets..
-  llvm_targets_to_build = []
+  # or to the string "all" to get all known targets.
+  llvm_targets_to_build = "host"
 }
 
-if (llvm_targets_to_build == "all") {
+if (llvm_targets_to_build == "host") {
+  if (host_cpu == "x86" || host_cpu == "x64") {
+    llvm_targets_to_build = [ "X86" ]
+  } else if (host_cpu == "arm") {
+    llvm_targets_to_build = [ "ARM" ]
+  } else if (host_cpu == "arm64") {
+    llvm_targets_to_build = [ "AArch64" ]
+  } else {
+    assert(false, "add your host_cpu above")
+  }
+} else if (llvm_targets_to_build == "all") {
   # FIXME: Port the remaining targets.
   llvm_targets_to_build = [
     "AArch64",
@@ -19,12 +29,6 @@ foreach(target, llvm_targets_to_build) {
   # FIXME: Port the remaining targets.
   assert(target == "AArch64" || target == "ARM" || target == "X86",
          "Unknown target '$target'.")
-}
-
-# Set default target list if it's not set.
-if (llvm_targets_to_build == []) {
-  # FIXME: default to host instead.
-  llvm_targets_to_build = [ "X86" ]
 }
 
 group("TargetsToBuild") {
