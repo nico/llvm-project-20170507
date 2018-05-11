@@ -1,0 +1,16 @@
+static_library("Interpreter") {
+  output_name = "LLVMInterpreter"
+  deps = [
+    "//llvm/include/llvm/Config:config",
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/ExecutionEngine",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "Execution.cpp",
+    "ExternalFunctions.cpp",
+    "Interpreter.cpp",
+  ]
+}

@@ -21,6 +21,8 @@ group("default") {
     "//llvm/tools/bugpoint",
     "//llvm/tools/dsymutil",
     "//llvm/tools/llc",
+    "//llvm/tools/lli",
+    "//llvm/tools/lli/ChildTarget:lli-child-target",
     "//llvm/tools/llvm-ar:symlinks",
     "//llvm/tools/llvm-as",
     "//llvm/tools/llvm-bcanalyzer",

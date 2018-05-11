@@ -157,6 +157,8 @@ group("test") {
     "//llvm/tools/bugpoint",
     "//llvm/tools/dsymutil",
     "//llvm/tools/llc",
+    "//llvm/tools/lli",
+    "//llvm/tools/lli/ChildTarget:lli-child-target",
     "//llvm/tools/llvm-ar:symlinks",
     "//llvm/tools/llvm-as",
     "//llvm/tools/llvm-bcanalyzer",
@@ -205,7 +207,7 @@ group("test") {
     "//llvm/utils/not",
     "//llvm/utils/yaml-bench",
 
-    # FIXME: lli, llvm-isel-fuzzer, llvm-opt-fuzzer, UnitTests
+    # FIXME: llvm-isel-fuzzer, llvm-opt-fuzzer, UnitTests
   ]
   if (host_os != "win") {
     # loadable_modules don't work on Windows.

@@ -1,0 +1,24 @@
+static_library("Orc") {
+  output_name = "LLVMOrcJIT"
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/ExecutionEngine",
+    "//llvm/lib/ExecutionEngine/RuntimeDyld",
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [
+    "Core.cpp",
+    "ExecutionUtils.cpp",
+    "IndirectionUtils.cpp",
+    "Legacy.cpp",
+    "NullResolver.cpp",
+    "OrcABISupport.cpp",
+    "OrcCBindings.cpp",
+    "OrcError.cpp",
+    "OrcMCJITReplacement.cpp",
+    "RPCUtils.cpp",
+  ]
+}

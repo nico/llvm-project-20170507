@@ -31,6 +31,19 @@ foreach(target, llvm_targets_to_build) {
          "Unknown target '$target'.")
 }
 
+group("NativeTarget") {
+  # FIXME: This should be based off target_cpu once cross compiles work.
+  if (host_cpu == "x86" || host_cpu == "x64") {
+    deps = [ "X86" ]
+  } else if (host_cpu == "arm") {
+    deps = [ "ARM" ]
+  } else if (host_cpu == "arm64") {
+    deps = [ "AArch64" ]
+  } else {
+    assert(false)
+  }
+}
+
 group("TargetsToBuild") {
   deps = llvm_targets_to_build
 }

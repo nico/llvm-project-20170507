@@ -1,0 +1,11 @@
+executable("lli-child-target") {
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/ExecutionEngine/Orc",
+    "//llvm/lib/ExecutionEngine/RuntimeDyld",
+    "//llvm/lib/Support",
+  ]
+  sources = [
+    "ChildTarget.cpp",
+  ]
+}
