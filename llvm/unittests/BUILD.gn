@@ -39,6 +39,9 @@ group("unittests") {
 
     # FIXME: This too has a duplicate main() function.
     # "tools/llvm-cfi-verify:CFIVerifyTests",
+    "tools/llvm-exegesis:LLVMExegesisTests",
+
+    # FIXME: tools/llvm-exegesis/x86
   ]
   testonly = true
 }
