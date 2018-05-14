@@ -1,0 +1,23 @@
+executable("AArch64Tests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/GlobalISel",
+    "//llvm/lib/CodeGen/MIRParser",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target/AArch64:LLVMAArch64CodeGen",
+    "//llvm/lib/Target/AArch64/MCTargetDesc",
+    "//llvm/lib/Target/AArch64/TargetInfo",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  include_dirs = [
+    "//llvm/lib/Target/AArch64",
+  ]
+  sources = [
+    "InstSizes.cpp",
+  ]
+  testonly = true
+}

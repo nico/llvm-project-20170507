@@ -1,0 +1,24 @@
+executable("LLVMExegesisX86Tests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target/X86",
+    "//llvm/lib/Target/X86:tablegen",
+    "//llvm/tools/llvm-exegesis/lib",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  include_dirs = [
+    "//llvm/lib/Target/X86",
+    "//llvm/tools/llvm-exegesis/lib",
+  ]
+  sources = [
+    "InMemoryAssemblerTest.cpp",
+    "InstructionSnippetGeneratorTest.cpp",
+  ]
+  testonly = true
+}
