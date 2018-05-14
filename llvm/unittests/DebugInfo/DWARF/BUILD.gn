@@ -1,0 +1,23 @@
+executable("DebugInfoDWARFTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/DebugInfo/DWARF",
+    "//llvm/lib/MC",
+    "//llvm/lib/Object",
+    "//llvm/lib/ObjectYAML",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/lib/Testing/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "DwarfGenerator.cpp",
+    "DwarfUtils.cpp",
+    "DWARFDebugInfoTest.cpp",
+    "DWARFDebugLineTest.cpp",
+    "DWARFFormValueTest.cpp",
+  ]
+  testonly = true
+}

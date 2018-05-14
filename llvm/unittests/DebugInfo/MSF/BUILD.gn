@@ -1,0 +1,15 @@
+executable("DebugInfoMSFTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/DebugInfo/MSF",
+    "//llvm/lib/Testing/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "MappedBlockStreamTest.cpp",
+    "MSFBuilderTest.cpp",
+    "MSFCommonTest.cpp",
+  ]
+  testonly = true
+}

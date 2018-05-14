@@ -1,0 +1,15 @@
+executable("DebugInfoCodeViewTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/DebugInfo/CodeView",
+    "//llvm/lib/Testing/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "RandomAccessVisitorTest.cpp",
+    "TypeHashingTest.cpp",
+    "TypeIndexDiscoveryTest.cpp",
+  ]
+  testonly = true
+}

@@ -1,0 +1,23 @@
+executable("CodeGenTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/AsmPrinter",
+    "//llvm/lib/CodeGen/SelectionDAG",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "DIEHashTest.cpp",
+    "LowLevelTypeTest.cpp",
+    "MachineInstrBundleIteratorTest.cpp",
+    "MachineInstrTest.cpp",
+    "MachineOperandTest.cpp",
+    "ScalableVectorMVTsTest.cpp",
+  ]
+  testonly = true
+}

@@ -1,0 +1,22 @@
+executable("GlobalISelTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/IR",
+    "//llvm/lib/CodeGen/GlobalISel",
+    "//llvm/lib/CodeGen/MIRParser",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "LegalizerInfoTest.cpp",
+
+    # FIXME: This has its own main(). Remove upstream and add.
+    # "PatternMatchTest.cpp",
+  ]
+  testonly = true
+}
