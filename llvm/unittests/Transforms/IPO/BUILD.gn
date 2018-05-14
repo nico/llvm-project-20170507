@@ -1,0 +1,15 @@
+executable("IPOTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/IPO",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "LowerTypeTests.cpp",
+    "WholeProgramDevirt.cpp",
+  ]
+  testonly = true
+}

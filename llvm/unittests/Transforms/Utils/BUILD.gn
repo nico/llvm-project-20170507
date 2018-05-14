@@ -1,0 +1,25 @@
+executable("UtilsTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/Utils",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "ASanStackFrameLayoutTest.cpp",
+    "BasicBlockUtils.cpp",
+    "Cloning.cpp",
+    "CodeExtractor.cpp",
+    "FunctionComparator.cpp",
+    "IntegerDivision.cpp",
+    "Local.cpp",
+    "OrderedInstructions.cpp",
+    "SSAUpdaterBulk.cpp",
+    "ValueMapperTest.cpp",
+  ]
+  testonly = true
+}

@@ -1,0 +1,17 @@
+executable("ProfileDataTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/IR",
+    "//llvm/lib/ProfileData",
+    "//llvm/lib/ProfileData/Coverage",
+    "//llvm/lib/Testing/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "CoverageMappingTest.cpp",
+    "InstrProfTest.cpp",
+    "SampleProfTest.cpp",
+  ]
+  testonly = true
+}

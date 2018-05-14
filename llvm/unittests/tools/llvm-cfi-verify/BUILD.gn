@@ -1,0 +1,23 @@
+executable("CFIVerifyTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/DebugInfo/Symbolize",
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCParser",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:AllTargetsAsmParsers",
+    "//llvm/lib/Target:AllTargetsAsmPrinters",
+    "//llvm/lib/Target:AllTargetsDescs",
+    "//llvm/lib/Target:AllTargetsDisassemblers",
+    "//llvm/lib/Target:AllTargetsInfos",
+    "//llvm/tools/llvm-cfi-verify/lib",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "FileAnalysis.cpp",
+    "GraphBuilder.cpp",
+  ]
+  testonly = true
+}

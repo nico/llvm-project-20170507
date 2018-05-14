@@ -25,6 +25,20 @@ group("unittests") {
     "Object:ObjectTests",
     "ObjectYAML:ObjectYAMLTests",
     "Option:OptionTests",
+
+    # FIXME: PassesTests
+    "ProfileData:ProfileDataTests",
+    "Support:SupportTests",
+
+    # FIXME: Support/DynamicLibrary
+    # FIXME: Target/AArch64 -- need to check if target enabled
+    "Transforms/IPO:IPOTests",
+    "Transforms/Scalar:ScalarTests",
+    "Transforms/Utils:UtilsTests",
+    "XRay:XRayTests",
+
+    # FIXME: This too has a duplicate main() function.
+    # "tools/llvm-cfi-verify:CFIVerifyTests",
   ]
   testonly = true
 }

@@ -1,0 +1,13 @@
+executable("XRayTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "GraphTest.cpp",
+  ]
+  testonly = true
+}

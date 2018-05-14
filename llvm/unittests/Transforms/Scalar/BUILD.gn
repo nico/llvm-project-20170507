@@ -1,0 +1,17 @@
+executable("ScalarTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/Scalar",
+    "//llvm/lib/Transforms/Utils",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "LoopPassManagerTest.cpp",
+  ]
+  testonly = true
+}
