@@ -54,6 +54,9 @@ config("compiler_defaults") {
       # Suppress 'conversion from 'type1' to 'type2', possible loss of data'.
       "-wd4244",
 
+      # Suppress 'conversion from 'size_t' to 'type', possible loss of data'.
+      "-wd4267",
+
       # Suppress 'no matching operator delete found'.
       "-wd4291",
 
@@ -62,6 +65,9 @@ config("compiler_defaults") {
 
       # Suppress 'destructor was implicitly defined as deleted'.
       "-wd4624",
+
+      # Suppress 'unsafe mix of type <type> and type <type> in operation'.
+      "-wd4805",
     ]
 
     # The MSVC default value (1 MB) is not enough for parsing recursive C++

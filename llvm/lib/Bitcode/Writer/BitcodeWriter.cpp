@@ -1226,8 +1226,7 @@ void ModuleBitcodeWriter::writeModuleInfo() {
     Vals.push_back(addToStrtab(GV.getName()));
     Vals.push_back(GV.getName().size());
     Vals.push_back(VE.getTypeID(GV.getValueType()));
-    Vals.push_back(GV.getType()->getAddressSpace() << 2 | 2 |
-                   static_cast<unsigned>(GV.isConstant()));
+    Vals.push_back(GV.getType()->getAddressSpace() << 2 | 2 | GV.isConstant());
     Vals.push_back(GV.isDeclaration() ? 0 :
                    (VE.getValueID(GV.getInitializer()) + 1));
     Vals.push_back(getEncodedLinkage(GV));
@@ -1470,8 +1469,7 @@ void ModuleBitcodeWriter::writeDISubrange(const DISubrange *N,
 void ModuleBitcodeWriter::writeDIEnumerator(const DIEnumerator *N,
                                             SmallVectorImpl<uint64_t> &Record,
                                             unsigned Abbrev) {
-  Record.push_back((N->isUnsigned() << 1) |
-                   static_cast<unsigned>(N->isDistinct()));
+  Record.push_back((N->isUnsigned() << 1) | N->isDistinct());
   Record.push_back(rotateSign(N->getValue()));
   Record.push_back(VE.getMetadataOrNullID(N->getRawName()));
 
@@ -1614,7 +1612,7 @@ void ModuleBitcodeWriter::writeDISubprogram(const DISubprogram *N,
                                             SmallVectorImpl<uint64_t> &Record,
                                             unsigned Abbrev) {
   uint64_t HasUnitFlag = 1 << 1;
-  Record.push_back(static_cast<unsigned>(N->isDistinct()) | HasUnitFlag);
+  Record.push_back(N->isDistinct() | HasUnitFlag);
   Record.push_back(VE.getMetadataOrNullID(N->getScope()));
   Record.push_back(VE.getMetadataOrNullID(N->getRawName()));
   Record.push_back(VE.getMetadataOrNullID(N->getRawLinkageName()));
@@ -1668,8 +1666,7 @@ void ModuleBitcodeWriter::writeDILexicalBlockFile(
 void ModuleBitcodeWriter::writeDINamespace(const DINamespace *N,
                                            SmallVectorImpl<uint64_t> &Record,
                                            unsigned Abbrev) {
-  Record.push_back(static_cast<unsigned>(N->isDistinct()) |
-                   N->getExportSymbols() << 1);
+  Record.push_back(N->isDistinct() | N->getExportSymbols() << 1);
   Record.push_back(VE.getMetadataOrNullID(N->getScope()));
   Record.push_back(VE.getMetadataOrNullID(N->getRawName()));
 
@@ -2385,8 +2382,7 @@ void ModuleBitcodeWriter::writeConstants(unsigned FirstVal, unsigned LastVal,
         Record.push_back(VE.getTypeID(GO->getSourceElementType()));
         if (Optional<unsigned> Idx = GO->getInRangeIndex()) {
           Code = bitc::CST_CODE_CE_GEP_WITH_INRANGE_INDEX;
-          Record.push_back((*Idx << 1) |
-                           static_cast<unsigned>(GO->isInBounds()));
+          Record.push_back((*Idx << 1) | GO->isInBounds());
         } else if (GO->isInBounds())
           Code = bitc::CST_CODE_CE_INBOUNDS_GEP;
         for (unsigned i = 0, e = CE->getNumOperands(); i != e; ++i) {

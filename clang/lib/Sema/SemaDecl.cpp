@@ -7364,8 +7364,7 @@ void Sema::CheckVariableDeclarationType(VarDecl *NewVD) {
           !(T.getAddressSpace() == LangAS::opencl_constant ||
             (T.getAddressSpace() == LangAS::opencl_global &&
              getLangOpts().OpenCLVersion == 200))) {
-        int Scope = static_cast<int>(NewVD->isStaticLocal()) |
-                    NewVD->hasExternalStorage() << 1;
+        int Scope = NewVD->isStaticLocal() | NewVD->hasExternalStorage() << 1;
         if (getLangOpts().OpenCLVersion == 200)
           Diag(NewVD->getLocation(), diag::err_opencl_global_invalid_addr_space)
               << Scope << "global or constant";

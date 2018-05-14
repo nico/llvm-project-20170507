@@ -197,7 +197,7 @@ unsigned ODRHash::CalculateHash() {
   unsigned value = 0;
   for (unsigned i = 0; i < remainder; ++i) {
     value <<= 1;
-    value |= static_cast<unsigned>(*I);
+    value |= *I;
     ++I;
   }
   ID.AddInteger(value);
@@ -206,7 +206,7 @@ unsigned ODRHash::CalculateHash() {
     value = 0;
     for (unsigned j = 0; j < unsigned_bits; ++j) {
       value <<= 1;
-      value |= static_cast<unsigned>(*I);
+      value |= *I;
       ++I;
     }
     ID.AddInteger(value);
