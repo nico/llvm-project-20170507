@@ -71,6 +71,9 @@ write_lit_config("lit_unit_site_cfg") {
 
 action("check-lld") {
   script = "$root_out_dir/llvm-lit"
+  if (host_os == "win") {
+    script += ".py"
+  }
   args = [
     "-sv",
     "--param",
