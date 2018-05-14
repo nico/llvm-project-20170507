@@ -9,7 +9,7 @@ executable("MITests") {
     "//llvm/lib/Support",
     "//llvm/lib/Target",
     "//llvm/lib/Target:TargetsToBuild",
-    "//llvm/utils/unittest/UnitTestMain",
+    "//llvm/utils/unittest:gtest",  # MITests has its own main().
   ]
   sources = [
     "LiveIntervalTest.cpp",

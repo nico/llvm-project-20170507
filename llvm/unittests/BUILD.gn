@@ -19,9 +19,7 @@ group("unittests") {
     "IR:IRTests",
     "LineEditor:LineEditorTests",
     "MC:MCTests",
-
-    # FIXME: This too has a duplicate main() function.
-    # "MI:MITests",
+    "MI:MITests",
     "Object:ObjectTests",
     "ObjectYAML:ObjectYAMLTests",
     "Option:OptionTests",
@@ -36,9 +34,7 @@ group("unittests") {
     "Transforms/Scalar:ScalarTests",
     "Transforms/Utils:UtilsTests",
     "XRay:XRayTests",
-
-    # FIXME: This too has a duplicate main() function.
-    # "tools/llvm-cfi-verify:CFIVerifyTests",
+    "tools/llvm-cfi-verify:CFIVerifyTests",
     "tools/llvm-exegesis:LLVMExegesisTests",
 
     # FIXME: tools/llvm-exegesis/x86

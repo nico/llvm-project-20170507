@@ -13,7 +13,7 @@ executable("CFIVerifyTests") {
     "//llvm/lib/Target:AllTargetsDisassemblers",
     "//llvm/lib/Target:AllTargetsInfos",
     "//llvm/tools/llvm-cfi-verify/lib",
-    "//llvm/utils/unittest/UnitTestMain",
+    "//llvm/utils/unittest:gtest",  # CFIVerifyTests has its own main().
   ]
   sources = [
     "FileAnalysis.cpp",

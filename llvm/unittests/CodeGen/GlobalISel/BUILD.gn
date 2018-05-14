@@ -10,13 +10,11 @@ executable("GlobalISelTests") {
     "//llvm/lib/Support",
     "//llvm/lib/Target",
     "//llvm/lib/Target:TargetsToBuild",
-    "//llvm/utils/unittest/UnitTestMain",
+    "//llvm/utils/unittest:gtest",  # GlobalISelTests has its own main().
   ]
   sources = [
     "LegalizerInfoTest.cpp",
-
-    # FIXME: This has its own main(). Remove upstream and add.
-    # "PatternMatchTest.cpp",
+    "PatternMatchTest.cpp",
   ]
   testonly = true
 }
