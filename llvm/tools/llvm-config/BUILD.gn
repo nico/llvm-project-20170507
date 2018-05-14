@@ -3,7 +3,7 @@ import("//gn/buildflags.gni")
 action("BuildVariables.inc") {
   script = "//gn/write_version_inc.py"
   input = "//llvm/tools/llvm-config/BuildVariables.inc.in"
-  output = "$target_gen_dir/llvm/tools/llvm-config/BuildVariables.inc"
+  output = "$target_gen_dir/BuildVariables.inc"
 
   sources = [
     input,
@@ -57,7 +57,7 @@ action("BuildVariables.inc") {
 # at build time.
 action("LibraryDependencies.inc") {
   script = "//llvm/utils/llvm-build/llvm-build"
-  output = "$target_gen_dir/llvm/tools/llvm-config/LibraryDependencies.inc"
+  output = "$target_gen_dir/LibraryDependencies.inc"
   args = [ "--write-library-table=" + rebase_path(output, root_out_dir) ]
   outputs = [
     output,
@@ -74,7 +74,7 @@ executable("llvm-config") {
   ]
 
   # To pick up the generated inc files.
-  include_dirs = [ "$target_gen_dir/llvm/tools/llvm-config" ]
+  include_dirs = [ "$target_gen_dir" ]
   sources = [
     "llvm-config.cpp",
   ]
