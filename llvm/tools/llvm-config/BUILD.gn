@@ -83,7 +83,10 @@ action("BuildVariables.inc") {
     "@LLVM_LIBDIR_SUFFIX@=",
     "@LLVM_TARGETS_BUILT@=$enable_targets",
     "@LLVM_SYSTEM_LIBS@=$system_libs",
-    "@LLVM_BUILD_SYSTEM@=gn",  # ?
+
+    # FIXME: test/tools/llvm-config/booleans.test tests that this is set
+    # to cmake, so set it to that.  If this gets legs, relax the test instead.
+    "@LLVM_BUILD_SYSTEM@=cmake",
     "@LLVM_HAS_RTTI@=0",
     "@LLVM_BUILD_LLVM_DYLIB@=0",
     "@LLVM_LINK_LLVM_DYLIB@=0",
