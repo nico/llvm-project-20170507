@@ -1,4 +1,13 @@
 import("//gn/buildflags.gni")
+import("//gn/enable_threads.gni")
+import("//gn/libs/xml/enable.gni")
+import("//llvm/include/llvm/Config/config.gni")
+import("//llvm/lib/Target/targets.gni")
+
+enable_targets = ""
+foreach(target, llvm_targets_to_build) {
+  enable_targets += " " + target
+}
 
 action("BuildVariables.inc") {
   script = "//gn/write_version_inc.py"
@@ -13,6 +22,45 @@ action("BuildVariables.inc") {
     build_mode = "debug"
   } else {
     build_mode = "release"
+  }
+
+  # FIXME: Why doesn't llvm-config do this, why is this done in
+  # llvm-config/CMakeLists.txt?
+  if (host_os == "win") {
+    l = ""
+    lib = ".lib"
+  } else {
+    l = "-l"
+    lib = ""
+  }
+
+  system_libs = ""
+  if (host_os == "win") {
+    # libuuid required for FOLDERID_Profile usage in
+    # lib/Support/Windows/Path.inc.
+    # advapi32 required for CryptAcquireContextW in
+    # lib/Support/Windows/Path.inc
+    system_libs = "psapi.lib shell32.lib ole32.lib uuid.lib advapi32.lib"
+  } else {
+    system_libs += "-lm"
+    if (host_os == "linux") {
+      system_libs += " -lrt -ldl"
+    }
+    if (llvm_enable_threads) {
+      system_libs += " -llibpthreads"
+      if (host_os == "linux") {
+        system_libs += " -latomic"
+      }
+    }
+  }
+  if (llvm_enable_libxml2) {
+    system_libs += " ${l}xml2${lib}"
+  }
+  if (llvm_enable_terminfo) {
+    system_libs += " ${l}ncurses${lib}"
+  }
+  if (llvm_enable_zlib) {
+    system_libs += " ${l}z${lib}"
   }
 
   args = [
@@ -33,8 +81,8 @@ action("BuildVariables.inc") {
     "@LLVM_CXXFLAGS@=.",  # FIXME
     "@LLVM_BUILDMODE@=$build_mode",
     "@LLVM_LIBDIR_SUFFIX@=",
-    "@LLVM_TARGETS_BUILT@=X86",  # FIXME: see //llvm/Targets/BUILD.gn
-    "@LLVM_SYSTEM_LIBS@=",
+    "@LLVM_TARGETS_BUILT@=$enable_targets",
+    "@LLVM_SYSTEM_LIBS@=$system_libs",
     "@LLVM_BUILD_SYSTEM@=gn",  # ?
     "@LLVM_HAS_RTTI@=0",
     "@LLVM_BUILD_LLVM_DYLIB@=0",
@@ -58,7 +106,11 @@ action("BuildVariables.inc") {
 action("LibraryDependencies.inc") {
   script = "//llvm/utils/llvm-build/llvm-build"
   output = "$target_gen_dir/LibraryDependencies.inc"
-  args = [ "--write-library-table=" + rebase_path(output, root_out_dir) ]
+  args = [
+    "--native-target=$native_target",
+    "--enable-targets=$enable_targets",
+    "--write-library-table=" + rebase_path(output, root_out_dir),
+  ]
   outputs = [
     output,
   ]

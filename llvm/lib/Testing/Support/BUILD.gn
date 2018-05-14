@@ -1,0 +1,11 @@
+static_library("Support") {
+  output_name = "LLVMTestingSupport"
+  deps = [
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest:gtest",
+  ]
+  sources = [
+    "Error.cpp",
+  ]
+  testonly = true
+}

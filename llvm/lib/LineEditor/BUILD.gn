@@ -1,0 +1,15 @@
+static_library("LineEditor") {
+  output_name = "LLVMLineEditor"
+  deps = [
+    "//llvm/lib/Support",
+  ]
+
+  sources = [
+    "LineEditor.cpp",
+  ]
+
+  # FIXME: llvm_have_libedit in gni file in this dir; use in Config/BUILD.gn
+  if (host_os == "mac") {
+    libs = [ "edit" ]
+  }
+}
