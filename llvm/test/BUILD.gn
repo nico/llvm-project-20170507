@@ -212,6 +212,7 @@ group("test") {
     "//llvm/tools/sanstats",
     "//llvm/tools/verify-uselistorder",
     "//llvm/tools/yaml2obj",
+    "//llvm/unittests",
     "//llvm/utils/FileCheck",
     "//llvm/utils/TableGen:llvm-tblgen",
     "//llvm/utils/count",
@@ -220,8 +221,6 @@ group("test") {
     "//llvm/utils/not",
     "//llvm/utils/unittest/UnitTestMain:gtest_main",
     "//llvm/utils/yaml-bench",
-
-    # FIXME: UnitTests
   ]
   if (host_os != "win") {
     # loadable_modules don't work on Windows.

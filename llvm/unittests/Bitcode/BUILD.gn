@@ -1,0 +1,18 @@
+executable("BitcodeTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/Bitcode/Reader",
+    "//llvm/lib/Bitcode/Writer",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "BitReaderTest.cpp",
+    "BitstreamReaderTest.cpp",
+    "BitstreamWriterTest.cpp",
+  ]
+  testonly = true
+}
