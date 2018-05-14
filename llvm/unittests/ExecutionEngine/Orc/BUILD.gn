@@ -1,0 +1,31 @@
+executable("OrcJITTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/IR",
+    "//llvm/lib/ExecutionEngine",
+    "//llvm/lib/ExecutionEngine/Orc",
+    "//llvm/lib/ExecutionEngine/RuntimeDyld",
+    "//llvm/lib/Object",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:NativeTarget",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "CompileOnDemandLayerTest.cpp",
+    "CoreAPIsTest.cpp",
+    "IndirectionUtilsTest.cpp",
+    "GlobalMappingLayerTest.cpp",
+    "LazyEmittingLayerTest.cpp",
+    "LegacyAPIInteropTest.cpp",
+    "ObjectTransformLayerTest.cpp",
+    "OrcCAPITest.cpp",
+    "OrcTestCommon.cpp",
+    "QueueChannel.cpp",
+    "RemoteObjectLayerTest.cpp",
+    "RPCUtilsTest.cpp",
+    "RTDyldObjectLinkingLayerTest.cpp",
+    "SymbolStringPoolTest.cpp",
+  ]
+  testonly = true
+}

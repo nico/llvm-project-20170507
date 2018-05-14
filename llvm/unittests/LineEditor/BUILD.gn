@@ -1,0 +1,13 @@
+executable("LineEditorTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/LineEditor",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "LineEditor.cpp",
+  ]
+  testonly = true
+}

@@ -1,0 +1,18 @@
+executable("ExecutionEngineTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/IR",
+    "//llvm/lib/ExecutionEngine",
+    "//llvm/lib/ExecutionEngine/Interpreter",
+    "//llvm/lib/ExecutionEngine/Orc",
+    "//llvm/lib/ExecutionEngine/RuntimeDyld",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "ExecutionEngineTest.cpp",
+  ]
+  testonly = true
+}

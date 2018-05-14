@@ -1,0 +1,18 @@
+executable("FuzzMutateTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/FuzzMutate",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "OperationsTest.cpp",
+    "ReservoirSamplerTest.cpp",
+    "StrategiesTest.cpp",
+    "RandomIRBuilderTest.cpp",
+  ]
+  testonly = true
+}
