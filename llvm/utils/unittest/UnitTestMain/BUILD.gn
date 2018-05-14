@@ -1,12 +1,14 @@
 source_set("UnitTestMain") {
+  output_name = "gtest_main"
+
   deps = [
     "//llvm/lib/Support",
   ]
 
-  # Make targets depending on this also depend on googletest, to get the
-  # gtest include_dir.
+  # Make targets depending on this also depend on gtest, to get the gtest
+  # include_dir.
   public_deps = [
-    "..:googletest",
+    "..:gtest",
   ]
   sources = [
     "TestMain.cpp",

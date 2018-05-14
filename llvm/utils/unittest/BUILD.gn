@@ -22,7 +22,7 @@ config("googletest_config") {
   defines += [ "GTEST_HAS_RTTI=0" ]
 }
 
-static_library("googletest") {
+static_library("gtest") {
   deps = [
     "//llvm/lib/Support",
   ]

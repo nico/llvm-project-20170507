@@ -53,6 +53,8 @@ action("BuildVariables.inc") {
 # FIXME: It'd be nice to not depend on llvm-build on this. The information in
 # the LLVMBuild.txt files is often out-of-date and incorrect, and depending on
 # all the LLVMBuild.txt files just for this seems a bit overkill.
+# `gn desc` should have all this information too and could be called
+# at build time.
 action("LibraryDependencies.inc") {
   script = "//llvm/utils/llvm-build/llvm-build"
   output = "$target_gen_dir/llvm/tools/llvm-config/LibraryDependencies.inc"

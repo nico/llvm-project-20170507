@@ -1,4 +1,6 @@
 static_library("Demangle") {
+  output_name = "LLVMDemangle"
+
   public_deps = [
     # Must be a public_dep because Demangle's headers include llvm-config.h.
     "//llvm/include/llvm/Config:llvm-config",

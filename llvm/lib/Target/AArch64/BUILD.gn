@@ -2,7 +2,7 @@ import("//llvm/utils/TableGen/tablegen.gni")
 
 group("AArch64") {
   deps = [
-    ":AArch64CodeGen",
+    ":LLVMAArch64CodeGen",
     "AsmParser",
     "Disassembler",
     "InstPrinter",
@@ -91,7 +91,7 @@ group("tablegen") {
   }
 }
 
-static_library("AArch64CodeGen") {
+static_library("LLVMAArch64CodeGen") {
   deps = [
     ":tablegen",
     "InstPrinter",

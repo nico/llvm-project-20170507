@@ -2,7 +2,7 @@ import("//llvm/utils/TableGen/tablegen.gni")
 
 group("ARM") {
   deps = [
-    ":ARMCodeGen",
+    ":LLVMARMCodeGen",
     "AsmParser",
     "Disassembler",
     "InstPrinter",
@@ -84,7 +84,7 @@ group("tablegen") {
   }
 }
 
-static_library("ARMCodeGen") {
+static_library("LLVMARMCodeGen") {
   deps = [
     ":tablegen",
     "InstPrinter",

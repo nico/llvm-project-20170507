@@ -59,9 +59,10 @@ toolchain("posix") {
     }
     description = "LIBTOOL-STATIC {{output}}"
     outputs = [
-      "{{target_out_dir}}/{{target_output_name}}.a",
+      "{{output_dir}}/{{target_output_name}}.a",
     ]
     output_prefix = "lib"
+    default_output_dir = "{{root_out_dir}}/lib"
   }
 
   tool("solink") {
@@ -168,8 +169,9 @@ toolchain("win") {
     command = "lib /nologo {{arflags}} /out:{{output}} {{inputs}}"
     description = "LIB {{output}}"
     outputs = [
-      "{{target_out_dir}}/{{target_output_name}}.lib",
+      "{{output_dir}}/{{target_output_name}}.lib",
     ]
+    default_output_dir = "{{root_out_dir}}/lib"
   }
 
   tool("solink") {
