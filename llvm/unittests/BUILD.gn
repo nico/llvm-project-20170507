@@ -18,6 +18,13 @@ group("unittests") {
     "FuzzMutate:FuzzMutateTests",
     "IR:IRTests",
     "LineEditor:LineEditorTests",
+    "MC:MCTests",
+
+    # FIXME: This too has a duplicate main() function.
+    # "MI:MITests",
+    "Object:ObjectTests",
+    "ObjectYAML:ObjectYAMLTests",
+    "Option:OptionTests",
   ]
   testonly = true
 }

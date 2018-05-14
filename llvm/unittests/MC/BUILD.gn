@@ -1,0 +1,18 @@
+executable("MCTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/MC",
+    "//llvm/lib/MC/MCDisassembler",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "Disassembler.cpp",
+    "DwarfLineTables.cpp",
+    "StringTableBuilderTest.cpp",
+    "TargetRegistry.cpp",
+  ]
+  testonly = true
+}

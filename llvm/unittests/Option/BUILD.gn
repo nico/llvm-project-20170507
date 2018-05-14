@@ -1,0 +1,21 @@
+import("//llvm/utils/TableGen/tablegen.gni")
+
+tablegen("Opts") {
+  visibility = [ ":OptionTests" ]
+  args = [ "-gen-opt-parser-defs" ]
+}
+
+executable("OptionTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    ":Opts",
+    "//llvm/lib/Option",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "OptionParsingTest.cpp",
+  ]
+  testonly = true
+}

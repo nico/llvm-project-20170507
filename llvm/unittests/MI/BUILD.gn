@@ -1,0 +1,18 @@
+executable("MITests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/CodeGen",
+    "//llvm/lib/CodeGen/MIRParser",
+    "//llvm/lib/IR",
+    "//llvm/lib/MC",
+    "//llvm/lib/Support",
+    "//llvm/lib/Target",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "LiveIntervalTest.cpp",
+  ]
+  testonly = true
+}

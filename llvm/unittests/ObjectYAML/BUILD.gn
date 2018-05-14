@@ -1,0 +1,12 @@
+executable("ObjectYAMLTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    "//llvm/lib/ObjectYAML",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "YAMLTest.cpp",
+  ]
+  testonly = true
+}
