@@ -25,8 +25,7 @@ group("unittests") {
     "Object:ObjectTests",
     "ObjectYAML:ObjectYAMLTests",
     "Option:OptionTests",
-
-    # FIXME: PassesTests
+    "Passes:PluginsTests",
     "ProfileData:ProfileDataTests",
     "Support:SupportTests",
 
