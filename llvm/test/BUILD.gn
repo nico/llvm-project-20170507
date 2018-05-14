@@ -214,8 +214,8 @@ group("test") {
     "//llvm/utils/count",
 
     # See comment above //llvm/lib targets above, applies to gtest_main too.
-    "//llvm/utils/unittest/UnitTestMain:gtest_main",
     "//llvm/utils/not",
+    "//llvm/utils/unittest/UnitTestMain:gtest_main",
     "//llvm/utils/yaml-bench",
 
     # FIXME: UnitTests
