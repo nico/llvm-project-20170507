@@ -199,7 +199,7 @@ Instruction *InstCombiner::SimplifyAnyMemTransfer(AnyMemTransferInst *MI) {
   return MI;
 }
 
-Instruction *InstCombiner::SimplifyMemSet(MemSetInst *MI) {
+Instruction *InstCombiner::SimplifyAnyMemSet(AnyMemSetInst *MI) {
   unsigned Alignment = getKnownAlignment(MI->getDest(), DL, MI, &AC, &DT);
   if (MI->getDestAlignment() < Alignment) {
     MI->setDestAlignment(Alignment);
@@ -232,6 +232,8 @@ Instruction *InstCombiner::SimplifyMemSet(MemSetInst *MI) {
     StoreInst *S = Builder.CreateStore(ConstantInt::get(ITy, Fill), Dest,
                                        MI->isVolatile());
     S->setAlignment(Alignment);
+    if (isa<AtomicMemSetInst>(MI))
+      S->setOrdering(AtomicOrdering::Unordered);
 
     // Set the size of the copy to 0, it will be deleted on the next iteration.
     MI->setLength(Constant::getNullValue(LenC->getType()));
@@ -1758,8 +1760,8 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     if (auto *MTI = dyn_cast<AnyMemTransferInst>(MI)) {
       if (Instruction *I = SimplifyAnyMemTransfer(MTI))
         return I;
-    } else if (MemSetInst *MSI = dyn_cast<MemSetInst>(MI)) {
-      if (Instruction *I = SimplifyMemSet(MSI))
+    } else if (auto *MSI = dyn_cast<AnyMemSetInst>(MI)) {
+      if (Instruction *I = SimplifyAnyMemSet(MSI))
         return I;
     }
 
@@ -2400,13 +2402,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
   case Intrinsic::x86_avx512_mask3_vfnmsub_ss:
   case Intrinsic::x86_avx512_mask3_vfnmsub_sd:
   case Intrinsic::x86_fma_vfmadd_ss:
-  case Intrinsic::x86_fma_vfmsub_ss:
-  case Intrinsic::x86_fma_vfnmadd_ss:
-  case Intrinsic::x86_fma_vfnmsub_ss:
   case Intrinsic::x86_fma_vfmadd_sd:
-  case Intrinsic::x86_fma_vfmsub_sd:
-  case Intrinsic::x86_fma_vfnmadd_sd:
-  case Intrinsic::x86_fma_vfnmsub_sd:
   case Intrinsic::x86_sse_cmp_ss:
   case Intrinsic::x86_sse_min_ss:
   case Intrinsic::x86_sse_max_ss:
@@ -2557,7 +2553,9 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
       return replaceInstUsesWith(*II, V);
     break;
 
-  case Intrinsic::x86_pclmulqdq: {
+  case Intrinsic::x86_pclmulqdq:
+  case Intrinsic::x86_pclmulqdq_256:
+  case Intrinsic::x86_pclmulqdq_512: {
     if (auto *C = dyn_cast<ConstantInt>(II->getArgOperand(2))) {
       unsigned Imm = C->getZExtValue();
 
@@ -2565,27 +2563,28 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
       Value *Arg0 = II->getArgOperand(0);
       Value *Arg1 = II->getArgOperand(1);
       unsigned VWidth = Arg0->getType()->getVectorNumElements();
-      APInt DemandedElts(VWidth, 0);
 
       APInt UndefElts1(VWidth, 0);
-      DemandedElts = (Imm & 0x01) ? 2 : 1;
-      if (Value *V = SimplifyDemandedVectorElts(Arg0, DemandedElts,
+      APInt DemandedElts1 = APInt::getSplat(VWidth,
+                                            APInt(2, (Imm & 0x01) ? 2 : 1));
+      if (Value *V = SimplifyDemandedVectorElts(Arg0, DemandedElts1,
                                                 UndefElts1)) {
         II->setArgOperand(0, V);
         MadeChange = true;
       }
 
       APInt UndefElts2(VWidth, 0);
-      DemandedElts = (Imm & 0x10) ? 2 : 1;
-      if (Value *V = SimplifyDemandedVectorElts(Arg1, DemandedElts,
+      APInt DemandedElts2 = APInt::getSplat(VWidth,
+                                            APInt(2, (Imm & 0x10) ? 2 : 1));
+      if (Value *V = SimplifyDemandedVectorElts(Arg1, DemandedElts2,
                                                 UndefElts2)) {
         II->setArgOperand(1, V);
         MadeChange = true;
       }
 
-      // If both input elements are undef, the result is undef.
-      if (UndefElts1[(Imm & 0x01) ? 1 : 0] ||
-          UndefElts2[(Imm & 0x10) ? 1 : 0])
+      // If either input elements are undef, the result is zero.
+      if (DemandedElts1.isSubsetOf(UndefElts1) ||
+          DemandedElts2.isSubsetOf(UndefElts2))
         return replaceInstUsesWith(*II,
                                    ConstantAggregateZero::get(II->getType()));
 
@@ -2800,9 +2799,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
   case Intrinsic::x86_avx512_mask_permvar_qi_128:
   case Intrinsic::x86_avx512_mask_permvar_qi_256:
   case Intrinsic::x86_avx512_mask_permvar_qi_512:
-  case Intrinsic::x86_avx512_mask_permvar_sf_256:
   case Intrinsic::x86_avx512_mask_permvar_sf_512:
-  case Intrinsic::x86_avx512_mask_permvar_si_256:
   case Intrinsic::x86_avx512_mask_permvar_si_512:
     if (Value *V = simplifyX86vpermv(*II, Builder)) {
       // We simplified the permuting, now create a select for the masking.
@@ -3783,8 +3780,8 @@ Instruction *InstCombiner::visitCallSite(CallSite CS) {
     // Remove the convergent attr on calls when the callee is not convergent.
     if (CS.isConvergent() && !CalleeF->isConvergent() &&
         !CalleeF->isIntrinsic()) {
-      DEBUG(dbgs() << "Removing convergent attr from instr "
-                   << CS.getInstruction() << "\n");
+      LLVM_DEBUG(dbgs() << "Removing convergent attr from instr "
+                        << CS.getInstruction() << "\n");
       CS.setNotConvergent();
       return CS.getInstruction();
     }

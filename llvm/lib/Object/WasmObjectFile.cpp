@@ -492,7 +492,7 @@ Error WasmObjectFile::parseLinkingSectionSymtab(const uint8_t *&Ptr,
     LinkingData.SymbolTable.emplace_back(Info);
     Symbols.emplace_back(LinkingData.SymbolTable.back(), FunctionType,
                          GlobalType);
-    DEBUG(dbgs() << "Adding symbol: " << Symbols.back() << "\n");
+    LLVM_DEBUG(dbgs() << "Adding symbol: " << Symbols.back() << "\n");
   }
 
   return Error::success();
@@ -875,6 +875,7 @@ Error WasmObjectFile::parseCodeSection(const uint8_t *Ptr, const uint8_t *End) {
     uint32_t Size = readVaruint32(Ptr);
     const uint8_t *FunctionEnd = Ptr + Size;
 
+    Function.CodeOffset = Ptr - FunctionStart;
     Function.Index = NumImportedFunctions + Functions.size();
     Function.CodeSectionOffset = FunctionStart - CodeSectionStart;
     Function.Size = FunctionEnd - FunctionStart;
@@ -967,7 +968,7 @@ uint32_t WasmObjectFile::getSymbolFlags(DataRefImpl Symb) const {
   uint32_t Result = SymbolRef::SF_None;
   const WasmSymbol &Sym = getWasmSymbol(Symb);
 
-  DEBUG(dbgs() << "getSymbolFlags: ptr=" << &Sym << " " << Sym << "\n");
+  LLVM_DEBUG(dbgs() << "getSymbolFlags: ptr=" << &Sym << " " << Sym << "\n");
   if (Sym.isBindingWeak())
     Result |= SymbolRef::SF_Weak;
   if (!Sym.isBindingLocal())

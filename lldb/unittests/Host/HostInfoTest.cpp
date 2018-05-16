@@ -58,13 +58,20 @@ struct HostInfoMacOSXTest : public HostInfoMacOSX {
 };
 
 
+#ifdef __APPLE__
 TEST_F(HostInfoTest, MacOSX) {
   // This returns whatever the POSIX fallback returns.
   std::string posix = "/usr/lib/liblldb.dylib";
   EXPECT_FALSE(HostInfoMacOSXTest::ComputeClangDir(posix).empty());
 
+  std::string build =
+    "/lldb-macosx-x86_64/Library/Frameworks/LLDB.framework/Versions/A";
+  std::string build_clang =
+    "/lldb-macosx-x86_64/Library/Frameworks/LLDB.framework/Resources/Clang";
+  EXPECT_EQ(HostInfoMacOSXTest::ComputeClangDir(build), build_clang);
+
   std::string xcode =
-    "/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework";
+    "/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Versions/A";
   std::string xcode_clang =
     "/Applications/Xcode.app/Contents/Developer/Toolchains/"
     "XcodeDefault.xctoolchain/usr/lib/swift/clang";
@@ -83,3 +90,4 @@ TEST_F(HostInfoTest, MacOSX) {
   EXPECT_NE(HostInfoMacOSXTest::ComputeClangDir(GetInputFilePath(xcode), true),
             HostInfoMacOSXTest::ComputeClangDir(GetInputFilePath(xcode)));
 }
+#endif
