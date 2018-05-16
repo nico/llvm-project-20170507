@@ -29,6 +29,7 @@ config("compiler_defaults") {
     } else {
       cflags += [ "-O3" ]
     }
+    cflags += [ "-fvisibility-inlines-hidden" ]
     cflags_cc = [ "-std=c++11" ]
   } else {
     if (is_debug) {
