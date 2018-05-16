@@ -33,7 +33,7 @@ executable("opt") {
     "opt.cpp",
   ]
   if (host_os == "linux") {
-    # Make sure bugpoint plugins can access bugpoint's symbols.
+    # Corresponds to export_executable_symbols() in cmake.
     ldflags = [ "-rdynamic" ]
   }
 }

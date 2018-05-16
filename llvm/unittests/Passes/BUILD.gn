@@ -20,6 +20,7 @@ loadable_module("TestPlugin") {
       "//llvm/lib/Support",
     ]
   }
+  testonly = true
 }
 
 executable("PluginsTests") {

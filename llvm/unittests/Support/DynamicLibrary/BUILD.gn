@@ -1,0 +1,63 @@
+template("dynlib_add_module") {
+  # GN doesn't like if a template doesn't use invoker at all, even
+  # with not_needed(invoker), so pass in a dummy always-true bool.
+  assert(invoker.dummy)
+
+  shared_library(target_name) {
+    # Put plugin next to the unit test executable.
+    output_dir = target_out_dir
+
+    # Call this .so even on mac and win, DynamicLibraryTests expects this.
+    output_extension = "so"
+    sources = [
+      "PipSqueak.cxx",
+    ]
+
+    if (host_os == "linux") {
+      # The GN build currently doesn't globally pass -fPIC, but that's
+      # needed for building .so files on Linux.  Just pass it manually
+      # for loadable_modules for now.
+      cflags = [ "-fPIC" ]
+    }
+    testonly = true
+
+    # FIXME: Remove -z,nodelete config from this target once the flag
+    # is passed to everything.
+  }
+}
+
+dynlib_add_module("PipSqueak") {
+  dummy = true
+}
+
+dynlib_add_module("SecondLib") {
+  dummy = true
+}
+
+static_library("DynamicLibraryLib") {
+  sources = [
+    "ExportedFuncs.cxx",
+  ]
+}
+
+executable("DynamicLibraryTests") {
+  # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
+  output_dir = target_out_dir
+  deps = [
+    ":DynamicLibraryLib",
+    ":PipSqueak",
+    ":SecondLib",
+    "//llvm/include/llvm/Config:config",
+    "//llvm/lib/Support",
+    "//llvm/utils/unittest/UnitTestMain",
+  ]
+  sources = [
+    "DynamicLibraryTest.cpp",
+  ]
+
+  if (host_os == "linux") {
+    # Corresponds to export_executable_symbols() in cmake.
+    ldflags = [ "-rdynamic" ]
+  }
+  testonly = true
+}

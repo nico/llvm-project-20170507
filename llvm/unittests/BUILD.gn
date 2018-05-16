@@ -28,8 +28,7 @@ group("unittests") {
     "Passes:PluginsTests",
     "ProfileData:ProfileDataTests",
     "Support:SupportTests",
-
-    # FIXME: Support/DynamicLibrary
+    "Support/DynamicLibrary:DynamicLibraryTests",
     "Transforms/IPO:IPOTests",
     "Transforms/Scalar:ScalarTests",
     "Transforms/Utils:UtilsTests",
