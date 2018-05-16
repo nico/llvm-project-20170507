@@ -3,7 +3,7 @@ template("dynlib_add_module") {
   # with not_needed(invoker), so pass in a dummy always-true bool.
   assert(invoker.dummy)
 
-  shared_library(target_name) {
+  loadable_module(target_name) {
     # Put plugin next to the unit test executable.
     output_dir = target_out_dir
 
