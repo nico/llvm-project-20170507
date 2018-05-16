@@ -1,20 +1,24 @@
-if (host_os != "win") {
-  loadable_module("TestPlugin") {
-    # Put plugin next to the unit test executable.
-    output_dir = target_out_dir
+loadable_module("TestPlugin") {
+  # Put plugin next to the unit test executable.
+  output_dir = target_out_dir
 
-    # Call this .so even on mac, PluginsTests expects this.
-    output_extension = "so"
-    sources = [
-      "TestPlugin.cxx",
+  # Call this .so even on mac and win, PluginsTests expects this.
+  output_extension = "so"
+  sources = [
+    "TestPlugin.cxx",
+  ]
+
+  if (host_os == "linux") {
+    # The GN build currently doesn't globally pass -fPIC, but that's
+    # needed for building .so files on Linux.  Just pass it manually
+    # for loadable_modules for now.
+    cflags = [ "-fPIC" ]
+  } else if (host_os == "win") {
+    deps = [
+      "//llvm/lib/IR",
+      "//llvm/lib/Passes",
+      "//llvm/lib/Support",
     ]
-
-    if (host_os == "linux") {
-      # The GN build currently doesn't globally pass -fPIC, but that's
-      # needed for building .so files on Linux.  Just pass it manually
-      # for loadable_modules for now.
-      cflags = [ "-fPIC" ]
-    }
   }
 }
 
@@ -22,6 +26,7 @@ executable("PluginsTests") {
   # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
   output_dir = target_out_dir
   deps = [
+    ":TestPlugin",
     "//llvm/lib/IR",
     "//llvm/lib/Passes",
     "//llvm/lib/Support",
@@ -35,9 +40,11 @@ executable("PluginsTests") {
   # Otherwise, reconfiguring with plugins disabled will leave behind a stale
   # executable.
   if (host_os != "win") {
-    deps += [ ":TestPlugin" ]
+    # TestPlugin gets built on Windows, but the test doesn't attempt to load it.
+    # This matches the CMake build.
     defines = [ "LLVM_ENABLE_PLUGINS" ]
   }
+
   if (host_os == "linux") {
     # Corresponds to export_executable_symbols() in cmake.
     ldflags = [ "-rdynamic" ]

@@ -195,8 +195,21 @@ toolchain("win") {
     default_output_dir = "{{root_out_dir}}/bin"
   }
 
-  # No solink_module tool in Windows because loadable_modules don't work
-  # in LLVM's Windows build.
+  # Plugins for opt and clang and so on don't work in LLVM's Windows build
+  # since the code doesn't have export annotations, but there are a few
+  # standalone loadable modules used for unit-testing LLVM's dynamic library
+  # loading code.
+  tool("solink_module") {
+    dllfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
+    command = "link /nologo /dll {{ldflags}} /out:$dllfile {{libs}} /pdb:$dllfile.pdb {{inputs}}"
+    description = "LINK_MODULE $dllfile"
+    outputs = [
+      dllfile,
+    ]
+    runtime_outputs = outputs
+    default_output_extension = ".dll"
+    # No default_output_dir, all clients set output_dir.
+  }
 
   tool("link") {
     outfile = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
