@@ -1496,16 +1496,7 @@ public:
       : ExpectedValue(ExpectedValue) {}
 
   bool matchesNode(const T &Node) const override {
-#if defined(_MSC_VER)
-#pragma warning(push)
-// Disable ''==': unsafe mix of type 'bool' and type 'const double'';
-// Node can be CXXBoolLiteralExpr while ValueT is a double.
-#pragma warning(disable : 4805)
-#endif
     return Node.getValue() == ExpectedValue;
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
   }
 
 private:
