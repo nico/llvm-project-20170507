@@ -11,6 +11,7 @@ static_library("lib") {
     "//llvm/lib/Support",
   ]
   sources = [
+    "Analysis.cpp",
     "BenchmarkResult.cpp",
     "BenchmarkRunner.cpp",
     "Clustering.cpp",

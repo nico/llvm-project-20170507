@@ -6,5 +6,6 @@ static_library("BinaryFormat") {
   sources = [
     "Dwarf.cpp",
     "Magic.cpp",
+    "Wasm.cpp",
   ]
 }

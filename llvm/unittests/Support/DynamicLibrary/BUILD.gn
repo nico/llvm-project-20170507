@@ -7,10 +7,8 @@ template("dynlib_add_module") {
     # Put plugin next to the unit test executable.
     output_dir = target_out_dir
 
-    # Call this .so even on mac and win, DynamicLibraryTests expects this.
-    output_extension = "so"
     sources = [
-      "PipSqueak.cxx",
+      "PipSqueak.cpp",
     ]
 
     if (host_os == "linux") {
@@ -20,9 +18,6 @@ template("dynlib_add_module") {
       cflags = [ "-fPIC" ]
     }
     testonly = true
-
-    # FIXME: Remove -z,nodelete config from this target once the flag
-    # is passed to everything.
   }
 }
 
@@ -36,7 +31,7 @@ dynlib_add_module("SecondLib") {
 
 static_library("DynamicLibraryLib") {
   sources = [
-    "ExportedFuncs.cxx",
+    "ExportedFuncs.cpp",
   ]
 }
 

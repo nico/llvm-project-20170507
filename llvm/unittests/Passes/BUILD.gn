@@ -2,10 +2,8 @@ loadable_module("TestPlugin") {
   # Put plugin next to the unit test executable.
   output_dir = target_out_dir
 
-  # Call this .so even on mac and win, PluginsTests expects this.
-  output_extension = "so"
   sources = [
-    "TestPlugin.cxx",
+    "TestPlugin.cpp",
   ]
 
   if (host_os == "linux") {
@@ -28,6 +26,7 @@ executable("PluginsTests") {
   output_dir = target_out_dir
   deps = [
     ":TestPlugin",
+    "//llvm/include/llvm/Config:config",
     "//llvm/lib/IR",
     "//llvm/lib/Passes",
     "//llvm/lib/Support",
