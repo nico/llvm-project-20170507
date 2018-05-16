@@ -6,13 +6,17 @@ loadable_module("TestPlugin") {
     "TestPlugin.cpp",
   ]
 
+  deps = [
+    "//llvm/include/llvm/IR:tablegen",
+  ]
+
   if (host_os == "linux") {
     # The GN build currently doesn't globally pass -fPIC, but that's
     # needed for building .so files on Linux.  Just pass it manually
     # for loadable_modules for now.
     cflags = [ "-fPIC" ]
   } else if (host_os == "win") {
-    deps = [
+    deps += [
       "//llvm/lib/IR",
       "//llvm/lib/Passes",
       "//llvm/lib/Support",
