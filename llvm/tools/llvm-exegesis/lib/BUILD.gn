@@ -3,9 +3,9 @@ static_library("lib") {
   deps = [
     "//llvm/lib/Analysis",
     "//llvm/lib/CodeGen",
-    "//llvm/lib/IR",
     "//llvm/lib/ExecutionEngine",
     "//llvm/lib/ExecutionEngine/MCJIT",
+    "//llvm/lib/IR",
     "//llvm/lib/MC",
     "//llvm/lib/Object",
     "//llvm/lib/Support",

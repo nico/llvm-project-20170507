@@ -208,6 +208,7 @@ toolchain("win") {
     ]
     runtime_outputs = outputs
     default_output_extension = ".dll"
+
     # No default_output_dir, all clients set output_dir.
   }
 

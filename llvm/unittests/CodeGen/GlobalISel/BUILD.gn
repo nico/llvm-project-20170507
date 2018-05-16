@@ -3,9 +3,9 @@ executable("GlobalISelTests") {
   output_dir = target_out_dir
   deps = [
     "//llvm/lib/CodeGen",
-    "//llvm/lib/IR",
     "//llvm/lib/CodeGen/GlobalISel",
     "//llvm/lib/CodeGen/MIRParser",
+    "//llvm/lib/IR",
     "//llvm/lib/MC",
     "//llvm/lib/Support",
     "//llvm/lib/Target",

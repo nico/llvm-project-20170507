@@ -13,11 +13,11 @@ executable("DebugInfoDWARFTests") {
     "//llvm/utils/unittest/UnitTestMain",
   ]
   sources = [
-    "DwarfGenerator.cpp",
-    "DwarfUtils.cpp",
     "DWARFDebugInfoTest.cpp",
     "DWARFDebugLineTest.cpp",
     "DWARFFormValueTest.cpp",
+    "DwarfGenerator.cpp",
+    "DwarfUtils.cpp",
   ]
   testonly = true
 }

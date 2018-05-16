@@ -10,9 +10,9 @@ executable("FuzzMutateTests") {
   ]
   sources = [
     "OperationsTest.cpp",
+    "RandomIRBuilderTest.cpp",
     "ReservoirSamplerTest.cpp",
     "StrategiesTest.cpp",
-    "RandomIRBuilderTest.cpp",
   ]
   testonly = true
 }

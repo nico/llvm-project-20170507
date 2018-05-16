@@ -7,9 +7,9 @@ executable("DebugInfoMSFTests") {
     "//llvm/utils/unittest/UnitTestMain",
   ]
   sources = [
-    "MappedBlockStreamTest.cpp",
     "MSFBuilderTest.cpp",
     "MSFCommonTest.cpp",
+    "MappedBlockStreamTest.cpp",
   ]
   testonly = true
 }

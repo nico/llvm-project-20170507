@@ -13,9 +13,7 @@ executable("AArch64Tests") {
     "//llvm/lib/Target/AArch64/TargetInfo",
     "//llvm/utils/unittest/UnitTestMain",
   ]
-  include_dirs = [
-    "//llvm/lib/Target/AArch64",
-  ]
+  include_dirs = [ "//llvm/lib/Target/AArch64" ]
   sources = [
     "InstSizes.cpp",
   ]

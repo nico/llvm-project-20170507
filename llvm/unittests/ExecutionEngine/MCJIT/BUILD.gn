@@ -3,25 +3,25 @@ executable("MCJITTests") {
   output_dir = target_out_dir
   deps = [
     "//llvm/lib/Analysis",
-    "//llvm/lib/IR",
     "//llvm/lib/ExecutionEngine",
     "//llvm/lib/ExecutionEngine/MCJIT",
     "//llvm/lib/ExecutionEngine/RuntimeDyld",
-    "//llvm/lib/Transforms/InstCombine",
-    "//llvm/lib/Transforms/IPO",
-    "//llvm/lib/Transforms/Scalar",
+    "//llvm/lib/IR",
     "//llvm/lib/MC",
     "//llvm/lib/Support",
     "//llvm/lib/Target",
     "//llvm/lib/Target:NativeTarget",
+    "//llvm/lib/Transforms/IPO",
+    "//llvm/lib/Transforms/InstCombine",
+    "//llvm/lib/Transforms/Scalar",
     "//llvm/utils/unittest/UnitTestMain",
   ]
   sources = [
-    "MCJITTest.cpp",
     "MCJITCAPITest.cpp",
     "MCJITMemoryManagerTest.cpp",
     "MCJITMultipleModuleTest.cpp",
     "MCJITObjectCacheTest.cpp",
+    "MCJITTest.cpp",
   ]
   testonly = true
 

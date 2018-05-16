@@ -10,8 +10,8 @@ executable("DebugInfoPDBTests") {
   ]
   sources = [
     "HashTableTest.cpp",
-    "StringTableBuilderTest.cpp",
     "PDBApiTest.cpp",
+    "StringTableBuilderTest.cpp",
   ]
   testonly = true
 }
