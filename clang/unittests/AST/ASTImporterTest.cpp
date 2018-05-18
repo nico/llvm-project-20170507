@@ -1348,7 +1348,7 @@ TEST_P(ASTImporterTestBase,
       Verifier.match(To, cxxRecordDecl(hasFieldOrder({"a", "b", "c"}))));
 }
 
-TEST_P(ASTImporterTestBase, DISABLED_ShouldImportImplicitCXXRecordDecl) {
+TEST_P(ASTImporterTestBase, ShouldImportImplicitCXXRecordDecl) {
   Decl *From, *To;
   std::tie(From, To) = getImportedDecl(
       R"(
@@ -1796,6 +1796,39 @@ TEST(ImportExpr, UnresolvedMemberExpr) {
              functionTemplateDecl(has(functionDecl(has(
                  compoundStmt(has(callExpr(has(unresolvedMemberExpr())))))))));
 }
+
+struct DeclContextTest : ASTImporterTestBase {};
+
+TEST_P(DeclContextTest, removeDeclOfClassTemplateSpecialization) {
+  Decl *TU = getTuDecl(
+      R"(
+      namespace NS {
+
+      template <typename T>
+      struct S {};
+      template struct S<int>;
+
+      inline namespace INS {
+        template <typename T>
+        struct S {};
+        template struct S<int>;
+      }
+
+      }
+      )", Lang_CXX11, "input0.cc");
+  auto *NS = FirstDeclMatcher<NamespaceDecl>().match(
+      TU, namespaceDecl());
+  auto *Spec = FirstDeclMatcher<ClassTemplateSpecializationDecl>().match(
+      TU, classTemplateSpecializationDecl());
+  ASSERT_TRUE(NS->containsDecl(Spec));
+
+  NS->removeDecl(Spec);
+  EXPECT_FALSE(NS->containsDecl(Spec));
+}
+
+INSTANTIATE_TEST_CASE_P(
+    ParameterizedTests, DeclContextTest,
+    ::testing::Values(ArgVector(), ArgVector{"-fdelayed-template-parsing"}),);
 
 } // end namespace ast_matchers
 } // end namespace clang
