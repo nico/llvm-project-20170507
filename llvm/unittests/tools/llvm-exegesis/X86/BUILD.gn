@@ -17,8 +17,8 @@ executable("LLVMExegesisX86Tests") {
     "//llvm/tools/llvm-exegesis/lib",
   ]
   sources = [
-    "InMemoryAssemblerTest.cpp",
-    "InstructionSnippetGeneratorTest.cpp",
+    "AssemblerTest.cpp",
+    "RegisterAliasingTest.cpp",
   ]
   testonly = true
 }

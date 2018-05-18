@@ -14,5 +14,7 @@ static_library("Vectorize") {
     "SLPVectorizer.cpp",
     "VPlan.cpp",
     "Vectorize.cpp",
+    "VPlanHCFGBuilder.cpp",
+    "VPlanVerifier.cpp",
   ]
 }
