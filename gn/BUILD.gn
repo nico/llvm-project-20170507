@@ -29,8 +29,11 @@ config("compiler_defaults") {
     } else {
       cflags += [ "-O3" ]
     }
-    cflags += [ "-fvisibility-inlines-hidden" ]
-    cflags_cc = [ "-std=c++11" ]
+    cflags += [ "-fdiagnostics-color" ]
+    cflags_cc = [
+      "-std=c++11",
+      "-fvisibility-inlines-hidden",
+    ]
   } else {
     if (is_debug) {
       cflags += [ "/Zi" ]
