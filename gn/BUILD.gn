@@ -35,6 +35,8 @@ config("compiler_defaults") {
     ]
     cflags_cc = [
       "-std=c++11",
+      "-fno-exceptions",
+      "-fno-rtti",
       "-fvisibility-inlines-hidden",
     ]
   } else {
