@@ -1,35 +1,36 @@
-loadable_module("TestPlugin") {
-  # Put plugin next to the unit test executable.
-  output_dir = target_out_dir
+if (host_os != "win") {
+  loadable_module("TestPlugin") {
+    # Put plugin next to the unit test executable.
+    output_dir = target_out_dir
 
-  sources = [
-    "TestPlugin.cpp",
-  ]
-
-  deps = [
-    "//llvm/include/llvm/IR:tablegen",
-  ]
-
-  if (host_os == "linux") {
-    # The GN build currently doesn't globally pass -fPIC, but that's
-    # needed for building .so files on Linux.  Just pass it manually
-    # for loadable_modules for now.
-    cflags = [ "-fPIC" ]
-  } else if (host_os == "win") {
-    deps += [
-      "//llvm/lib/IR",
-      "//llvm/lib/Passes",
-      "//llvm/lib/Support",
+    sources = [
+      "TestPlugin.cpp",
     ]
+
+    deps = [
+      "//llvm/include/llvm/IR:tablegen",
+    ]
+
+    if (host_os == "linux") {
+      # The GN build currently doesn't globally pass -fPIC, but that's
+      # needed for building .so files on Linux.  Just pass it manually
+      # for loadable_modules for now.
+      cflags = [ "-fPIC" ]
+    } else if (host_os == "win") {
+      deps += [
+        "//llvm/lib/IR",
+        "//llvm/lib/Passes",
+        "//llvm/lib/Support",
+      ]
+    }
+    testonly = true
   }
-  testonly = true
 }
 
 executable("PluginsTests") {
   # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
   output_dir = target_out_dir
   deps = [
-    ":TestPlugin",
     "//llvm/include/llvm/Config:config",
     "//llvm/lib/IR",
     "//llvm/lib/Passes",
@@ -44,8 +45,7 @@ executable("PluginsTests") {
   # Otherwise, reconfiguring with plugins disabled will leave behind a stale
   # executable.
   if (host_os != "win") {
-    # TestPlugin gets built on Windows, but the test doesn't attempt to load it.
-    # This matches the CMake build.
+    deps += [ ":TestPlugin" ]
     defines = [ "LLVM_ENABLE_PLUGINS" ]
   }
 
