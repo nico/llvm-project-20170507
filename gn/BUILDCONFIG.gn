@@ -5,6 +5,7 @@
 _shared_binary_target_configs = [
   "//gn:compiler_defaults",
   "//gn:llvm_code",
+  "//gn:warn_covered_switch_default",
 ]
 
 # Apply that default list to the binary target types.

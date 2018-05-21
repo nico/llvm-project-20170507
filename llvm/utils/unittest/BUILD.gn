@@ -31,6 +31,7 @@ static_library("gtest") {
     "googlemock",  # For including src/gmock.cc
   ]
   public_configs = [ ":googletest_config" ]
+  configs -= [ "//gn:warn_covered_switch_default" ]
   sources = [
     "googlemock/src/gmock-all.cc",
     "googletest/src/gtest-all.cc",

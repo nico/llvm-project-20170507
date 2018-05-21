@@ -1,5 +1,6 @@
 import("//gn/buildflags.gni")
 import("//gn/mac_sdk.gni")
+import("//gn/toolchain/compiler.gni")
 import("//gn/enable_threads.gni")
 
 config("compiler_defaults") {
@@ -29,7 +30,9 @@ config("compiler_defaults") {
     } else {
       cflags += [ "-O3" ]
     }
-    cflags += [ "-fdiagnostics-color" ]
+    cflags += [
+      "-fdiagnostics-color",
+    ]
     cflags_cc = [
       "-std=c++11",
       "-fvisibility-inlines-hidden",
@@ -51,7 +54,16 @@ config("compiler_defaults") {
     cflags += [
       "/EHs-c-",
       "/GR-",
+    ]
 
+    # The MSVC default value (1 MB) is not enough for parsing recursive C++
+    # templates in Clang.
+    ldflags = [ "/STACK:10000000" ]
+  }
+
+  # Warning setup.
+  if (host_os == "win" && !is_clang) {
+    cflags += [
       # Suppress ''modifier' : used more than once' (__forceinline and inline).
       "-wd4141",
 
@@ -73,10 +85,23 @@ config("compiler_defaults") {
       # Suppress 'unsafe mix of type <type> and type <type> in operation'.
       "-wd4805",
     ]
-
-    # The MSVC default value (1 MB) is not enough for parsing recursive C++
-    # templates in Clang.
-    ldflags = [ "/STACK:10000000" ]
+  } else {
+    cflags += [
+      "-Wall",
+      "-Wextra",
+      "-Wno-unused-parameter",
+      "-Wstring-conversion",
+    ]
+    if (is_clang) {
+      cflags += [
+        "-Wdelete-non-virtual-dtor",
+      ]
+    }
+    if (is_clang && use_goma) {
+      # goma converts all paths to lowercase on the server, breaking this
+      # warning.
+      cflags += [ "-Wno-nonportable-include-path" ]
+    }
   }
 }
 
@@ -99,6 +124,12 @@ config("clang_code") {
     "//clang/include",
     "$root_gen_dir/clang/include",
   ]
+}
+
+config("warn_covered_switch_default") {
+  if (is_clang) {
+    cflags = [ "-Wcovered-switch-default" ]
+  }
 }
 
 config("pthread_config") {
