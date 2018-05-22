@@ -110,6 +110,7 @@ group("test") {
     "//llvm/tools/llc",
     "//llvm/tools/llvm-ar:symlinks",
     "//llvm/tools/llvm-as",
+    "//llvm/tools/llvm-bcanalyzer",
     "//llvm/tools/llvm-config",
     "//llvm/tools/llvm-dis",
     "//llvm/tools/llvm-dwarfdump",
