@@ -30,7 +30,7 @@
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/Analysis/Utils/Local.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/BasicBlock.h"
@@ -304,7 +304,7 @@ static Value *getStoredPointerOperand(Instruction *I) {
   //TODO: factor this to reuse getLocForWrite
   MemoryLocation Loc = getLocForWrite(I);
   assert(Loc.Ptr &&
-         "unable to find pointer writen for analyzable instruction?");
+         "unable to find pointer written for analyzable instruction?");
   // TODO: most APIs don't expect const Value *
   return const_cast<Value*>(Loc.Ptr);
 }

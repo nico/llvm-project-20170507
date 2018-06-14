@@ -8,7 +8,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Symbol/ObjectFile.h"
-#include "Plugins/ObjectContainer/BSD-Archive/ObjectContainerBSDArchive.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
@@ -354,6 +353,7 @@ AddressClass ObjectFile::GetAddressClass(addr_t file_addr) {
           case eSectionTypeDWARFDebugLoc:
           case eSectionTypeDWARFDebugMacInfo:
           case eSectionTypeDWARFDebugMacro:
+          case eSectionTypeDWARFDebugNames:
           case eSectionTypeDWARFDebugPubNames:
           case eSectionTypeDWARFDebugPubTypes:
           case eSectionTypeDWARFDebugRanges:
@@ -578,7 +578,7 @@ bool ObjectFile::SplitArchivePathWithObject(const char *path_with_object,
     std::string obj;
     if (regex_match.GetMatchAtIndex(path_with_object, 1, path) &&
         regex_match.GetMatchAtIndex(path_with_object, 2, obj)) {
-      archive_file.SetFile(path, false);
+      archive_file.SetFile(path, false, FileSpec::Style::native);
       archive_object.SetCString(obj.c_str());
       if (must_exist && !archive_file.Exists())
         return false;

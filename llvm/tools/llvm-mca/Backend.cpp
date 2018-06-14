@@ -37,10 +37,17 @@ void Backend::run() {
 void Backend::runCycle(unsigned Cycle) {
   notifyCycleBegin(Cycle);
 
+  // Update the stages before we do any processing for this cycle.
   InstRef IR;
+  Retire->preExecute(IR);
+  Dispatch->preExecute(IR);
+  Execute->preExecute(IR);
+
+  // Fetch instructions and dispatch them to the hardware.
   while (Fetch->execute(IR)) {
     if (!Dispatch->execute(IR))
       break;
+    Execute->execute(IR);
     Fetch->postExecute(IR);
   }
 
@@ -51,9 +58,6 @@ void Backend::notifyCycleBegin(unsigned Cycle) {
   LLVM_DEBUG(dbgs() << "[E] Cycle begin: " << Cycle << '\n');
   for (HWEventListener *Listener : Listeners)
     Listener->onCycleBegin();
-
-  Dispatch->cycleEvent();
-  HWS->cycleEvent();
 }
 
 void Backend::notifyInstructionEvent(const HWInstructionEvent &Event) {

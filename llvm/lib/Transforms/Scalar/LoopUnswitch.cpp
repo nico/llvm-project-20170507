@@ -28,7 +28,7 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AssumptionCache.h"
@@ -39,7 +39,7 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Analysis/Utils/Local.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CallSite.h"
@@ -975,6 +975,10 @@ void LoopUnswitch::UnswitchTrivialCondition(Loop *L, Value *Cond, Constant *Val,
                     << " blocks] in Function "
                     << L->getHeader()->getParent()->getName()
                     << " on cond: " << *Val << " == " << *Cond << "\n");
+  // We are going to make essential changes to CFG. This may invalidate cached
+  // information for L or one of its parent loops in SCEV.
+  if (auto *SEWP = getAnalysisIfAvailable<ScalarEvolutionWrapperPass>())
+    SEWP->getSE().forgetTopmostLoop(L);
 
   // First step, split the preheader, so that we know that there is a safe place
   // to insert the conditional branch.  We will change loopPreheader to have a
@@ -1038,7 +1042,7 @@ bool LoopUnswitch::TryTrivialLoopUnswitch(bool &Changed) {
   // until it finds the trivial condition candidate (condition that is not a
   // constant). Since unswitching generates branches with constant conditions,
   // this scenario could be very common in practice.
-  SmallSet<BasicBlock*, 8> Visited;
+  SmallPtrSet<BasicBlock*, 8> Visited;
 
   while (true) {
     // If we exit loop or reach a previous visited block, then
@@ -1201,8 +1205,10 @@ void LoopUnswitch::UnswitchNontrivialCondition(Value *LIC, Constant *Val,
                     << " blocks] in Function " << F->getName() << " when '"
                     << *Val << "' == " << *LIC << "\n");
 
+  // We are going to make essential changes to CFG. This may invalidate cached
+  // information for L or one of its parent loops in SCEV.
   if (auto *SEWP = getAnalysisIfAvailable<ScalarEvolutionWrapperPass>())
-    SEWP->getSE().forgetLoop(L);
+    SEWP->getSE().forgetTopmostLoop(L);
 
   LoopBlocks.clear();
   NewBlocks.clear();

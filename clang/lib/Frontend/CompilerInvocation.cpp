@@ -23,7 +23,6 @@
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/TargetOptions.h"
 #include "clang/Basic/Version.h"
-#include "clang/Basic/VersionTuple.h"
 #include "clang/Basic/VirtualFileSystem.h"
 #include "clang/Basic/Visibility.h"
 #include "clang/Basic/XRayInstr.h"
@@ -76,6 +75,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Regex.h"
+#include "llvm/Support/VersionTuple.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetOptions.h"
 #include <algorithm>
@@ -719,6 +719,7 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.StrictEnums = Args.hasArg(OPT_fstrict_enums);
   Opts.StrictReturn = !Args.hasArg(OPT_fno_strict_return);
   Opts.StrictVTablePointers = Args.hasArg(OPT_fstrict_vtable_pointers);
+  Opts.ForceEmitVTables = Args.hasArg(OPT_fforce_emit_vtables);
   Opts.UnsafeFPMath = Args.hasArg(OPT_menable_unsafe_fp_math) ||
                       Args.hasArg(OPT_cl_unsafe_math_optimizations) ||
                       Args.hasArg(OPT_cl_fast_relaxed_math);
@@ -1396,6 +1397,8 @@ static InputKind ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
       Opts.ProgramAction = frontend::ASTPrint; break;
     case OPT_ast_view:
       Opts.ProgramAction = frontend::ASTView; break;
+    case OPT_compiler_options_dump:
+      Opts.ProgramAction = frontend::DumpCompilerOptions; break;
     case OPT_dump_raw_tokens:
       Opts.ProgramAction = frontend::DumpRawTokens; break;
     case OPT_dump_tokens:
@@ -1536,6 +1539,8 @@ static InputKind ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
     = !Args.hasArg(OPT_no_code_completion_ns_level_decls);
   Opts.CodeCompleteOpts.IncludeBriefComments
     = Args.hasArg(OPT_code_completion_brief_comments);
+  Opts.CodeCompleteOpts.IncludeFixIts
+    = Args.hasArg(OPT_code_completion_with_fixits);
 
   Opts.OverrideRecordLayoutsFile
     = Args.getLastArgValue(OPT_foverride_record_layout_EQ);
@@ -2329,12 +2334,22 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   Opts.ObjCExceptions = Args.hasArg(OPT_fobjc_exceptions);
   Opts.CXXExceptions = Args.hasArg(OPT_fcxx_exceptions);
 
+  // -ffixed-point
+  Opts.FixedPoint =
+      Args.hasFlag(OPT_ffixed_point, OPT_fno_fixed_point, /*Default=*/false) &&
+      !Opts.CPlusPlus;
+
   // Handle exception personalities
   Arg *A = Args.getLastArg(options::OPT_fsjlj_exceptions,
                            options::OPT_fseh_exceptions,
                            options::OPT_fdwarf_exceptions);
   if (A) {
     const Option &Opt = A->getOption();
+    llvm::Triple T(TargetOpts.Triple);
+    if (T.isWindowsMSVCEnvironment())
+      Diags.Report(diag::err_fe_invalid_exception_model)
+          << Opt.getName() << T.str();
+
     Opts.SjLjExceptions = Opt.matches(options::OPT_fsjlj_exceptions);
     Opts.SEHExceptions = Opt.matches(options::OPT_fseh_exceptions);
     Opts.DWARFExceptions = Opt.matches(options::OPT_fdwarf_exceptions);
@@ -2721,6 +2736,9 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
       Args.getAllArgValues(OPT_fxray_never_instrument);
   Opts.XRayAttrListFiles = Args.getAllArgValues(OPT_fxray_attr_list);
 
+  // -fforce-emit-vtables
+  Opts.ForceEmitVTables = Args.hasArg(OPT_fforce_emit_vtables);
+
   // -fallow-editor-placeholders
   Opts.AllowEditorPlaceholders = Args.hasArg(OPT_fallow_editor_placeholders);
 
@@ -2752,6 +2770,8 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
           << A->getAsString(Args) << A->getValue();
     }
   }
+
+  Opts.CompleteMemberPointers = Args.hasArg(OPT_fcomplete_member_pointers);
 }
 
 static bool isStrictlyPreprocessorAction(frontend::ActionKind Action) {
@@ -2784,6 +2804,7 @@ static bool isStrictlyPreprocessorAction(frontend::ActionKind Action) {
   case frontend::MigrateSource:
     return false;
 
+  case frontend::DumpCompilerOptions:
   case frontend::DumpRawTokens:
   case frontend::DumpTokens:
   case frontend::InitOnly:
@@ -2928,10 +2949,11 @@ static void ParseTargetArgs(TargetOptions &Opts, ArgList &Args,
   Opts.FPMath = Args.getLastArgValue(OPT_mfpmath);
   Opts.FeaturesAsWritten = Args.getAllArgValues(OPT_target_feature);
   Opts.LinkerVersion = Args.getLastArgValue(OPT_target_linker_version);
-  Opts.Triple = llvm::Triple::normalize(Args.getLastArgValue(OPT_triple));
+  Opts.Triple = Args.getLastArgValue(OPT_triple);
   // Use the default target triple if unspecified.
   if (Opts.Triple.empty())
     Opts.Triple = llvm::sys::getDefaultTargetTriple();
+  Opts.Triple = llvm::Triple::normalize(Opts.Triple);
   Opts.OpenCLExtensionsAsWritten = Args.getAllArgValues(OPT_cl_ext_EQ);
   Opts.ForceEnableInt128 = Args.hasArg(OPT_fforce_enable_int128);
   Opts.NVPTXUseShortPointers = Args.hasFlag(

@@ -17,11 +17,13 @@
 #include "clang/Format/Format.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
+#include "clang/Lex/Preprocessor.h"
 #include "clang/Tooling/CompilationDatabase.h"
 #include "clang/Tooling/Refactoring/RefactoringResultConsumer.h"
 #include "clang/Tooling/Refactoring/Rename/RenamingAction.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/ScopeExit.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
@@ -82,9 +84,9 @@ ClangdServer::ClangdServer(GlobalCompilationDatabase &CDB,
                            FileSystemProvider &FSProvider,
                            DiagnosticsConsumer &DiagConsumer,
                            const Options &Opts)
-    : CompileArgs(CDB, Opts.ResourceDir ? Opts.ResourceDir->str()
-                                        : getStandardResourceDir()),
-      DiagConsumer(DiagConsumer), FSProvider(FSProvider),
+    : CDB(CDB), DiagConsumer(DiagConsumer), FSProvider(FSProvider),
+      ResourceDir(Opts.ResourceDir ? Opts.ResourceDir->str()
+                                   : getStandardResourceDir()),
       FileIdx(Opts.BuildDynamicSymbolIndex ? new FileIndex() : nullptr),
       PCHs(std::make_shared<PCHContainerOperations>()),
       // Pass a callback into `WorkScheduler` to extract symbols from a newly
@@ -92,12 +94,14 @@ ClangdServer::ClangdServer(GlobalCompilationDatabase &CDB,
       // is parsed.
       // FIXME(ioeric): this can be slow and we may be able to index on less
       // critical paths.
-      WorkScheduler(Opts.AsyncThreadsCount, Opts.StorePreamblesInMemory,
-                    FileIdx
-                        ? [this](PathRef Path,
-                                 ParsedAST *AST) { FileIdx->update(Path, AST); }
-                        : ASTParsedCallback(),
-                    Opts.UpdateDebounce) {
+      WorkScheduler(
+          Opts.AsyncThreadsCount, Opts.StorePreamblesInMemory,
+          FileIdx
+              ? [this](PathRef Path, ASTContext &AST,
+                       std::shared_ptr<Preprocessor>
+                           PP) { FileIdx->update(Path, &AST, std::move(PP)); }
+              : PreambleParsedCallback(),
+          Opts.UpdateDebounce, Opts.RetentionPolicy) {
   if (FileIdx && Opts.StaticIndex) {
     MergedIndex = mergeIndex(FileIdx.get(), Opts.StaticIndex);
     Index = MergedIndex.get();
@@ -117,13 +121,10 @@ void ClangdServer::setRootPath(PathRef RootPath) {
 }
 
 void ClangdServer::addDocument(PathRef File, StringRef Contents,
-                               WantDiagnostics WantDiags, bool SkipCache) {
-  if (SkipCache)
-    CompileArgs.invalidate(File);
-
+                               WantDiagnostics WantDiags) {
   DocVersion Version = ++InternalVersion[File];
-  ParseInputs Inputs = {CompileArgs.getCompileCommand(File),
-                        FSProvider.getFileSystem(), Contents.str()};
+  ParseInputs Inputs = {getCompileCommand(File), FSProvider.getFileSystem(),
+                        Contents.str()};
 
   Path FileStr = File.str();
   WorkScheduler.update(File, std::move(Inputs), WantDiags,
@@ -134,7 +135,6 @@ void ClangdServer::addDocument(PathRef File, StringRef Contents,
 
 void ClangdServer::removeDocument(PathRef File) {
   ++InternalVersion[File];
-  CompileArgs.invalidate(File);
   WorkScheduler.remove(File);
 }
 
@@ -295,12 +295,11 @@ void ClangdServer::dumpAST(PathRef File,
 
 void ClangdServer::findDefinitions(PathRef File, Position Pos,
                                    Callback<std::vector<Location>> CB) {
-  auto FS = FSProvider.getFileSystem();
-  auto Action = [Pos, FS, this](Callback<std::vector<Location>> CB,
-                                llvm::Expected<InputsAndAST> InpAST) {
+  auto Action = [Pos, this](Callback<std::vector<Location>> CB,
+                            llvm::Expected<InputsAndAST> InpAST) {
     if (!InpAST)
       return CB(InpAST.takeError());
-    CB(clangd::findDefinitions(InpAST->AST, Pos, this->FileIdx.get()));
+    CB(clangd::findDefinitions(InpAST->AST, Pos, Index));
   };
 
   WorkScheduler.runWithAST("Definitions", File, Bind(Action, std::move(CB)));
@@ -330,7 +329,7 @@ llvm::Optional<Path> ClangdServer::switchSourceHeader(PathRef Path) {
 
   bool IsHeader = HeaderIter != std::end(HeaderExtensions);
 
-  // We can only switch between extensions known extensions.
+  // We can only switch between the known extensions.
   if (!IsSource && !IsHeader)
     return llvm::None;
 
@@ -388,10 +387,8 @@ ClangdServer::formatCode(llvm::StringRef Code, PathRef File,
 
 void ClangdServer::findDocumentHighlights(
     PathRef File, Position Pos, Callback<std::vector<DocumentHighlight>> CB) {
-
-  auto FS = FSProvider.getFileSystem();
-  auto Action = [FS, Pos](Callback<std::vector<DocumentHighlight>> CB,
-                          llvm::Expected<InputsAndAST> InpAST) {
+  auto Action = [Pos](Callback<std::vector<DocumentHighlight>> CB,
+                      llvm::Expected<InputsAndAST> InpAST) {
     if (!InpAST)
       return CB(InpAST.takeError());
     CB(clangd::findDocumentHighlights(InpAST->AST, Pos));
@@ -400,10 +397,10 @@ void ClangdServer::findDocumentHighlights(
   WorkScheduler.runWithAST("Highlights", File, Bind(Action, std::move(CB)));
 }
 
-void ClangdServer::findHover(PathRef File, Position Pos, Callback<Hover> CB) {
-  auto FS = FSProvider.getFileSystem();
-  auto Action = [Pos, FS](Callback<Hover> CB,
-                          llvm::Expected<InputsAndAST> InpAST) {
+void ClangdServer::findHover(PathRef File, Position Pos,
+                             Callback<llvm::Optional<Hover>> CB) {
+  auto Action = [Pos](Callback<llvm::Optional<Hover>> CB,
+                      llvm::Expected<InputsAndAST> InpAST) {
     if (!InpAST)
       return CB(InpAST.takeError());
     CB(clangd::getHover(InpAST->AST, Pos));
@@ -428,6 +425,17 @@ void ClangdServer::consumeDiagnostics(PathRef File, DocVersion Version,
   LastReportedDiagsVersion = Version;
 
   DiagConsumer.onDiagnosticsReady(File, std::move(Diags));
+}
+
+tooling::CompileCommand ClangdServer::getCompileCommand(PathRef File) {
+  llvm::Optional<tooling::CompileCommand> C = CDB.getCompileCommand(File);
+  if (!C) // FIXME: Suppress diagnostics? Let the user know?
+    C = CDB.getFallbackCommand(File);
+
+  // Inject the resource dir.
+  // FIXME: Don't overwrite it if it's already there.
+  C->CommandLine.push_back("-resource-dir=" + ResourceDir);
+  return std::move(*C);
 }
 
 void ClangdServer::onFileEvent(const DidChangeWatchedFilesParams &Params) {

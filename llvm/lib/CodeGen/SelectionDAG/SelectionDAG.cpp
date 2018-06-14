@@ -4049,10 +4049,10 @@ SDValue SelectionDAG::getNode(unsigned Opcode, const SDLoc &DL, EVT VT,
     break;
   case ISD::FNEG:
     // -(X-Y) -> (Y-X) is unsafe because when X==Y, -0.0 != +0.0
-    if (getTarget().Options.UnsafeFPMath && OpOpcode == ISD::FSUB)
-      // FIXME: FNEG has no fast-math-flags to propagate; use the FSUB's flags?
+    if ((getTarget().Options.UnsafeFPMath || Flags.hasNoSignedZeros()) &&
+        OpOpcode == ISD::FSUB)
       return getNode(ISD::FSUB, DL, VT, Operand.getOperand(1),
-                     Operand.getOperand(0), Operand.getNode()->getFlags());
+                     Operand.getOperand(0), Flags);
     if (OpOpcode == ISD::FNEG)  // --X -> X
       return Operand.getOperand(0);
     break;
@@ -4767,6 +4767,18 @@ SDValue SelectionDAG::getNode(unsigned Opcode, const SDLoc &DL, EVT VT,
     }
   }
 
+  // Any FP binop with an undef operand is folded to NaN. This matches the
+  // behavior of the IR optimizer.
+  switch (Opcode) {
+  case ISD::FADD:
+  case ISD::FSUB:
+  case ISD::FMUL:
+  case ISD::FDIV:
+  case ISD::FREM:
+    if (N1.isUndef() || N2.isUndef())
+      return getConstantFP(APFloat::getNaN(EVTToAPFloatSemantics(VT)), DL, VT);
+  }
+
   // Canonicalize an UNDEF to the RHS, even over a constant.
   if (N1.isUndef()) {
     if (TLI->isCommutativeBinOp(Opcode)) {
@@ -4776,9 +4788,6 @@ SDValue SelectionDAG::getNode(unsigned Opcode, const SDLoc &DL, EVT VT,
       case ISD::FP_ROUND_INREG:
       case ISD::SIGN_EXTEND_INREG:
       case ISD::SUB:
-      case ISD::FSUB:
-      case ISD::FDIV:
-      case ISD::FREM:
         return getUNDEF(VT);     // fold op(undef, arg2) -> undef
       case ISD::UDIV:
       case ISD::SDIV:
@@ -4813,14 +4822,6 @@ SDValue SelectionDAG::getNode(unsigned Opcode, const SDLoc &DL, EVT VT,
     case ISD::SRL:
     case ISD::SHL:
       return getUNDEF(VT);       // fold op(arg1, undef) -> undef
-    case ISD::FADD:
-    case ISD::FSUB:
-    case ISD::FMUL:
-    case ISD::FDIV:
-    case ISD::FREM:
-      if (getTarget().Options.UnsafeFPMath)
-        return N2;
-      break;
     case ISD::MUL:
     case ISD::AND:
       return getConstant(0, DL, VT);  // fold op(arg1, undef) -> 0
@@ -4858,7 +4859,8 @@ SDValue SelectionDAG::getNode(unsigned Opcode, const SDLoc &DL, EVT VT,
 }
 
 SDValue SelectionDAG::getNode(unsigned Opcode, const SDLoc &DL, EVT VT,
-                              SDValue N1, SDValue N2, SDValue N3) {
+                              SDValue N1, SDValue N2, SDValue N3,
+                              const SDNodeFlags Flags) {
   // Perform various simplifications.
   switch (Opcode) {
   case ISD::FMA: {
@@ -4952,10 +4954,13 @@ SDValue SelectionDAG::getNode(unsigned Opcode, const SDLoc &DL, EVT VT,
     FoldingSetNodeID ID;
     AddNodeIDNode(ID, Opcode, VTs, Ops);
     void *IP = nullptr;
-    if (SDNode *E = FindNodeOrInsertPos(ID, DL, IP))
+    if (SDNode *E = FindNodeOrInsertPos(ID, DL, IP)) {
+      E->intersectFlagsWith(Flags);
       return SDValue(E, 0);
+    }
 
     N = newSDNode<SDNode>(Opcode, DL.getIROrder(), DL.getDebugLoc(), VTs);
+    N->setFlags(Flags);
     createOperands(N, Ops);
     CSEMap.InsertNode(N, IP);
   } else {
@@ -6879,6 +6884,7 @@ SDNode *SelectionDAG::UpdateNodeOperands(SDNode *N, SDValue Op) {
   // Now we update the operands.
   N->OperandList[0].set(Op);
 
+  updateDivergence(N);
   // If this gets put into a CSE map, add it.
   if (InsertPos) CSEMap.InsertNode(N, InsertPos);
   return N;
@@ -6958,6 +6964,7 @@ UpdateNodeOperands(SDNode *N, ArrayRef<SDValue> Ops) {
     if (N->OperandList[i] != Ops[i])
       N->OperandList[i].set(Ops[i]);
 
+  updateDivergence(N);
   // If this gets put into a CSE map, add it.
   if (InsertPos) CSEMap.InsertNode(N, InsertPos);
   return N;

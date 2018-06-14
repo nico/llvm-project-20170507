@@ -79,6 +79,20 @@ private:
   SymbolNameSet Symbols;
 };
 
+/// Used to notify clients when symbols can not be found during a lookup.
+class SymbolsNotFound : public ErrorInfo<SymbolsNotFound> {
+public:
+  static char ID;
+
+  SymbolsNotFound(SymbolNameSet Symbols);
+  std::error_code convertToErrorCode() const override;
+  void log(raw_ostream &OS) const override;
+  const SymbolNameSet &getSymbols() const { return Symbols; }
+
+private:
+  SymbolNameSet Symbols;
+};
+
 /// Tracks responsibility for materialization, and mediates interactions between
 /// MaterializationUnits and VSOs.
 ///
@@ -101,6 +115,12 @@ public:
   /// Returns the target VSO that these symbols are being materialized
   ///        into.
   const VSO &getTargetVSO() const { return V; }
+
+  /// Returns the names of any symbols covered by this
+  /// MaterializationResponsibility object that have queries pending. This
+  /// information can be used to return responsibility for unrequested symbols
+  /// back to the VSO via the delegate method.
+  SymbolNameSet getRequestedSymbols();
 
   /// Resolves the given symbols. Individual calls to this method may
   ///        resolve a subset of the symbols, but all symbols must have been
@@ -366,6 +386,8 @@ private:
 
   void removeQueryDependence(VSO &V, const SymbolStringPtr &Name);
 
+  bool canStillFail();
+
   void handleFailed(Error Err);
 
   void detach();
@@ -452,7 +474,11 @@ createSymbolResolver(LookupFlagsFn &&LookupFlags, LookupFn &&Lookup) {
 class VSO {
   friend class AsynchronousSymbolQuery;
   friend class ExecutionSession;
+  friend class MaterializationResponsibility;
 public:
+  using FallbackDefinitionGeneratorFunction =
+      std::function<SymbolNameSet(VSO &Parent, const SymbolNameSet &Names)>;
+
   using AsynchronousSymbolQuerySet =
       std::set<std::shared_ptr<AsynchronousSymbolQuery>>;
 
@@ -471,6 +497,14 @@ public:
 
   /// Get a reference to the ExecutionSession for this VSO.
   ExecutionSessionBase &getExecutionSession() const { return ES; }
+
+  /// Set a fallback defenition generator. If set, lookup and lookupFlags will
+  /// pass the unresolved symbols set to the fallback definition generator,
+  /// allowing it to add a new definition to the VSO.
+  void setFallbackDefinitionGenerator(
+      FallbackDefinitionGeneratorFunction FallbackDefinitionGenerator) {
+    this->FallbackDefinitionGenerator = std::move(FallbackDefinitionGenerator);
+  }
 
   /// Define all symbols provided by the materialization unit to be part
   ///        of the given VSO.
@@ -495,40 +529,6 @@ public:
       return Error::success();
     });
   }
-
-  /// Define a set of symbols already in the materializing state.
-  Error defineMaterializing(const SymbolFlagsMap &SymbolFlags);
-
-  /// Replace the definition of a set of materializing symbols with a new
-  /// MaterializationUnit.
-  ///
-  /// All symbols being replaced must be in the materializing state. If any
-  /// symbol being replaced has pending queries then the MU will be returned
-  /// for materialization. Otherwise it will be stored in the VSO and all
-  /// symbols covered by MU moved back to the lazy state.
-  void replace(std::unique_ptr<MaterializationUnit> MU);
-
-  /// Record dependencies between symbols in this VSO and symbols in
-  ///        other VSOs.
-  void addDependencies(const SymbolFlagsMap &Dependents,
-                       const SymbolDependenceMap &Dependencies);
-
-  /// Resolve the given symbols.
-  ///
-  /// Returns the list of queries that become fully resolved as a consequence of
-  /// this operation.
-  void resolve(const SymbolMap &Resolved);
-
-  /// Finalize the given symbols.
-  ///
-  /// Returns the list of queries that become fully ready as a consequence of
-  /// this operation.
-  void finalize(const SymbolFlagsMap &Finalized);
-
-  /// Fail to materialize the given symbols.
-  ///
-  /// Returns the list of queries that fail as a consequence.
-  void notifyFailed(const SymbolNameSet &FailedSymbols);
 
   /// Search the given VSO for the symbols in Symbols. If found, store
   ///        the flags for each symbol in Flags. Returns any unresolved symbols.
@@ -578,8 +578,16 @@ private:
   SymbolMap Symbols;
   UnmaterializedInfosMap UnmaterializedInfos;
   MaterializingInfosMap MaterializingInfos;
+  FallbackDefinitionGeneratorFunction FallbackDefinitionGenerator;
 
   Error defineImpl(MaterializationUnit &MU);
+
+  SymbolNameSet lookupFlagsImpl(SymbolFlagsMap &Flags,
+                                const SymbolNameSet &Names);
+
+  void lookupImpl(std::shared_ptr<AsynchronousSymbolQuery> &Q,
+                  std::vector<std::unique_ptr<MaterializationUnit>> &MUs,
+                  SymbolNameSet &Unresolved);
 
   void detachQueryHelper(AsynchronousSymbolQuery &Q,
                          const SymbolNameSet &QuerySymbols);
@@ -587,6 +595,21 @@ private:
   void transferFinalizedNodeDependencies(MaterializingInfo &DependantMI,
                                          const SymbolStringPtr &DependantName,
                                          MaterializingInfo &FinalizedMI);
+
+  Error defineMaterializing(const SymbolFlagsMap &SymbolFlags);
+
+  void replace(std::unique_ptr<MaterializationUnit> MU);
+
+  SymbolNameSet getRequestedSymbols(const SymbolFlagsMap &SymbolFlags);
+
+  void addDependencies(const SymbolFlagsMap &Dependents,
+                       const SymbolDependenceMap &Dependencies);
+
+  void resolve(const SymbolMap &Resolved);
+
+  void finalize(const SymbolFlagsMap &Finalized);
+
+  void notifyFailed(const SymbolNameSet &FailedSymbols);
 };
 
 /// An ExecutionSession represents a running JIT program.
@@ -610,23 +633,24 @@ private:
   std::vector<std::unique_ptr<VSO>> VSOs;
 };
 
+using AsynchronousLookupFunction = std::function<SymbolNameSet(
+    std::shared_ptr<AsynchronousSymbolQuery> Q, SymbolNameSet Names)>;
+
+/// Perform a blocking lookup on the given symbols.
+Expected<SymbolMap> blockingLookup(ExecutionSessionBase &ES,
+                                   AsynchronousLookupFunction AsyncLookup,
+                                   SymbolNameSet Names, bool WaiUntilReady,
+                                   MaterializationResponsibility *MR = nullptr);
+
 /// Look up the given names in the given VSOs.
 /// VSOs will be searched in order and no VSO pointer may be null.
 /// All symbols must be found within the given VSOs or an error
 /// will be returned.
-///
-/// If this lookup is being performed on behalf of a
-/// MaterializationResponsibility then it must be passed in as R
-/// (in order to record the symbol dependencies).
-/// If this lookup is not being performed on behalf of a
-/// MaterializationResponsibility then R should be left null.
-Expected<SymbolMap> lookup(const std::vector<VSO *> &VSOs, SymbolNameSet Names,
-                           MaterializationResponsibility *R);
+Expected<SymbolMap> lookup(const VSO::VSOList &VSOs, SymbolNameSet Names);
 
 /// Look up a symbol by searching a list of VSOs.
-Expected<JITEvaluatedSymbol> lookup(const std::vector<VSO *> VSOs,
-                                    SymbolStringPtr Name,
-                                    MaterializationResponsibility *R);
+Expected<JITEvaluatedSymbol> lookup(const VSO::VSOList &VSOs,
+                                    SymbolStringPtr Name);
 
 } // End namespace orc
 } // End namespace llvm

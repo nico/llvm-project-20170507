@@ -20,7 +20,6 @@
 #include "clang/Basic/Specifiers.h"
 #include "clang/Basic/TargetCXXABI.h"
 #include "clang/Basic/TargetOptions.h"
-#include "clang/Basic/VersionTuple.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/Optional.h"
@@ -30,6 +29,7 @@
 #include "llvm/ADT/Triple.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/VersionTuple.h"
 #include <cassert>
 #include <string>
 #include <vector>
@@ -74,6 +74,12 @@ protected:
   unsigned char LargeArrayMinWidth, LargeArrayAlign;
   unsigned char LongWidth, LongAlign;
   unsigned char LongLongWidth, LongLongAlign;
+  unsigned char ShortAccumWidth, ShortAccumAlign;
+  unsigned char AccumWidth, AccumAlign;
+  unsigned char LongAccumWidth, LongAccumAlign;
+  unsigned char ShortFractWidth, ShortFractAlign;
+  unsigned char FractWidth, FractAlign;
+  unsigned char LongFractWidth, LongFractAlign;
   unsigned char SuitableAlign;
   unsigned char DefaultAlignForAttributeAligned;
   unsigned char MinGlobalAlign;
@@ -357,6 +363,36 @@ public:
   /// 'unsigned long long' for this target, in bits.
   unsigned getLongLongWidth() const { return LongLongWidth; }
   unsigned getLongLongAlign() const { return LongLongAlign; }
+
+  /// getShortAccumWidth/Align - Return the size of 'signed short _Accum' and
+  /// 'unsigned short _Accum' for this target, in bits.
+  unsigned getShortAccumWidth() const { return ShortAccumWidth; }
+  unsigned getShortAccumAlign() const { return ShortAccumAlign; }
+
+  /// getAccumWidth/Align - Return the size of 'signed _Accum' and
+  /// 'unsigned _Accum' for this target, in bits.
+  unsigned getAccumWidth() const { return AccumWidth; }
+  unsigned getAccumAlign() const { return AccumAlign; }
+
+  /// getLongAccumWidth/Align - Return the size of 'signed long _Accum' and
+  /// 'unsigned long _Accum' for this target, in bits.
+  unsigned getLongAccumWidth() const { return LongAccumWidth; }
+  unsigned getLongAccumAlign() const { return LongAccumAlign; }
+
+  /// getShortFractWidth/Align - Return the size of 'signed short _Fract' and
+  /// 'unsigned short _Fract' for this target, in bits.
+  unsigned getShortFractWidth() const { return ShortFractWidth; }
+  unsigned getShortFractAlign() const { return ShortFractAlign; }
+
+  /// getFractWidth/Align - Return the size of 'signed _Fract' and
+  /// 'unsigned _Fract' for this target, in bits.
+  unsigned getFractWidth() const { return FractWidth; }
+  unsigned getFractAlign() const { return FractAlign; }
+
+  /// getLongFractWidth/Align - Return the size of 'signed long _Fract' and
+  /// 'unsigned long _Fract' for this target, in bits.
+  unsigned getLongFractWidth() const { return LongFractWidth; }
+  unsigned getLongFractAlign() const { return LongFractAlign; }
 
   /// Determine whether the __int128 type is supported on this target.
   virtual bool hasInt128Type() const {

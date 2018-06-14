@@ -30,7 +30,7 @@
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/Analysis/Utils/Local.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
@@ -167,7 +167,7 @@ JumpThreadingPass::JumpThreadingPass(int T) {
 }
 
 // Update branch probability information according to conditional
-// branch probablity. This is usually made possible for cloned branches
+// branch probability. This is usually made possible for cloned branches
 // in inline instances by the context specific profile in the caller.
 // For instance,
 //
@@ -1353,7 +1353,7 @@ bool JumpThreadingPass::SimplifyPartiallyRedundantLoad(LoadInst *LoadI) {
         DefMaxInstsToScan, AA, &IsLoadCSE, &NumScanedInst);
 
     // If PredBB has a single predecessor, continue scanning through the
-    // single precessor.
+    // single predecessor.
     BasicBlock *SinglePredBB = PredBB;
     while (!PredAvailable && SinglePredBB && BBIt == SinglePredBB->begin() &&
            NumScanedInst < DefMaxInstsToScan) {
@@ -1576,11 +1576,11 @@ bool JumpThreadingPass::ProcessThreadableEdges(Value *Cond, BasicBlock *BB,
   assert(!PredValues.empty() &&
          "ComputeValueKnownInPredecessors returned true with no values");
 
-  LLVM_DEBUG(dbgs() << "IN BB: " << *BB; for (const auto &PredValue
-                                              : PredValues) {
-    dbgs() << "  BB '" << BB->getName()
-           << "': FOUND condition = " << *PredValue.first << " for pred '"
-           << PredValue.second->getName() << "'.\n";
+  LLVM_DEBUG(dbgs() << "IN BB: " << *BB;
+             for (const auto &PredValue : PredValues) {
+               dbgs() << "  BB '" << BB->getName()
+                      << "': FOUND condition = " << *PredValue.first
+                      << " for pred '" << PredValue.second->getName() << "'.\n";
   });
 
   // Decide what we want to thread through.  Convert our list of known values to
@@ -2524,7 +2524,7 @@ bool JumpThreadingPass::TryToUnfoldSelectInCurrBB(BasicBlock *BB) {
               break;
             }
       } else if (SelectInst *SelectI = dyn_cast<SelectInst>(U.getUser())) {
-        // Look for a Select in BB that uses PN as condtion.
+        // Look for a Select in BB that uses PN as condition.
         if (isUnfoldCandidate(SelectI, U.get())) {
           SI = SelectI;
           break;

@@ -778,8 +778,8 @@ SDValue RegsForValue::getCopyFromRegs(SelectionDAG &DAG,
     EVT ValueVT = ValueVTs[Value];
     unsigned NumRegs = RegCount[Value];
     MVT RegisterVT = IsABIMangled
-                         ? TLI.getRegisterTypeForCallingConv(RegVTs[Value])
-                         : RegVTs[Value];
+      ? TLI.getRegisterTypeForCallingConv(*DAG.getContext(), RegVTs[Value])
+      : RegVTs[Value];
 
     Parts.resize(NumRegs);
     for (unsigned i = 0; i != NumRegs; ++i) {
@@ -877,8 +877,8 @@ void RegsForValue::getCopyToRegs(SDValue Val, SelectionDAG &DAG,
     unsigned NumParts = RegCount[Value];
 
     MVT RegisterVT = IsABIMangled
-                         ? TLI.getRegisterTypeForCallingConv(RegVTs[Value])
-                         : RegVTs[Value];
+      ? TLI.getRegisterTypeForCallingConv(*DAG.getContext(), RegVTs[Value])
+      : RegVTs[Value];
 
     if (ExtendKind == ISD::ANY_EXTEND && TLI.isZExtFree(Val, RegisterVT))
       ExtendKind = ISD::ZERO_EXTEND;
@@ -1379,12 +1379,18 @@ void SelectionDAGBuilder::visitCatchPad(const CatchPadInst &I) {
   auto Pers = classifyEHPersonality(FuncInfo.Fn->getPersonalityFn());
   bool IsMSVCCXX = Pers == EHPersonality::MSVC_CXX;
   bool IsCoreCLR = Pers == EHPersonality::CoreCLR;
+  bool IsSEH = isAsynchronousEHPersonality(Pers);
+  bool IsWasmCXX = Pers == EHPersonality::Wasm_CXX;
   MachineBasicBlock *CatchPadMBB = FuncInfo.MBB;
+  if (!IsSEH)
+    CatchPadMBB->setIsEHScopeEntry();
   // In MSVC C++ and CoreCLR, catchblocks are funclets and need prologues.
   if (IsMSVCCXX || IsCoreCLR)
     CatchPadMBB->setIsEHFuncletEntry();
-
-  DAG.setRoot(DAG.getNode(ISD::CATCHPAD, getCurSDLoc(), MVT::Other, getControlRoot()));
+  // Wasm does not need catchpads anymore
+  if (!IsWasmCXX)
+    DAG.setRoot(DAG.getNode(ISD::CATCHPAD, getCurSDLoc(), MVT::Other,
+                            getControlRoot()));
 }
 
 void SelectionDAGBuilder::visitCatchRet(const CatchReturnInst &I) {
@@ -1427,7 +1433,8 @@ void SelectionDAGBuilder::visitCatchRet(const CatchReturnInst &I) {
 
 void SelectionDAGBuilder::visitCleanupPad(const CleanupPadInst &CPI) {
   // Don't emit any special code for the cleanuppad instruction. It just marks
-  // the start of a funclet.
+  // the start of an EH scope/funclet.
+  FuncInfo.MBB->setIsEHScopeEntry();
   FuncInfo.MBB->setIsEHFuncletEntry();
   FuncInfo.MBB->setIsCleanupFuncletEntry();
 }
@@ -1449,6 +1456,7 @@ static void findUnwindDestinations(
     classifyEHPersonality(FuncInfo.Fn->getPersonalityFn());
   bool IsMSVCCXX = Personality == EHPersonality::MSVC_CXX;
   bool IsCoreCLR = Personality == EHPersonality::CoreCLR;
+  bool IsSEH = isAsynchronousEHPersonality(Personality);
 
   while (EHPadBB) {
     const Instruction *Pad = EHPadBB->getFirstNonPHI();
@@ -1461,6 +1469,7 @@ static void findUnwindDestinations(
       // Stop on cleanup pads. Cleanups are always funclet entries for all known
       // personalities.
       UnwindDests.emplace_back(FuncInfo.MBBMap[EHPadBB], Prob);
+      UnwindDests.back().first->setIsEHScopeEntry();
       UnwindDests.back().first->setIsEHFuncletEntry();
       break;
     } else if (auto *CatchSwitch = dyn_cast<CatchSwitchInst>(Pad)) {
@@ -1470,6 +1479,8 @@ static void findUnwindDestinations(
         // For MSVC++ and the CLR, catchblocks are funclets and need prologues.
         if (IsMSVCCXX || IsCoreCLR)
           UnwindDests.back().first->setIsEHFuncletEntry();
+        if (!IsSEH)
+          UnwindDests.back().first->setIsEHScopeEntry();
       }
       NewEHPadBB = CatchSwitch->getUnwindDest();
     } else {
@@ -6164,6 +6175,12 @@ SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I, unsigned Intrinsic) {
     HasTailCall = true;
     return nullptr;
   }
+
+  case Intrinsic::wasm_landingpad_index: {
+    // TODO store landing pad index in a map, which will be used when generating
+    // LSDA information
+    return nullptr;
+  }
   }
 }
 
@@ -6313,7 +6330,10 @@ SelectionDAGBuilder::lowerInvokable(TargetLowering::CallLoweringInfo &CLI,
     DAG.setRoot(DAG.getEHLabel(getCurSDLoc(), getRoot(), EndLabel));
 
     // Inform MachineModuleInfo of range.
-    if (MF.hasEHFunclets()) {
+    auto Pers = classifyEHPersonality(FuncInfo.Fn->getPersonalityFn());
+    // There is a platform (e.g. wasm) that uses funclet style IR but does not
+    // actually use outlined funclets and their LSDA info style.
+    if (MF.hasEHFunclets() && isFuncletEHPersonality(Pers)) {
       assert(CLI.CS);
       WinEHFuncInfo *EHInfo = DAG.getMachineFunction().getWinEHFuncInfo();
       EHInfo->addIPToStateRange(cast<InvokeInst>(CLI.CS.getInstruction()),

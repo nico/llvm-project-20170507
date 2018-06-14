@@ -30,7 +30,7 @@
 #include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Analysis/Utils/Local.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
@@ -1050,6 +1050,7 @@ static bool SinkCast(CastInst *CI) {
       assert(InsertPt != UserBB->end());
       InsertedCast = CastInst::Create(CI->getOpcode(), CI->getOperand(0),
                                       CI->getType(), "", &*InsertPt);
+      InsertedCast->setDebugLoc(CI->getDebugLoc());
     }
 
     // Replace a use of the cast with a use of the new cast.
@@ -6558,6 +6559,7 @@ bool CodeGenPrepare::optimizeInst(Instruction *I, bool &ModifiedDT) {
       /// The GEP operand must be a pointer, so must its result -> BitCast
       Instruction *NC = new BitCastInst(GEPI->getOperand(0), GEPI->getType(),
                                         GEPI->getName(), GEPI);
+      NC->setDebugLoc(GEPI->getDebugLoc());
       GEPI->replaceAllUsesWith(NC);
       GEPI->eraseFromParent();
       ++NumGEPsElim;

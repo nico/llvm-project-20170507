@@ -328,7 +328,14 @@ TEST_F(FormatTestObjC, FormatObjCInterface) {
                "}\n"
                "+ (id)init;\n"
                "@end");
-
+  verifyFormat("@interface Foo\n"
+               "- (void)foo {\n"
+               "}\n"
+               "@end\n"
+               "@implementation Bar\n"
+               "- (void)bar {\n"
+               "}\n"
+               "@end");
   Style.ColumnLimit = 40;
   verifyFormat("@interface ccccccccccccc () <\n"
                "    ccccccccccccc, ccccccccccccc,\n"
@@ -796,35 +803,6 @@ TEST_F(FormatTestObjC, FormatObjCMethodExpr) {
   verifyFormat("[((Foo *)foo) bar];");
   verifyFormat("[((Foo *)foo) bar:1 blech:2];");
 
-  // Message receiver taking multiple lines.
-  Style.ColumnLimit = 20;
-  // Non-corner case.
-  verifyFormat("[[object block:^{\n"
-               "  return 42;\n"
-               "}] a:42 b:42];");
-  // Arguments just fit into one line.
-  verifyFormat("[[object block:^{\n"
-               "  return 42;\n"
-               "}] aaaaaaa:42 b:42];");
-  // Arguments just over a column limit.
-  verifyFormat("[[object block:^{\n"
-               "  return 42;\n"
-               "}] aaaaaaa:42\n"
-               "        bb:42];");
-  // Non-corner case.
-  verifyFormat("[[object aaa:42\n"
-               "           b:42]\n"
-               "    cc:42 d:42];");
-  // Arguments just fit into one line.
-  verifyFormat("[[object aaa:42\n"
-               "           b:42]\n"
-               "    cccccc:42 d:42];");
-  // Arguments just over a column limit.
-  verifyFormat("[[object aaa:42\n"
-               "           b:42]\n"
-               "    cccccc:42\n"
-               "        dd:42];");
-
   Style.ColumnLimit = 70;
   verifyFormat(
       "void f() {\n"
@@ -998,6 +976,59 @@ TEST_F(FormatTestObjC, ObjCCxxKeywords) {
   verifyFormat("MACRO(new:)\n");
   verifyFormat("MACRO(delete:)\n");
   verifyFormat("foo = @{MACRO(new:) : MACRO(delete:)}\n");
+  verifyFormat("@implementation Foo\n"
+               "// Testing\n"
+               "- (Class)class {\n"
+               "}\n"
+               "- (void)foo {\n"
+               "}\n"
+               "@end\n");
+  verifyFormat("@implementation Foo\n"
+               "- (Class)class {\n"
+               "}\n"
+               "- (void)foo {\n"
+               "}\n"
+               "@end");
+  verifyFormat("@implementation Foo\n"
+               "+ (Class)class {\n"
+               "}\n"
+               "- (void)foo {\n"
+               "}\n"
+               "@end");
+  verifyFormat("@implementation Foo\n"
+               "- (Class)class:(Class)klass {\n"
+               "}\n"
+               "- (void)foo {\n"
+               "}\n"
+               "@end");
+  verifyFormat("@implementation Foo\n"
+               "+ (Class)class:(Class)klass {\n"
+               "}\n"
+               "- (void)foo {\n"
+               "}\n"
+               "@end");
+
+  verifyFormat("@interface Foo\n"
+               "// Testing\n"
+               "- (Class)class;\n"
+               "- (void)foo;\n"
+               "@end\n");
+  verifyFormat("@interface Foo\n"
+               "- (Class)class;\n"
+               "- (void)foo;\n"
+               "@end");
+  verifyFormat("@interface Foo\n"
+               "+ (Class)class;\n"
+               "- (void)foo;\n"
+               "@end");
+  verifyFormat("@interface Foo\n"
+               "- (Class)class:(Class)klass;\n"
+               "- (void)foo;\n"
+               "@end");
+  verifyFormat("@interface Foo\n"
+               "+ (Class)class:(Class)klass;\n"
+               "- (void)foo;\n"
+               "@end");
 }
 
 TEST_F(FormatTestObjC, ObjCLiterals) {
@@ -1185,6 +1216,17 @@ TEST_F(FormatTestObjC, BreaksCallStatementWhereSemiJustOverTheLimit) {
                "             ccccccccc:dddddddd\n"
                "                    ee:fddd];\n"
                "}");
+}
+
+TEST_F(FormatTestObjC, AlwaysBreakBeforeMultilineStrings) {
+  Style = getGoogleStyle(FormatStyle::LK_ObjC);
+  Style.ColumnLimit = 40;
+  verifyFormat("aaaa = @\"bbbb\"\n"
+               "       @\"cccc\";");
+  verifyFormat("aaaa(@\"bbbb\"\n"
+               "     @\"cccc\");");
+  verifyFormat("aaaa(qqq, @\"bbbb\"\n"
+               "          @\"cccc\");");
 }
 
 } // end namespace

@@ -126,7 +126,6 @@ std::string InputFile::getSrcMsg(const Symbol &Sym, InputSectionBase &Sec,
 template <class ELFT> void ObjFile<ELFT>::initializeDwarf() {
   Dwarf = llvm::make_unique<DWARFContext>(make_unique<LLDDwarfObj<ELFT>>(this));
   const DWARFObject &Obj = Dwarf->getDWARFObj();
-  DwarfLine.reset(new DWARFDebugLine);
   DWARFDataExtractor LineData(Obj, Obj.getLineSection(), Config->IsLE,
                               Config->Wordsize);
 
@@ -167,10 +166,15 @@ template <class ELFT> void ObjFile<ELFT>::initializeDwarf() {
       // Get the line number on which the variable is declared.
       unsigned Line = dwarf::toUnsigned(Die.find(dwarf::DW_AT_decl_line), 0);
 
-      // Get the name of the variable and add the collected information to
-      // VariableLoc. Usually Name is non-empty, but it can be empty if the
+      // Here we want to take the variable name to add it into VariableLoc.
+      // Variable can have regular and linkage name associated. At first, we try
+      // to get linkage name as it can be different, for example when we have
+      // two variables in different namespaces of the same object. Use common
+      // name otherwise, but handle the case when it also absent in case if the
       // input object file lacks some debug info.
-      StringRef Name = dwarf::toString(Die.find(dwarf::DW_AT_name), "");
+      StringRef Name =
+          dwarf::toString(Die.find(dwarf::DW_AT_linkage_name),
+                          dwarf::toString(Die.find(dwarf::DW_AT_name), ""));
       if (!Name.empty())
         VariableLoc.insert({Name, {LT, File, Line}});
     }
@@ -895,16 +899,12 @@ std::vector<const typename ELFT::Verdef *> SharedFile<ELFT>::parseVerdefs() {
 template <class ELFT>
 uint32_t SharedFile<ELFT>::getAlignment(ArrayRef<Elf_Shdr> Sections,
                                         const Elf_Sym &Sym) {
-  uint64_t Ret = 1;
+  uint64_t Ret = UINT64_MAX;
   if (Sym.st_value)
     Ret = 1ULL << countTrailingZeros((uint64_t)Sym.st_value);
   if (0 < Sym.st_shndx && Sym.st_shndx < Sections.size())
     Ret = std::min<uint64_t>(Ret, Sections[Sym.st_shndx].sh_addralign);
-
-  if (Ret > UINT32_MAX)
-    error(toString(this) + ": alignment too large: " +
-          CHECK(Sym.getName(this->StringTable), this));
-  return Ret;
+  return (Ret > UINT32_MAX) ? 0 : Ret;
 }
 
 // Fully parse the shared object file. This must be called after parseSoName().
@@ -1017,8 +1017,9 @@ static uint8_t getBitcodeMachineKind(StringRef Path, const Triple &T) {
   case Triple::x86_64:
     return EM_X86_64;
   default:
-    fatal(Path + ": could not infer e_machine from bitcode target triple " +
+    error(Path + ": could not infer e_machine from bitcode target triple " +
           T.str());
+    return EM_NONE;
   }
 }
 
@@ -1065,7 +1066,7 @@ template <class ELFT>
 static Symbol *createBitcodeSymbol(const std::vector<bool> &KeptComdats,
                                    const lto::InputFile::Symbol &ObjSym,
                                    BitcodeFile &F) {
-  StringRef NameRef = Saver.save(ObjSym.getName());
+  StringRef Name = Saver.save(ObjSym.getName());
   uint32_t Binding = ObjSym.isWeak() ? STB_WEAK : STB_GLOBAL;
 
   uint8_t Type = ObjSym.isTLS() ? STT_TLS : STT_NOTYPE;
@@ -1074,20 +1075,20 @@ static Symbol *createBitcodeSymbol(const std::vector<bool> &KeptComdats,
 
   int C = ObjSym.getComdatIndex();
   if (C != -1 && !KeptComdats[C])
-    return Symtab->addUndefined<ELFT>(NameRef, Binding, Visibility, Type,
+    return Symtab->addUndefined<ELFT>(Name, Binding, Visibility, Type,
                                       CanOmitFromDynSym, &F);
 
   if (ObjSym.isUndefined())
-    return Symtab->addUndefined<ELFT>(NameRef, Binding, Visibility, Type,
+    return Symtab->addUndefined<ELFT>(Name, Binding, Visibility, Type,
                                       CanOmitFromDynSym, &F);
 
   if (ObjSym.isCommon())
-    return Symtab->addCommon(NameRef, ObjSym.getCommonSize(),
+    return Symtab->addCommon(Name, ObjSym.getCommonSize(),
                              ObjSym.getCommonAlignment(), Binding, Visibility,
                              STT_OBJECT, F);
 
-  return Symtab->addBitcode(NameRef, Binding, Visibility, Type,
-                            CanOmitFromDynSym, F);
+  return Symtab->addBitcode(Name, Binding, Visibility, Type, CanOmitFromDynSym,
+                            F);
 }
 
 template <class ELFT>

@@ -102,15 +102,18 @@ static void dumpLocation(raw_ostream &OS, DWARFFormValue &FormValue,
     const DWARFSection &LocSection = Obj.getLocSection();
     const DWARFSection &LocDWOSection = Obj.getLocDWOSection();
     uint32_t Offset = *FormValue.getAsSectionOffset();
-
     if (!LocSection.Data.empty()) {
       DWARFDebugLoc DebugLoc;
       DWARFDataExtractor Data(Obj, LocSection, Ctx.isLittleEndian(),
                               Obj.getAddressSize());
       auto LL = DebugLoc.parseOneLocationList(Data, &Offset);
-      if (LL)
-        LL->dump(OS, Ctx.isLittleEndian(), Obj.getAddressSize(), MRI, Indent);
-      else
+      if (LL) {
+        uint64_t BaseAddr = 0;
+        if (Optional<BaseAddress> BA = U->getBaseAddress())
+          BaseAddr = BA->Address;
+        LL->dump(OS, Ctx.isLittleEndian(), Obj.getAddressSize(), MRI, BaseAddr,
+                 Indent);
+      } else
         OS << "error extracting location list.";
     } else if (!LocDWOSection.Data.empty()) {
       DataExtractor Data(LocDWOSection.Data, Ctx.isLittleEndian(), 0);
@@ -472,8 +475,10 @@ void DWARFDie::dump(raw_ostream &OS, unsigned Indent,
   const uint32_t Offset = getOffset();
   uint32_t offset = Offset;
   if (DumpOpts.ShowParents) {
-    DumpOpts.ShowParents = false;
-    Indent = dumpParentChain(getParent(), OS, Indent, DumpOpts);
+    DIDumpOptions ParentDumpOpts = DumpOpts;
+    ParentDumpOpts.ShowParents = false;
+    ParentDumpOpts.ShowChildren = false;
+    Indent = dumpParentChain(getParent(), OS, Indent, ParentDumpOpts);
   }
 
   if (debug_info_data.isValidOffset(offset)) {
@@ -507,8 +512,10 @@ void DWARFDie::dump(raw_ostream &OS, unsigned Indent,
         DWARFDie child = getFirstChild();
         if (DumpOpts.ShowChildren && DumpOpts.RecurseDepth > 0 && child) {
           DumpOpts.RecurseDepth--;
+          DIDumpOptions ChildDumpOpts = DumpOpts;
+          ChildDumpOpts.ShowParents = false;
           while (child) {
-            child.dump(OS, Indent + 2, DumpOpts);
+            child.dump(OS, Indent + 2, ChildDumpOpts);
             child = child.getSibling();
           }
         }

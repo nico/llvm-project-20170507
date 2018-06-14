@@ -102,7 +102,7 @@ Status TargetList::CreateTargetInternal(
 
   CommandInterpreter &interpreter = debugger.GetCommandInterpreter();
 
-  // let's see if there is already an existing plaform before we go creating
+  // let's see if there is already an existing platform before we go creating
   // another...
   platform_sp = debugger.GetPlatformList().GetSelectedPlatform();
 
@@ -120,7 +120,8 @@ Status TargetList::CreateTargetInternal(
   if (!user_exe_path.empty()) {
     ModuleSpecList module_specs;
     ModuleSpec module_spec;
-    module_spec.GetFileSpec().SetFile(user_exe_path, true);
+    module_spec.GetFileSpec().SetFile(user_exe_path, true,
+                                      FileSpec::Style::native);
 
     // Resolve the executable in case we are given a path to a application
     // bundle like a .app bundle on MacOSX
@@ -232,7 +233,7 @@ Status TargetList::CreateTargetInternal(
           }
 
           if (platform_ptr) {
-            // All platforms for all modules in the exectuable match, so we can
+            // All platforms for all modules in the executable match, so we can
             // select this platform
             platform_sp = platforms.front();
           } else if (more_than_one_platforms == false) {

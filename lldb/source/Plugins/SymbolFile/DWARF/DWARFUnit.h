@@ -13,6 +13,8 @@
 #include "DWARFDIE.h"
 #include "DWARFDebugInfoEntry.h"
 #include "lldb/lldb-enumerations.h"
+#include "llvm/Support/RWMutex.h"
+#include <atomic>
 
 class DWARFUnit;
 class DWARFCompileUnit;
@@ -33,10 +35,27 @@ enum DWARFProducer {
 class DWARFUnit {
   friend class DWARFCompileUnit;
 
+  using die_iterator_range =
+      llvm::iterator_range<DWARFDebugInfoEntry::collection::iterator>;
+
 public:
   virtual ~DWARFUnit();
 
-  size_t ExtractDIEsIfNeeded(bool cu_die_only);
+  void ExtractUnitDIEIfNeeded();
+  void ExtractDIEsIfNeeded();
+
+  class ScopedExtractDIEs {
+    DWARFUnit *m_cu;
+  public:
+    bool m_clear_dies = false;
+    ScopedExtractDIEs(DWARFUnit *cu);
+    ~ScopedExtractDIEs();
+    DISALLOW_COPY_AND_ASSIGN(ScopedExtractDIEs);
+    ScopedExtractDIEs(ScopedExtractDIEs &&rhs);
+    ScopedExtractDIEs &operator=(ScopedExtractDIEs &&rhs);
+  };
+  ScopedExtractDIEs ExtractDIEsScoped();
+
   DWARFDIE LookupAddress(const dw_addr_t address);
   size_t AppendDIEsWithTag(const dw_tag_t tag,
                            DWARFDIECollection &matching_dies,
@@ -96,7 +115,6 @@ public:
   dw_addr_t GetRangesBase() const { return m_ranges_base; }
   void SetAddrBase(dw_addr_t addr_base, dw_addr_t ranges_base,
                    dw_offset_t base_obj_offset);
-  void ClearDIEs(bool keep_compile_unit_die);
   void BuildAddressRangeTable(SymbolFileDWARF *dwarf,
                               DWARFDebugAranges *debug_aranges);
 
@@ -110,11 +128,9 @@ public:
 
   void SetBaseAddress(dw_addr_t base_addr);
 
-  DWARFDIE GetUnitDIEOnly() { return DWARFDIE(this, GetUnitDIEPtrOnly()); }
+  DWARFBaseDIE GetUnitDIEOnly() { return DWARFDIE(this, GetUnitDIEPtrOnly()); }
 
   DWARFDIE DIE() { return DWARFDIE(this, DIEPtr()); }
-
-  bool HasDIEsParsed() const;
 
   DWARFDIE GetDIE(dw_offset_t die_offset);
 
@@ -133,11 +149,6 @@ public:
   bool DW_AT_decl_file_attributes_are_invalid();
 
   bool Supports_unnamed_objc_bitfields();
-
-  void Index(NameToDIE &func_basenames, NameToDIE &func_fullnames,
-             NameToDIE &func_methods, NameToDIE &func_selectors,
-             NameToDIE &objc_class_selectors, NameToDIE &globals,
-             NameToDIE &types, NameToDIE &namespaces);
 
   SymbolFileDWARF *GetSymbolFileDWARF() const;
 
@@ -161,6 +172,11 @@ public:
 
   dw_offset_t GetBaseObjOffset() const;
 
+  die_iterator_range dies() {
+    ExtractDIEsIfNeeded();
+    return die_iterator_range(m_die_array.begin(), m_die_array.end());
+  }
+
 protected:
   DWARFUnit(SymbolFileDWARF *dwarf);
 
@@ -170,6 +186,17 @@ protected:
   void *m_user_data = nullptr;
   // The compile unit debug information entry item
   DWARFDebugInfoEntry::collection m_die_array;
+  mutable llvm::sys::RWMutex m_die_array_mutex;
+  // It is used for tracking of ScopedExtractDIEs instances.
+  mutable llvm::sys::RWMutex m_die_array_scoped_mutex;
+  // ScopedExtractDIEs instances should not call ClearDIEsRWLocked()
+  // as someone called ExtractDIEsIfNeeded().
+  std::atomic<bool> m_cancel_scopes;
+  // GetUnitDIEPtrOnly() needs to return pointer to the first DIE.
+  // But the first element of m_die_array after ExtractUnitDIEIfNeeded()
+  // would possibly move in memory after later ExtractDIEsIfNeeded().
+  DWARFDebugInfoEntry m_first_die;
+  llvm::sys::RWMutex m_first_die_mutex;
   // A table similar to the .debug_aranges table, but this one points to the
   // exact DW_TAG_subprogram DIEs
   std::unique_ptr<DWARFDebugAranges> m_func_aranges_ap;
@@ -190,38 +217,34 @@ protected:
   // in the main object file
   dw_offset_t m_base_obj_offset = DW_INVALID_OFFSET;
 
-  static void
-  IndexPrivate(DWARFUnit *dwarf_cu, const lldb::LanguageType cu_language,
-               const DWARFFormValue::FixedFormSizes &fixed_form_sizes,
-               const dw_offset_t cu_offset, NameToDIE &func_basenames,
-               NameToDIE &func_fullnames, NameToDIE &func_methods,
-               NameToDIE &func_selectors, NameToDIE &objc_class_selectors,
-               NameToDIE &globals, NameToDIE &types, NameToDIE &namespaces);
-
   // Offset of the initial length field.
   dw_offset_t m_offset;
 
 private:
   void ParseProducerInfo();
+  void ExtractDIEsRWLocked();
+  void ClearDIEsRWLocked();
 
   // Get the DWARF unit DWARF debug informration entry. Parse the single DIE
   // if needed.
   const DWARFDebugInfoEntry *GetUnitDIEPtrOnly() {
-    ExtractDIEsIfNeeded(true);
-    if (m_die_array.empty())
+    ExtractUnitDIEIfNeeded();
+    // m_first_die_mutex is not required as m_first_die is never cleared.
+    if (!m_first_die)
       return NULL;
-    return &m_die_array[0];
+    return &m_first_die;
   }
 
   // Get all DWARF debug informration entries. Parse all DIEs if needed.
   const DWARFDebugInfoEntry *DIEPtr() {
-    ExtractDIEsIfNeeded(false);
+    ExtractDIEsIfNeeded();
     if (m_die_array.empty())
       return NULL;
     return &m_die_array[0];
   }
 
-  void AddUnitDIE(DWARFDebugInfoEntry &die);
+  void AddUnitDIE(const DWARFDebugInfoEntry &cu_die);
+  void ExtractDIEsEndCheck(lldb::offset_t offset) const;
 
   DISALLOW_COPY_AND_ASSIGN(DWARFUnit);
 };

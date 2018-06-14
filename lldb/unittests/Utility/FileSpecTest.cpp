@@ -30,6 +30,16 @@ TEST(FileSpecTest, FileAndDirectoryComponents) {
   EXPECT_EQ(nullptr, fs_posix_root.GetDirectory().GetCString());
   EXPECT_STREQ("/", fs_posix_root.GetFilename().GetCString());
 
+  FileSpec fs_net_drive("//net", false, FileSpec::Style::posix);
+  EXPECT_STREQ("//net", fs_net_drive.GetCString());
+  EXPECT_EQ(nullptr, fs_net_drive.GetDirectory().GetCString());
+  EXPECT_STREQ("//net", fs_net_drive.GetFilename().GetCString());
+
+  FileSpec fs_net_root("//net/", false, FileSpec::Style::posix);
+  EXPECT_STREQ("//net/", fs_net_root.GetCString());
+  EXPECT_STREQ("//net", fs_net_root.GetDirectory().GetCString());
+  EXPECT_STREQ("/", fs_net_root.GetFilename().GetCString());
+
   FileSpec fs_windows_drive("F:", false, FileSpec::Style::windows);
   EXPECT_STREQ("F:", fs_windows_drive.GetCString());
   EXPECT_EQ(nullptr, fs_windows_drive.GetDirectory().GetCString());
@@ -281,7 +291,6 @@ TEST(FileSpecTest, IsRelative) {
     "/a/b",
     "/a/b/",
     "//",
-    "//a",
     "//a/",
     "//a/b",
     "//a/b/",
@@ -320,3 +329,44 @@ TEST(FileSpecTest, IsRelative) {
   }
 }
 
+TEST(FileSpecTest, RemoveLastPathComponent) {
+  FileSpec fs_posix("/foo/bar/baz", false, FileSpec::Style::posix);
+  EXPECT_STREQ("/foo/bar/baz", fs_posix.GetCString());
+  EXPECT_TRUE(fs_posix.RemoveLastPathComponent());
+  EXPECT_STREQ("/foo/bar", fs_posix.GetCString());
+  EXPECT_TRUE(fs_posix.RemoveLastPathComponent());
+  EXPECT_STREQ("/foo", fs_posix.GetCString());
+  EXPECT_TRUE(fs_posix.RemoveLastPathComponent());
+  EXPECT_STREQ("/", fs_posix.GetCString());
+  EXPECT_FALSE(fs_posix.RemoveLastPathComponent());
+  EXPECT_STREQ("/", fs_posix.GetCString());
+
+  FileSpec fs_posix_relative("./foo/bar/baz", false, FileSpec::Style::posix);
+  EXPECT_STREQ("foo/bar/baz", fs_posix_relative.GetCString());
+  EXPECT_TRUE(fs_posix_relative.RemoveLastPathComponent());
+  EXPECT_STREQ("foo/bar", fs_posix_relative.GetCString());
+  EXPECT_TRUE(fs_posix_relative.RemoveLastPathComponent());
+  EXPECT_STREQ("foo", fs_posix_relative.GetCString());
+  EXPECT_FALSE(fs_posix_relative.RemoveLastPathComponent());
+  EXPECT_STREQ("foo", fs_posix_relative.GetCString());
+
+  FileSpec fs_posix_relative2("./", false, FileSpec::Style::posix);
+  EXPECT_STREQ(".", fs_posix_relative2.GetCString());
+  EXPECT_FALSE(fs_posix_relative2.RemoveLastPathComponent());
+  EXPECT_STREQ(".", fs_posix_relative2.GetCString());
+  EXPECT_FALSE(fs_posix_relative.RemoveLastPathComponent());
+  EXPECT_STREQ(".", fs_posix_relative2.GetCString());
+
+  FileSpec fs_windows("C:\\foo\\bar\\baz", false, FileSpec::Style::windows);
+  EXPECT_STREQ("C:\\foo\\bar\\baz", fs_windows.GetCString());
+  EXPECT_TRUE(fs_windows.RemoveLastPathComponent());
+  EXPECT_STREQ("C:\\foo\\bar", fs_windows.GetCString());
+  EXPECT_TRUE(fs_windows.RemoveLastPathComponent());
+  EXPECT_STREQ("C:\\foo", fs_windows.GetCString());
+  EXPECT_TRUE(fs_windows.RemoveLastPathComponent());
+  EXPECT_STREQ("C:\\", fs_windows.GetCString());
+  EXPECT_TRUE(fs_windows.RemoveLastPathComponent());
+  EXPECT_STREQ("C:", fs_windows.GetCString());
+  EXPECT_FALSE(fs_windows.RemoveLastPathComponent());
+  EXPECT_STREQ("C:", fs_windows.GetCString());
+}

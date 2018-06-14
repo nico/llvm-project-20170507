@@ -78,7 +78,6 @@ protected:
   bool shouldCombineMemoryType(EVT VT) const;
   SDValue performLoadCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   SDValue performStoreCombine(SDNode *N, DAGCombinerInfo &DCI) const;
-  SDValue performClampCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   SDValue performAssertSZExtCombine(SDNode *N, DAGCombinerInfo &DCI) const;
 
   SDValue splitBinaryBitConstantOpImpl(DAGCombinerInfo &DCI, const SDLoc &SL,
@@ -151,7 +150,6 @@ public:
   bool isZExtFree(Type *Src, Type *Dest) const override;
   bool isZExtFree(EVT Src, EVT Dest) const override;
   bool isZExtFree(SDValue Val, EVT VT2) const override;
-  bool isFPExtFoldable(unsigned Opcode, EVT DestVT, EVT SrcVT) const override;
 
   bool isNarrowingProfitable(EVT VT1, EVT VT2) const override;
 
@@ -173,8 +171,6 @@ public:
   bool isCheapToSpeculateCttz() const override;
   bool isCheapToSpeculateCtlz() const override;
 
-  bool isSDNodeSourceOfDivergence(const SDNode *N,
-    FunctionLoweringInfo *FLI, DivergenceAnalysis *DA) const override;
   bool isSDNodeAlwaysUniform(const SDNode *N) const override;
   static CCAssignFn *CCAssignFnForCall(CallingConv::ID CC, bool IsVarArg);
   static CCAssignFn *CCAssignFnForReturn(CallingConv::ID CC, bool IsVarArg);
@@ -404,6 +400,7 @@ enum NodeType : unsigned {
   MAD_I64_I32,
   MUL_LOHI_I24,
   MUL_LOHI_U24,
+  PERM,
   TEXTURE_FETCH,
   EXPORT, // exp on SI+
   EXPORT_DONE, // exp on SI+ with done bit set

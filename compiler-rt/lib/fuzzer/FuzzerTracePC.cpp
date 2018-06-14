@@ -184,7 +184,7 @@ void TracePC::UpdateObservedPCs() {
   }
 
   for (size_t i = 0, N = Min(CoveredFuncs.size(), NumPrintNewFuncs); i < N; i++) {
-    Printf("\tNEW_FUNC[%zd/%zd]: ", i, CoveredFuncs.size());
+    Printf("\tNEW_FUNC[%zd/%zd]: ", i + 1, CoveredFuncs.size());
     PrintPC("%p %F %L\n", "%p\n", CoveredFuncs[i] + 1);
   }
 }
@@ -296,6 +296,15 @@ void TracePC::PrintCoverage() {
   };
 
   IterateCoveredFunctions(CoveredFunctionCallback);
+}
+
+void TracePC::DumpCoverage() {
+  if (EF->__sanitizer_dump_coverage) {
+    Vector<uintptr_t> PCsCopy(GetNumPCs());
+    for (size_t i = 0; i < GetNumPCs(); i++)
+      PCsCopy[i] = PCs()[i] ? GetPreviousInstructionPc(PCs()[i]) : 0;
+    EF->__sanitizer_dump_coverage(PCsCopy.data(), PCsCopy.size());
+  }
 }
 
 // Value profile.

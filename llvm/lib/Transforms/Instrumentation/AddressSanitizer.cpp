@@ -16,7 +16,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DepthFirstIterator.h"
-#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringExtras.h"
@@ -25,7 +25,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/Analysis/Utils/Local.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/BinaryFormat/MachO.h"
 #include "llvm/IR/Argument.h"
@@ -1655,20 +1655,44 @@ bool AddressSanitizerModule::ShouldInstrumentGlobal(GlobalVariable *G) {
   if (!Ty->isSized()) return false;
   if (!G->hasInitializer()) return false;
   if (GlobalWasGeneratedByCompiler(G)) return false; // Our own globals.
-  // Touch only those globals that will not be defined in other modules.
-  // Don't handle ODR linkage types and COMDATs since other modules may be built
-  // without ASan.
-  if (G->getLinkage() != GlobalVariable::ExternalLinkage &&
-      G->getLinkage() != GlobalVariable::PrivateLinkage &&
-      G->getLinkage() != GlobalVariable::InternalLinkage)
-    return false;
-  if (G->hasComdat()) return false;
   // Two problems with thread-locals:
   //   - The address of the main thread's copy can't be computed at link-time.
   //   - Need to poison all copies, not just the main thread's one.
   if (G->isThreadLocal()) return false;
   // For now, just ignore this Global if the alignment is large.
   if (G->getAlignment() > MinRedzoneSizeForGlobal()) return false;
+
+  // If we know this global is defined only in this module (external or static),
+  // we can instrument it.
+  if (G->getLinkage() != GlobalVariable::ExternalLinkage &&
+      G->getLinkage() != GlobalVariable::PrivateLinkage &&
+      G->getLinkage() != GlobalVariable::InternalLinkage) {
+    // For targets that support comdats, we can instrument ODR globals in
+    // comdats. We simply add our global metadata to the group and hope that an
+    // instrumented global is selected.
+    // FIXME: This should work on ELF, enable it there too.
+    if (!TargetTriple.isOSBinFormatCOFF())
+      return false;
+    if (G->getLinkage() != GlobalVariable::WeakODRLinkage &&
+        G->getLinkage() != GlobalVariable::LinkOnceODRLinkage)
+      return false;
+    if (!G->hasComdat())
+      return false;
+  }
+
+  // If a comdat is present, it must have a selection kind that implies ODR
+  // semantics: no duplicates, any, or exact match.
+  if (Comdat *C = G->getComdat()) {
+    switch (C->getSelectionKind()) {
+    case Comdat::Any:
+    case Comdat::ExactMatch:
+    case Comdat::NoDuplicates:
+      break;
+    case Comdat::Largest:
+    case Comdat::SameSize:
+      return false;
+    }
+  }
 
   if (G->hasSection()) {
     StringRef Section = G->getSection();
@@ -1686,13 +1710,17 @@ bool AddressSanitizerModule::ShouldInstrumentGlobal(GlobalVariable *G) {
       return false;
     }
 
-    // Callbacks put into the CRT initializer/terminator sections
-    // should not be instrumented.
+    // On COFF, if the section name contains '$', it is highly likely that the
+    // user is using section sorting to create an array of globals similar to
+    // the way initialization callbacks are registered in .init_array and
+    // .CRT$XCU. The ATL also registers things in .ATL$__[azm]. Adding redzones
+    // to such globals is counterproductive, because the intent is that they
+    // will form an array, and out-of-bounds accesses are expected.
     // See https://github.com/google/sanitizers/issues/305
     // and http://msdn.microsoft.com/en-US/en-en/library/bb918180(v=vs.120).aspx
-    if (Section.startswith(".CRT")) {
-      LLVM_DEBUG(dbgs() << "Ignoring a global initializer callback: " << *G
-                        << "\n");
+    if (TargetTriple.isOSBinFormatCOFF() && Section.contains('$')) {
+      LLVM_DEBUG(dbgs() << "Ignoring global in sorted section (contains '$'): "
+                        << *G << "\n");
       return false;
     }
 
@@ -2119,6 +2147,7 @@ bool AddressSanitizerModule::InstrumentGlobals(IRBuilder<> &IRB, Module &M, bool
         new GlobalVariable(M, NewTy, G->isConstant(), Linkage, NewInitializer,
                            "", G, G->getThreadLocalMode());
     NewGlobal->copyAttributesFrom(G);
+    NewGlobal->setComdat(G->getComdat());
     NewGlobal->setAlignment(MinRZ);
 
     // Move null-terminated C strings to "__asan_cstring" section on Darwin.
@@ -2484,7 +2513,7 @@ bool AddressSanitizer::runOnFunction(Function &F) {
 
   // We want to instrument every address only once per basic block (unless there
   // are calls between uses).
-  SmallSet<Value *, 16> TempsToInstrument;
+  SmallPtrSet<Value *, 16> TempsToInstrument;
   SmallVector<Instruction *, 16> ToInstrument;
   SmallVector<Instruction *, 8> NoReturnCalls;
   SmallVector<BasicBlock *, 16> AllBlocks;

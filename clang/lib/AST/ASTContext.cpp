@@ -1134,6 +1134,32 @@ void ASTContext::InitBuiltinTypes(const TargetInfo &Target,
   // C11 extension ISO/IEC TS 18661-3
   InitBuiltinType(Float16Ty,           BuiltinType::Float16);
 
+  // ISO/IEC JTC1 SC22 WG14 N1169 Extension
+  InitBuiltinType(ShortAccumTy,            BuiltinType::ShortAccum);
+  InitBuiltinType(AccumTy,                 BuiltinType::Accum);
+  InitBuiltinType(LongAccumTy,             BuiltinType::LongAccum);
+  InitBuiltinType(UnsignedShortAccumTy,    BuiltinType::UShortAccum);
+  InitBuiltinType(UnsignedAccumTy,         BuiltinType::UAccum);
+  InitBuiltinType(UnsignedLongAccumTy,     BuiltinType::ULongAccum);
+  InitBuiltinType(ShortFractTy,            BuiltinType::ShortFract);
+  InitBuiltinType(FractTy,                 BuiltinType::Fract);
+  InitBuiltinType(LongFractTy,             BuiltinType::LongFract);
+  InitBuiltinType(UnsignedShortFractTy,    BuiltinType::UShortFract);
+  InitBuiltinType(UnsignedFractTy,         BuiltinType::UFract);
+  InitBuiltinType(UnsignedLongFractTy,     BuiltinType::ULongFract);
+  InitBuiltinType(SatShortAccumTy,         BuiltinType::SatShortAccum);
+  InitBuiltinType(SatAccumTy,              BuiltinType::SatAccum);
+  InitBuiltinType(SatLongAccumTy,          BuiltinType::SatLongAccum);
+  InitBuiltinType(SatUnsignedShortAccumTy, BuiltinType::SatUShortAccum);
+  InitBuiltinType(SatUnsignedAccumTy,      BuiltinType::SatUAccum);
+  InitBuiltinType(SatUnsignedLongAccumTy,  BuiltinType::SatULongAccum);
+  InitBuiltinType(SatShortFractTy,         BuiltinType::SatShortFract);
+  InitBuiltinType(SatFractTy,              BuiltinType::SatFract);
+  InitBuiltinType(SatLongFractTy,          BuiltinType::SatLongFract);
+  InitBuiltinType(SatUnsignedShortFractTy, BuiltinType::SatUShortFract);
+  InitBuiltinType(SatUnsignedFractTy,      BuiltinType::SatUFract);
+  InitBuiltinType(SatUnsignedLongFractTy,  BuiltinType::SatULongFract);
+
   // GNU extension, 128-bit integers.
   InitBuiltinType(Int128Ty,            BuiltinType::Int128);
   InitBuiltinType(UnsignedInt128Ty,    BuiltinType::UInt128);
@@ -1784,6 +1810,48 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
     case BuiltinType::UInt128:
       Width = 128;
       Align = 128; // int128_t is 128-bit aligned on all targets.
+      break;
+    case BuiltinType::ShortAccum:
+    case BuiltinType::UShortAccum:
+    case BuiltinType::SatShortAccum:
+    case BuiltinType::SatUShortAccum:
+      Width = Target->getShortAccumWidth();
+      Align = Target->getShortAccumAlign();
+      break;
+    case BuiltinType::Accum:
+    case BuiltinType::UAccum:
+    case BuiltinType::SatAccum:
+    case BuiltinType::SatUAccum:
+      Width = Target->getAccumWidth();
+      Align = Target->getAccumAlign();
+      break;
+    case BuiltinType::LongAccum:
+    case BuiltinType::ULongAccum:
+    case BuiltinType::SatLongAccum:
+    case BuiltinType::SatULongAccum:
+      Width = Target->getLongAccumWidth();
+      Align = Target->getLongAccumAlign();
+      break;
+    case BuiltinType::ShortFract:
+    case BuiltinType::UShortFract:
+    case BuiltinType::SatShortFract:
+    case BuiltinType::SatUShortFract:
+      Width = Target->getShortFractWidth();
+      Align = Target->getShortFractAlign();
+      break;
+    case BuiltinType::Fract:
+    case BuiltinType::UFract:
+    case BuiltinType::SatFract:
+    case BuiltinType::SatUFract:
+      Width = Target->getFractWidth();
+      Align = Target->getFractAlign();
+      break;
+    case BuiltinType::LongFract:
+    case BuiltinType::ULongFract:
+    case BuiltinType::SatLongFract:
+    case BuiltinType::SatULongFract:
+      Width = Target->getLongFractWidth();
+      Align = Target->getLongFractAlign();
       break;
     case BuiltinType::Float16:
     case BuiltinType::Half:
@@ -6222,6 +6290,30 @@ static char getObjCEncodingForPrimitiveKind(const ASTContext *C,
     case BuiltinType::Float16:
     case BuiltinType::Float128:
     case BuiltinType::Half:
+    case BuiltinType::ShortAccum:
+    case BuiltinType::Accum:
+    case BuiltinType::LongAccum:
+    case BuiltinType::UShortAccum:
+    case BuiltinType::UAccum:
+    case BuiltinType::ULongAccum:
+    case BuiltinType::ShortFract:
+    case BuiltinType::Fract:
+    case BuiltinType::LongFract:
+    case BuiltinType::UShortFract:
+    case BuiltinType::UFract:
+    case BuiltinType::ULongFract:
+    case BuiltinType::SatShortAccum:
+    case BuiltinType::SatAccum:
+    case BuiltinType::SatLongAccum:
+    case BuiltinType::SatUShortAccum:
+    case BuiltinType::SatUAccum:
+    case BuiltinType::SatULongAccum:
+    case BuiltinType::SatShortFract:
+    case BuiltinType::SatFract:
+    case BuiltinType::SatLongFract:
+    case BuiltinType::SatUShortFract:
+    case BuiltinType::SatUFract:
+    case BuiltinType::SatULongFract:
       // FIXME: potentially need @encodes for these!
       return ' ';
 
@@ -7263,6 +7355,7 @@ ASTContext::getOverloadedTemplateName(UnresolvedSetIterator Begin,
   for (UnresolvedSetIterator I = Begin; I != End; ++I) {
     NamedDecl *D = *I;
     assert(isa<FunctionTemplateDecl>(D) ||
+           isa<UnresolvedUsingValueDecl>(D) ||
            (isa<UsingShadowDecl>(D) &&
             isa<FunctionTemplateDecl>(D->getUnderlyingDecl())));
     *Storage++ = D;
@@ -8572,6 +8665,38 @@ QualType ASTContext::mergeTypes(QualType LHS, QualType RHS,
     QualType ResultType = mergeTypes(LHSElem, RHSElem, false, Unqualified);
     if (ResultType.isNull())
       return {};
+
+    const VariableArrayType* LVAT = getAsVariableArrayType(LHS);
+    const VariableArrayType* RVAT = getAsVariableArrayType(RHS);
+
+    // If either side is a variable array, and both are complete, check whether
+    // the current dimension is definite.
+    if (LVAT || RVAT) {
+      auto SizeFetch = [this](const VariableArrayType* VAT,
+          const ConstantArrayType* CAT)
+          -> std::pair<bool,llvm::APInt> {
+        if (VAT) {
+          llvm::APSInt TheInt;
+          Expr *E = VAT->getSizeExpr();
+          if (E && E->isIntegerConstantExpr(TheInt, *this))
+            return std::make_pair(true, TheInt);
+          else
+            return std::make_pair(false, TheInt);
+        } else if (CAT) {
+            return std::make_pair(true, CAT->getSize());
+        } else {
+            return std::make_pair(false, llvm::APInt());
+        }
+      };
+
+      bool HaveLSize, HaveRSize;
+      llvm::APInt LSize, RSize;
+      std::tie(HaveLSize, LSize) = SizeFetch(LVAT, LCAT);
+      std::tie(HaveRSize, RSize) = SizeFetch(RVAT, RCAT);
+      if (HaveLSize && HaveRSize && !llvm::APInt::isSameValue(LSize, RSize))
+        return {}; // Definite, but unequal, array dimension
+    }
+
     if (LCAT && getCanonicalType(LHSElem) == getCanonicalType(ResultType))
       return LHS;
     if (RCAT && getCanonicalType(RHSElem) == getCanonicalType(ResultType))
@@ -8580,8 +8705,6 @@ QualType ASTContext::mergeTypes(QualType LHS, QualType RHS,
                                           ArrayType::ArraySizeModifier(), 0);
     if (RCAT) return getConstantArrayType(ResultType, RCAT->getSize(),
                                           ArrayType::ArraySizeModifier(), 0);
-    const VariableArrayType* LVAT = getAsVariableArrayType(LHS);
-    const VariableArrayType* RVAT = getAsVariableArrayType(RHS);
     if (LVAT && getCanonicalType(LHSElem) == getCanonicalType(ResultType))
       return LHS;
     if (RVAT && getCanonicalType(RHSElem) == getCanonicalType(ResultType))
@@ -8794,7 +8917,8 @@ unsigned ASTContext::getIntWidth(QualType T) const {
 }
 
 QualType ASTContext::getCorrespondingUnsignedType(QualType T) const {
-  assert(T->hasSignedIntegerRepresentation() && "Unexpected type");
+  assert((T->hasSignedIntegerRepresentation() || T->isSignedFixedPointType()) &&
+         "Unexpected type");
   
   // Turn <4 x signed int> -> <4 x unsigned int>
   if (const auto *VTy = T->getAs<VectorType>())
@@ -8806,7 +8930,7 @@ QualType ASTContext::getCorrespondingUnsignedType(QualType T) const {
     T = ETy->getDecl()->getIntegerType();
   
   const auto *BTy = T->getAs<BuiltinType>();
-  assert(BTy && "Unexpected signed integer type");
+  assert(BTy && "Unexpected signed integer or fixed point type");
   switch (BTy->getKind()) {
   case BuiltinType::Char_S:
   case BuiltinType::SChar:
@@ -8821,8 +8945,33 @@ QualType ASTContext::getCorrespondingUnsignedType(QualType T) const {
     return UnsignedLongLongTy;
   case BuiltinType::Int128:
     return UnsignedInt128Ty;
+
+  case BuiltinType::ShortAccum:
+    return UnsignedShortAccumTy;
+  case BuiltinType::Accum:
+    return UnsignedAccumTy;
+  case BuiltinType::LongAccum:
+    return UnsignedLongAccumTy;
+  case BuiltinType::SatShortAccum:
+    return SatUnsignedShortAccumTy;
+  case BuiltinType::SatAccum:
+    return SatUnsignedAccumTy;
+  case BuiltinType::SatLongAccum:
+    return SatUnsignedLongAccumTy;
+  case BuiltinType::ShortFract:
+    return UnsignedShortFractTy;
+  case BuiltinType::Fract:
+    return UnsignedFractTy;
+  case BuiltinType::LongFract:
+    return UnsignedLongFractTy;
+  case BuiltinType::SatShortFract:
+    return SatUnsignedShortFractTy;
+  case BuiltinType::SatFract:
+    return SatUnsignedFractTy;
+  case BuiltinType::SatLongFract:
+    return SatUnsignedLongFractTy;
   default:
-    llvm_unreachable("Unexpected signed integer type");
+    llvm_unreachable("Unexpected signed integer or fixed point type");
   }
 }
 
@@ -9967,6 +10116,42 @@ unsigned ASTContext::getTargetAddressSpace(LangAS AS) const {
     return toTargetAddressSpace(AS);
   else
     return (*AddrSpaceMap)[(unsigned)AS];
+}
+
+QualType ASTContext::getCorrespondingSaturatedType(QualType Ty) const {
+  assert(Ty->isFixedPointType());
+
+  if (Ty->isSaturatedFixedPointType()) return Ty;
+
+  const auto &BT = Ty->getAs<BuiltinType>();
+  switch (BT->getKind()) {
+    default:
+      llvm_unreachable("Not a fixed point type!");
+    case BuiltinType::ShortAccum:
+      return SatShortAccumTy;
+    case BuiltinType::Accum:
+      return SatAccumTy;
+    case BuiltinType::LongAccum:
+      return SatLongAccumTy;
+    case BuiltinType::UShortAccum:
+      return SatUnsignedShortAccumTy;
+    case BuiltinType::UAccum:
+      return SatUnsignedAccumTy;
+    case BuiltinType::ULongAccum:
+      return SatUnsignedLongAccumTy;
+    case BuiltinType::ShortFract:
+      return SatShortFractTy;
+    case BuiltinType::Fract:
+      return SatFractTy;
+    case BuiltinType::LongFract:
+      return SatLongFractTy;
+    case BuiltinType::UShortFract:
+      return SatUnsignedShortFractTy;
+    case BuiltinType::UFract:
+      return SatUnsignedFractTy;
+    case BuiltinType::ULongFract:
+      return SatUnsignedLongFractTy;
+  }
 }
 
 // Explicitly instantiate this in case a Redeclarable<T> is used from a TU that

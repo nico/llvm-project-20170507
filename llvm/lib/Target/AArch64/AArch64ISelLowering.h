@@ -443,9 +443,18 @@ public:
 
   bool isMaskAndCmp0FoldingBeneficial(const Instruction &AndI) const override;
 
-  bool hasAndNotCompare(SDValue) const override {
-    // 'bics'
-    return true;
+  bool hasAndNotCompare(SDValue V) const override {
+    // We can use bics for any scalar.
+    return V.getValueType().isScalarInteger();
+  }
+
+  bool hasAndNot(SDValue Y) const override {
+    EVT VT = Y.getValueType();
+
+    if (!VT.isVector())
+      return hasAndNotCompare(Y);
+
+    return VT.getSizeInBits() >= 64; // vector 'bic'
   }
 
   bool hasBitPreservingFPLogic(EVT VT) const override {
@@ -489,11 +498,11 @@ public:
                                                  CallingConv::ID CallConv,
                                                  bool isVarArg) const override;
 private:
-  bool isExtFreeImpl(const Instruction *Ext) const override;
-
   /// Keep a pointer to the AArch64Subtarget around so that we can
   /// make the right decision when generating code for different targets.
   const AArch64Subtarget *Subtarget;
+
+  bool isExtFreeImpl(const Instruction *Ext) const override;
 
   void addTypeForNEON(MVT VT, MVT PromotedBitwiseVT);
   void addDRTypeForNEON(MVT VT);

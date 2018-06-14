@@ -24,12 +24,16 @@ public:
   using BenchmarkRunner::BenchmarkRunner;
   ~UopsBenchmarkRunner() override;
 
-private:
-  const char *getDisplayName() const override;
+  llvm::Expected<BenchmarkConfiguration>
+  generateConfiguration(unsigned Opcode) const;
 
-  llvm::Expected<std::vector<llvm::MCInst>>
-  createSnippet(RegisterAliasingTrackerCache &RATC, unsigned Opcode,
-                llvm::raw_ostream &Info) const override;
+private:
+  llvm::Error isInfeasible(const llvm::MCInstrDesc &MCInstrDesc) const;
+
+  InstructionBenchmark::ModeE getMode() const override;
+
+  llvm::Expected<std::vector<BenchmarkConfiguration>>
+  createConfigurations(unsigned Opcode) const override;
 
   std::vector<BenchmarkMeasure>
   runMeasurements(const ExecutableFunction &EF,

@@ -1391,6 +1391,52 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
     }
     break;
   }
+  case DeclSpec::TST_accum: {
+    switch (DS.getTypeSpecWidth()) {
+      case DeclSpec::TSW_short:
+        Result = Context.ShortAccumTy;
+        break;
+      case DeclSpec::TSW_unspecified:
+        Result = Context.AccumTy;
+        break;
+      case DeclSpec::TSW_long:
+        Result = Context.LongAccumTy;
+        break;
+      case DeclSpec::TSW_longlong:
+        llvm_unreachable("Unable to specify long long as _Accum width");
+    }
+
+    if (DS.getTypeSpecSign() == DeclSpec::TSS_unsigned)
+      Result = Context.getCorrespondingUnsignedType(Result);
+
+    if (DS.isTypeSpecSat())
+      Result = Context.getCorrespondingSaturatedType(Result);
+
+    break;
+  }
+  case DeclSpec::TST_fract: {
+    switch (DS.getTypeSpecWidth()) {
+      case DeclSpec::TSW_short:
+        Result = Context.ShortFractTy;
+        break;
+      case DeclSpec::TSW_unspecified:
+        Result = Context.FractTy;
+        break;
+      case DeclSpec::TSW_long:
+        Result = Context.LongFractTy;
+        break;
+      case DeclSpec::TSW_longlong:
+        llvm_unreachable("Unable to specify long long as _Fract width");
+    }
+
+    if (DS.getTypeSpecSign() == DeclSpec::TSS_unsigned)
+      Result = Context.getCorrespondingUnsignedType(Result);
+
+    if (DS.isTypeSpecSat())
+      Result = Context.getCorrespondingSaturatedType(Result);
+
+    break;
+  }
   case DeclSpec::TST_int128:
     if (!S.Context.getTargetInfo().hasInt128Type())
       S.Diag(DS.getTypeSpecTypeLoc(), diag::err_type_unsupported)
@@ -1558,6 +1604,15 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
   if (S.getLangOpts().OpenCL &&
       S.checkOpenCLDisabledTypeDeclSpec(DS, Result))
     declarator.setInvalidType(true);
+
+  bool IsFixedPointType = DS.getTypeSpecType() == DeclSpec::TST_accum ||
+                          DS.getTypeSpecType() == DeclSpec::TST_fract;
+
+  // Only fixed point types can be saturated
+  if (DS.isTypeSpecSat() && !IsFixedPointType)
+    S.Diag(DS.getTypeSpecSatLoc(), diag::err_invalid_saturation_spec)
+        << DS.getSpecifierName(DS.getTypeSpecType(),
+                               Context.getPrintingPolicy());
 
   // Handle complex types.
   if (DS.getTypeSpecComplex() == DeclSpec::TSC_complex) {
@@ -7140,8 +7195,9 @@ static void deduceOpenCLImplicitAddrSpace(TypeProcessingState &State,
   // The default address space name for arguments to a function in a
   // program, or local variables of a function is __private. All function
   // arguments shall be in the __private address space.
-  if (State.getSema().getLangOpts().OpenCLVersion <= 120) {
-      ImpAddr = LangAS::opencl_private;
+  if (State.getSema().getLangOpts().OpenCLVersion <= 120 &&
+      !State.getSema().getLangOpts().OpenCLCPlusPlus) {
+    ImpAddr = LangAS::opencl_private;
   } else {
     // If address space is not set, OpenCL 2.0 defines non private default
     // address spaces for some cases:
@@ -7544,7 +7600,7 @@ bool Sema::hasVisibleDefinition(NamedDecl *D, NamedDecl **Suggested,
 
 /// Locks in the inheritance model for the given class and all of its bases.
 static void assignInheritanceModel(Sema &S, CXXRecordDecl *RD) {
-  RD = RD->getMostRecentDecl();
+  RD = RD->getMostRecentNonInjectedDecl();
   if (!RD->hasAttr<MSInheritanceAttr>()) {
     MSInheritanceAttr::Spelling IM;
 
@@ -7585,11 +7641,17 @@ bool Sema::RequireCompleteTypeImpl(SourceLocation Loc, QualType T,
   //  assert(!T->isDependentType() &&
   //         "Can't ask whether a dependent type is complete");
 
-  // We lock in the inheritance model once somebody has asked us to ensure
-  // that a pointer-to-member type is complete.
-  if (Context.getTargetInfo().getCXXABI().isMicrosoft()) {
-    if (const MemberPointerType *MPTy = T->getAs<MemberPointerType>()) {
-      if (!MPTy->getClass()->isDependentType()) {
+  if (const MemberPointerType *MPTy = T->getAs<MemberPointerType>()) {
+    if (!MPTy->getClass()->isDependentType()) {
+      if (getLangOpts().CompleteMemberPointers &&
+          !MPTy->getClass()->getAsCXXRecordDecl()->isBeingDefined() &&
+          RequireCompleteType(Loc, QualType(MPTy->getClass(), 0),
+                              diag::err_memptr_incomplete))
+        return true;
+
+      // We lock in the inheritance model once somebody has asked us to ensure
+      // that a pointer-to-member type is complete.
+      if (Context.getTargetInfo().getCXXABI().isMicrosoft()) {
         (void)isCompleteType(Loc, QualType(MPTy->getClass(), 0));
         assignInheritanceModel(*this, MPTy->getMostRecentCXXRecordDecl());
       }

@@ -20,6 +20,7 @@
 #include "AMDGPULegalizerInfo.h"
 #include "AMDGPURegisterBankInfo.h"
 #include "SIMachineFunctionInfo.h"
+#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/IR/MDBuilder.h"
@@ -203,6 +204,12 @@ unsigned AMDGPUSubtarget::getOccupancyWithLocalMemSize(uint32_t Bytes,
   NumWaves = std::min(NumWaves, MaxWaves);
   NumWaves = std::max(NumWaves, 1u);
   return NumWaves;
+}
+
+unsigned
+AMDGPUSubtarget::getOccupancyWithLocalMemSize(const MachineFunction &MF) const {
+  const auto *MFI = MF.getInfo<SIMachineFunctionInfo>();
+  return getOccupancyWithLocalMemSize(MFI->getLDSSize(), MF.getFunction());
 }
 
 std::pair<unsigned, unsigned>
@@ -405,14 +412,18 @@ bool SISubtarget::isVGPRSpillingEnabled(const Function& F) const {
   return EnableVGPRSpilling || !AMDGPU::isShader(F.getCallingConv());
 }
 
-unsigned SISubtarget::getKernArgSegmentSize(const MachineFunction &MF,
+unsigned SISubtarget::getKernArgSegmentSize(const Function &F,
                                             unsigned ExplicitArgBytes) const {
-  unsigned ImplicitBytes = getImplicitArgNumBytes(MF);
-  if (ImplicitBytes == 0)
-    return ExplicitArgBytes;
+  uint64_t TotalSize = ExplicitArgBytes;
+  unsigned ImplicitBytes = getImplicitArgNumBytes(F);
 
-  unsigned Alignment = getAlignmentForImplicitArgPtr();
-  return alignTo(ExplicitArgBytes, Alignment) + ImplicitBytes;
+  if (ImplicitBytes != 0) {
+    unsigned Alignment = getAlignmentForImplicitArgPtr();
+    TotalSize = alignTo(ExplicitArgBytes, Alignment) + ImplicitBytes;
+  }
+
+  // Being able to dereference past the end is useful for emitting scalar loads.
+  return alignTo(TotalSize, 4);
 }
 
 unsigned SISubtarget::getOccupancyWithNumSGPRs(unsigned SGPRs) const {

@@ -283,10 +283,16 @@ Instruction *InstCombiner::commonCastTransforms(CastInst &CI) {
     }
   }
 
-  // If we are casting a select, then fold the cast into the select.
-  if (auto *SI = dyn_cast<SelectInst>(Src))
-    if (Instruction *NV = FoldOpIntoSelect(CI, SI))
-      return NV;
+  if (auto *Sel = dyn_cast<SelectInst>(Src)) {
+    // We are casting a select. Try to fold the cast into the select, but only
+    // if the select does not have a compare instruction with matching operand
+    // types. Creating a select with operands that are different sizes than its
+    // condition may inhibit other folds and lead to worse codegen.
+    auto *Cmp = dyn_cast<CmpInst>(Sel->getCondition());
+    if (!Cmp || Cmp->getOperand(0)->getType() != Sel->getType())
+      if (Instruction *NV = FoldOpIntoSelect(CI, Sel))
+        return NV;
+  }
 
   // If we are casting a PHI, then fold the cast into the PHI.
   if (auto *PN = dyn_cast<PHINode>(Src)) {
@@ -1591,23 +1597,6 @@ Instruction *InstCombiner::visitFPTrunc(FPTruncInst &FPT) {
       Value *InnerTrunc = Builder.CreateFPTrunc(OpI->getOperand(1), Ty);
       return BinaryOperator::CreateFNegFMF(InnerTrunc, OpI);
     }
-  }
-
-  // (fptrunc (select cond, R1, Cst)) -->
-  // (select cond, (fptrunc R1), (fptrunc Cst))
-  //
-  //  - but only if this isn't part of a min/max operation, else we'll
-  // ruin min/max canonical form which is to have the select and
-  // compare's operands be of the same type with no casts to look through.
-  Value *LHS, *RHS;
-  SelectInst *SI = dyn_cast<SelectInst>(FPT.getOperand(0));
-  if (SI &&
-      (isa<ConstantFP>(SI->getOperand(1)) ||
-       isa<ConstantFP>(SI->getOperand(2))) &&
-      matchSelectPattern(SI, LHS, RHS).Flavor == SPF_UNKNOWN) {
-    Value *LHSTrunc = Builder.CreateFPTrunc(SI->getOperand(1), Ty);
-    Value *RHSTrunc = Builder.CreateFPTrunc(SI->getOperand(2), Ty);
-    return SelectInst::Create(SI->getOperand(0), LHSTrunc, RHSTrunc);
   }
 
   if (auto *II = dyn_cast<IntrinsicInst>(FPT.getOperand(0))) {

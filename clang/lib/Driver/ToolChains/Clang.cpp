@@ -3472,6 +3472,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                    options::OPT_fno_strict_vtable_pointers,
                    false))
     CmdArgs.push_back("-fstrict-vtable-pointers");
+  if (Args.hasFlag(options::OPT_fforce_emit_vtables,
+                   options::OPT_fno_force_emit_vtables,
+                   false))
+    CmdArgs.push_back("-fforce-emit-vtables");
   if (!Args.hasFlag(options::OPT_foptimize_sibling_calls,
                     options::OPT_fno_optimize_sibling_calls))
     CmdArgs.push_back("-mdisable-tail-calls");
@@ -3497,8 +3501,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       Args.hasArg(options::OPT_dA))
     CmdArgs.push_back("-masm-verbose");
 
-  if (!Args.hasFlag(options::OPT_fintegrated_as, options::OPT_fno_integrated_as,
-                    IsIntegratedAssemblerDefault))
+  if (!getToolChain().useIntegratedAs())
     CmdArgs.push_back("-no-integrated-as");
 
   if (Args.hasArg(options::OPT_fdebug_pass_structure)) {
@@ -3687,9 +3690,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (auto *ABICompatArg = Args.getLastArg(options::OPT_fclang_abi_compat_EQ))
     ABICompatArg->render(Args, CmdArgs);
 
-  // Add runtime flag for PS4 when PGO or Coverage are enabled.
-  if (RawTriple.isPS4CPU())
+  // Add runtime flag for PS4 when PGO, coverage, or sanitizers are enabled.
+  if (RawTriple.isPS4CPU()) {
     PS4cpu::addProfileRTArgs(getToolChain(), Args, CmdArgs);
+    PS4cpu::addSanitizerArgs(getToolChain(), CmdArgs);
+  }
 
   // Pass options for controlling the default header search paths.
   if (Args.hasArg(options::OPT_nostdinc)) {
@@ -3755,6 +3760,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-pedantic");
   Args.AddLastArg(CmdArgs, options::OPT_pedantic_errors);
   Args.AddLastArg(CmdArgs, options::OPT_w);
+
+  // Fixed point flags
+  if (Args.hasFlag(options::OPT_ffixed_point, options::OPT_fno_fixed_point,
+                   /*Default=*/false))
+    Args.AddLastArg(CmdArgs, options::OPT_ffixed_point);
 
   // Handle -{std, ansi, trigraphs} -- take the last of -{std, ansi}
   // (-ansi is equivalent to -std=c89 or -std=c++98).
@@ -4784,6 +4794,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-fforce-enable-int128");
   }
 
+  if (Args.hasFlag(options::OPT_fcomplete_member_pointers,
+                   options::OPT_fno_complete_member_pointers, false))
+    CmdArgs.push_back("-fcomplete-member-pointers");
+
   // Finally add the compile command to the compilation.
   if (Args.hasArg(options::OPT__SLASH_fallback) &&
       Output.getType() == types::TY_Object &&
@@ -4801,12 +4815,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   } else {
     C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
   }
-
-  // Handle the debug info splitting at object creation time if we're
-  // creating an object.
-  // TODO: Currently only works on linux with newer objcopy.
-  if (SplitDWARF && Output.getType() == types::TY_Object)
-    SplitDebugInfo(getToolChain(), C, *this, JA, Args, Output, SplitDWARFOut);
 
   if (Arg *A = Args.getLastArg(options::OPT_pg))
     if (Args.hasArg(options::OPT_fomit_frame_pointer))
@@ -4858,6 +4866,13 @@ ObjCRuntime Clang::AddObjCRuntimeArgs(const ArgList &args,
       getToolChain().getDriver().Diag(diag::err_drv_unknown_objc_runtime)
           << value;
     }
+    if ((runtime.getKind() == ObjCRuntime::GNUstep) &&
+        (runtime.getVersion() >= VersionTuple(2, 0)))
+      if (!getToolChain().getTriple().isOSBinFormatELF()) {
+        getToolChain().getDriver().Diag(
+            diag::err_drv_gnustep_objc_runtime_incompatible_binary)
+          << runtime.getVersion().getMajor();
+      }
 
     runtimeArg->render(args, cmdArgs);
     return runtime;
@@ -4951,7 +4966,7 @@ ObjCRuntime Clang::AddObjCRuntimeArgs(const ArgList &args,
     // Legacy behaviour is to target the gnustep runtime if we are in
     // non-fragile mode or the GCC runtime in fragile mode.
     if (isNonFragile)
-      runtime = ObjCRuntime(ObjCRuntime::GNUstep, VersionTuple(1, 6));
+      runtime = ObjCRuntime(ObjCRuntime::GNUstep, VersionTuple(2, 0));
     else
       runtime = ObjCRuntime(ObjCRuntime::GCC, VersionTuple());
   }
@@ -5464,19 +5479,17 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
   CmdArgs.push_back("-o");
   CmdArgs.push_back(Output.getFilename());
 
+  if (Args.hasArg(options::OPT_gsplit_dwarf) &&
+      getToolChain().getTriple().isOSLinux()) {
+    CmdArgs.push_back("-split-dwarf-file");
+    CmdArgs.push_back(SplitDebugName(Args, Input));
+  }
+
   assert(Input.isFilename() && "Invalid input.");
   CmdArgs.push_back(Input.getFilename());
 
   const char *Exec = getToolChain().getDriver().getClangProgramPath();
   C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
-
-  // Handle the debug info splitting at object creation time if we're
-  // creating an object.
-  // TODO: Currently only works on linux with newer objcopy.
-  if (Args.hasArg(options::OPT_gsplit_dwarf) &&
-      getToolChain().getTriple().isOSLinux())
-    SplitDebugInfo(getToolChain(), C, *this, JA, Args, Output,
-                   SplitDebugName(Args, Input));
 }
 
 // Begin OffloadBundler

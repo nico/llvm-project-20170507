@@ -14,31 +14,31 @@
 #include "CommandObjectScript.h"
 #include "lldb/Interpreter/CommandObjectRegexCommand.h"
 
-#include "../Commands/CommandObjectApropos.h"
-#include "../Commands/CommandObjectBreakpoint.h"
-#include "../Commands/CommandObjectBugreport.h"
-#include "../Commands/CommandObjectCommands.h"
-#include "../Commands/CommandObjectDisassemble.h"
-#include "../Commands/CommandObjectExpression.h"
-#include "../Commands/CommandObjectFrame.h"
-#include "../Commands/CommandObjectGUI.h"
-#include "../Commands/CommandObjectHelp.h"
-#include "../Commands/CommandObjectLanguage.h"
-#include "../Commands/CommandObjectLog.h"
-#include "../Commands/CommandObjectMemory.h"
-#include "../Commands/CommandObjectPlatform.h"
-#include "../Commands/CommandObjectPlugin.h"
-#include "../Commands/CommandObjectProcess.h"
-#include "../Commands/CommandObjectQuit.h"
-#include "../Commands/CommandObjectRegister.h"
-#include "../Commands/CommandObjectSettings.h"
-#include "../Commands/CommandObjectSource.h"
-#include "../Commands/CommandObjectStats.h"
-#include "../Commands/CommandObjectTarget.h"
-#include "../Commands/CommandObjectThread.h"
-#include "../Commands/CommandObjectType.h"
-#include "../Commands/CommandObjectVersion.h"
-#include "../Commands/CommandObjectWatchpoint.h"
+#include "Commands/CommandObjectApropos.h"
+#include "Commands/CommandObjectBreakpoint.h"
+#include "Commands/CommandObjectBugreport.h"
+#include "Commands/CommandObjectCommands.h"
+#include "Commands/CommandObjectDisassemble.h"
+#include "Commands/CommandObjectExpression.h"
+#include "Commands/CommandObjectFrame.h"
+#include "Commands/CommandObjectGUI.h"
+#include "Commands/CommandObjectHelp.h"
+#include "Commands/CommandObjectLanguage.h"
+#include "Commands/CommandObjectLog.h"
+#include "Commands/CommandObjectMemory.h"
+#include "Commands/CommandObjectPlatform.h"
+#include "Commands/CommandObjectPlugin.h"
+#include "Commands/CommandObjectProcess.h"
+#include "Commands/CommandObjectQuit.h"
+#include "Commands/CommandObjectRegister.h"
+#include "Commands/CommandObjectSettings.h"
+#include "Commands/CommandObjectSource.h"
+#include "Commands/CommandObjectStats.h"
+#include "Commands/CommandObjectTarget.h"
+#include "Commands/CommandObjectThread.h"
+#include "Commands/CommandObjectType.h"
+#include "Commands/CommandObjectVersion.h"
+#include "Commands/CommandObjectWatchpoint.h"
 
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/PluginManager.h"
@@ -2102,7 +2102,7 @@ void CommandInterpreter::SourceInitFile(bool in_cwd,
           return;
         }
       } else if (should_load == eLoadCWDlldbinitTrue) {
-        init_file.SetFile("./.lldbinit", true);
+        init_file.SetFile("./.lldbinit", true, FileSpec::Style::native);
       }
     }
   } else {
@@ -2126,14 +2126,15 @@ void CommandInterpreter::SourceInitFile(bool in_cwd,
         char program_init_file_name[PATH_MAX];
         ::snprintf(program_init_file_name, sizeof(program_init_file_name),
                    "%s-%s", init_file_path.c_str(), program_name);
-        init_file.SetFile(program_init_file_name, true);
+        init_file.SetFile(program_init_file_name, true,
+                          FileSpec::Style::native);
         if (!init_file.Exists())
           init_file.Clear();
       }
     }
 
     if (!init_file && !m_skip_lldbinit_files)
-      init_file.SetFile(init_file_path, false);
+      init_file.SetFile(init_file_path, false, FileSpec::Style::native);
   }
 
   // If the file exists, tell HandleCommand to 'source' it; this will do the

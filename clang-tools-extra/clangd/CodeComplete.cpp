@@ -25,6 +25,7 @@
 #include "Trace.h"
 #include "URI.h"
 #include "index/Index.h"
+#include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Format/Format.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -42,69 +43,6 @@
 namespace clang {
 namespace clangd {
 namespace {
-
-CompletionItemKind toCompletionItemKind(CXCursorKind CursorKind) {
-  switch (CursorKind) {
-  case CXCursor_MacroInstantiation:
-  case CXCursor_MacroDefinition:
-    return CompletionItemKind::Text;
-  case CXCursor_CXXMethod:
-  case CXCursor_Destructor:
-    return CompletionItemKind::Method;
-  case CXCursor_FunctionDecl:
-  case CXCursor_FunctionTemplate:
-    return CompletionItemKind::Function;
-  case CXCursor_Constructor:
-    return CompletionItemKind::Constructor;
-  case CXCursor_FieldDecl:
-    return CompletionItemKind::Field;
-  case CXCursor_VarDecl:
-  case CXCursor_ParmDecl:
-    return CompletionItemKind::Variable;
-  // FIXME(ioeric): use LSP struct instead of class when it is suppoted in the
-  // protocol.
-  case CXCursor_StructDecl:
-  case CXCursor_ClassDecl:
-  case CXCursor_UnionDecl:
-  case CXCursor_ClassTemplate:
-  case CXCursor_ClassTemplatePartialSpecialization:
-    return CompletionItemKind::Class;
-  case CXCursor_Namespace:
-  case CXCursor_NamespaceAlias:
-  case CXCursor_NamespaceRef:
-    return CompletionItemKind::Module;
-  case CXCursor_EnumConstantDecl:
-    return CompletionItemKind::Value;
-  case CXCursor_EnumDecl:
-    return CompletionItemKind::Enum;
-  // FIXME(ioeric): figure out whether reference is the right type for aliases.
-  case CXCursor_TypeAliasDecl:
-  case CXCursor_TypeAliasTemplateDecl:
-  case CXCursor_TypedefDecl:
-  case CXCursor_MemberRef:
-  case CXCursor_TypeRef:
-    return CompletionItemKind::Reference;
-  default:
-    return CompletionItemKind::Missing;
-  }
-}
-
-CompletionItemKind
-toCompletionItemKind(CodeCompletionResult::ResultKind ResKind,
-                     CXCursorKind CursorKind) {
-  switch (ResKind) {
-  case CodeCompletionResult::RK_Declaration:
-    return toCompletionItemKind(CursorKind);
-  case CodeCompletionResult::RK_Keyword:
-    return CompletionItemKind::Keyword;
-  case CodeCompletionResult::RK_Macro:
-    return CompletionItemKind::Text; // unfortunately, there's no 'Macro'
-                                     // completion items in LSP.
-  case CodeCompletionResult::RK_Pattern:
-    return CompletionItemKind::Snippet;
-  }
-  llvm_unreachable("Unhandled CodeCompletionResult::ResultKind.");
-}
 
 CompletionItemKind toCompletionItemKind(index::SymbolKind Kind) {
   using SK = index::SymbolKind;
@@ -157,6 +95,25 @@ CompletionItemKind toCompletionItemKind(index::SymbolKind Kind) {
     return CompletionItemKind::Constructor;
   }
   llvm_unreachable("Unhandled clang::index::SymbolKind.");
+}
+
+CompletionItemKind
+toCompletionItemKind(CodeCompletionResult::ResultKind ResKind,
+                     const NamedDecl *Decl) {
+  if (Decl)
+    return toCompletionItemKind(index::getSymbolInfo(Decl).Kind);
+  switch (ResKind) {
+  case CodeCompletionResult::RK_Declaration:
+    llvm_unreachable("RK_Declaration without Decl");
+  case CodeCompletionResult::RK_Keyword:
+    return CompletionItemKind::Keyword;
+  case CodeCompletionResult::RK_Macro:
+    return CompletionItemKind::Text; // unfortunately, there's no 'Macro'
+                                     // completion items in LSP.
+  case CodeCompletionResult::RK_Pattern:
+    return CompletionItemKind::Snippet;
+  }
+  llvm_unreachable("Unhandled CodeCompletionResult::ResultKind.");
 }
 
 /// Get the optional chunk as a string. This function is possibly recursive.
@@ -235,13 +192,28 @@ struct CompletionCandidate {
                        llvm::StringRef SemaDocComment) const {
     assert(bool(SemaResult) == bool(SemaCCS));
     CompletionItem I;
+    bool ShouldInsertInclude = true;
     if (SemaResult) {
-      I.kind = toCompletionItemKind(SemaResult->Kind, SemaResult->CursorKind);
+      I.kind = toCompletionItemKind(SemaResult->Kind, SemaResult->Declaration);
       getLabelAndInsertText(*SemaCCS, &I.label, &I.insertText,
                             Opts.EnableSnippets);
       I.filterText = getFilterText(*SemaCCS);
       I.documentation = formatDocumentation(*SemaCCS, SemaDocComment);
       I.detail = getDetail(*SemaCCS);
+      // Avoid inserting new #include if the declaration is found in the current
+      // file e.g. the symbol is forward declared.
+      if (SemaResult->Kind == CodeCompletionResult::RK_Declaration) {
+        if (const auto *D = SemaResult->getDeclaration()) {
+          const auto &SM = D->getASTContext().getSourceManager();
+          ShouldInsertInclude =
+              ShouldInsertInclude &&
+              std::none_of(D->redecls_begin(), D->redecls_end(),
+                           [&SM](const Decl *RD) {
+                             return SM.isInMainFile(
+                                 SM.getExpansionLoc(RD->getLocStart()));
+                           });
+        }
+      }
     }
     if (IndexResult) {
       if (I.kind == CompletionItemKind::Missing)
@@ -263,7 +235,7 @@ struct CompletionCandidate {
           I.documentation = D->Documentation;
         if (I.detail.empty())
           I.detail = D->CompletionDetail;
-        if (Includes && !D->IncludeHeader.empty()) {
+        if (ShouldInsertInclude && Includes && !D->IncludeHeader.empty()) {
           auto Edit = [&]() -> Expected<Optional<TextEdit>> {
             auto ResolvedDeclaring = toHeaderFile(
                 IndexResult->CanonicalDeclaration.FileURI, FileName);
@@ -359,13 +331,13 @@ struct SpecifiedScope {
 
 // Get all scopes that will be queried in indexes.
 std::vector<std::string> getQueryScopes(CodeCompletionContext &CCContext,
-                                        const SourceManager& SM) {
-  auto GetAllAccessibleScopes = [](CodeCompletionContext& CCContext) {
+                                        const SourceManager &SM) {
+  auto GetAllAccessibleScopes = [](CodeCompletionContext &CCContext) {
     SpecifiedScope Info;
-    for (auto* Context : CCContext.getVisitedContexts()) {
+    for (auto *Context : CCContext.getVisitedContexts()) {
       if (isa<TranslationUnitDecl>(Context))
         Info.AccessibleScopes.push_back(""); // global namespace
-      else if (const auto*NS = dyn_cast<NamespaceDecl>(Context))
+      else if (const auto *NS = dyn_cast<NamespaceDecl>(Context))
         Info.AccessibleScopes.push_back(NS->getQualifiedNameAsString() + "::");
     }
     return Info;
@@ -397,13 +369,77 @@ std::vector<std::string> getQueryScopes(CodeCompletionContext &CCContext,
   Info.AccessibleScopes.push_back(""); // global namespace
 
   Info.UnresolvedQualifier =
-      Lexer::getSourceText(CharSourceRange::getCharRange((*SS)->getRange()),
-                           SM, clang::LangOptions()).ltrim("::");
+      Lexer::getSourceText(CharSourceRange::getCharRange((*SS)->getRange()), SM,
+                           clang::LangOptions())
+          .ltrim("::");
   // Sema excludes the trailing "::".
   if (!Info.UnresolvedQualifier->empty())
     *Info.UnresolvedQualifier += "::";
 
   return Info.scopesForIndexQuery();
+}
+
+// Should we perform index-based completion in a context of the specified kind?
+// FIXME: consider allowing completion, but restricting the result types.
+bool contextAllowsIndex(enum CodeCompletionContext::Kind K) {
+  switch (K) {
+  case CodeCompletionContext::CCC_TopLevel:
+  case CodeCompletionContext::CCC_ObjCInterface:
+  case CodeCompletionContext::CCC_ObjCImplementation:
+  case CodeCompletionContext::CCC_ObjCIvarList:
+  case CodeCompletionContext::CCC_ClassStructUnion:
+  case CodeCompletionContext::CCC_Statement:
+  case CodeCompletionContext::CCC_Expression:
+  case CodeCompletionContext::CCC_ObjCMessageReceiver:
+  case CodeCompletionContext::CCC_EnumTag:
+  case CodeCompletionContext::CCC_UnionTag:
+  case CodeCompletionContext::CCC_ClassOrStructTag:
+  case CodeCompletionContext::CCC_ObjCProtocolName:
+  case CodeCompletionContext::CCC_Namespace:
+  case CodeCompletionContext::CCC_Type:
+  case CodeCompletionContext::CCC_Name: // FIXME: why does ns::^ give this?
+  case CodeCompletionContext::CCC_PotentiallyQualifiedName:
+  case CodeCompletionContext::CCC_ParenthesizedExpression:
+  case CodeCompletionContext::CCC_ObjCInterfaceName:
+  case CodeCompletionContext::CCC_ObjCCategoryName:
+    return true;
+  case CodeCompletionContext::CCC_Other: // Be conservative.
+  case CodeCompletionContext::CCC_OtherWithMacros:
+  case CodeCompletionContext::CCC_DotMemberAccess:
+  case CodeCompletionContext::CCC_ArrowMemberAccess:
+  case CodeCompletionContext::CCC_ObjCPropertyAccess:
+  case CodeCompletionContext::CCC_MacroName:
+  case CodeCompletionContext::CCC_MacroNameUse:
+  case CodeCompletionContext::CCC_PreprocessorExpression:
+  case CodeCompletionContext::CCC_PreprocessorDirective:
+  case CodeCompletionContext::CCC_NaturalLanguage:
+  case CodeCompletionContext::CCC_SelectorName:
+  case CodeCompletionContext::CCC_TypeQualifiers:
+  case CodeCompletionContext::CCC_ObjCInstanceMessage:
+  case CodeCompletionContext::CCC_ObjCClassMessage:
+  case CodeCompletionContext::CCC_Recovery:
+    return false;
+  }
+  llvm_unreachable("unknown code completion context");
+}
+
+// Some member calls are blacklisted because they're so rarely useful.
+static bool isBlacklistedMember(const NamedDecl &D) {
+  // Destructor completion is rarely useful, and works inconsistently.
+  // (s.^ completes ~string, but s.~st^ is an error).
+  if (D.getKind() == Decl::CXXDestructor)
+    return true;
+  // Injected name may be useful for A::foo(), but who writes A::A::foo()?
+  if (auto *R = dyn_cast_or_null<RecordDecl>(&D))
+    if (R->isInjectedClassName())
+      return true;
+  // Explicit calls to operators are also rare.
+  auto NameKind = D.getDeclName().getNameKind();
+  if (NameKind == DeclarationName::CXXOperatorName ||
+      NameKind == DeclarationName::CXXLiteralOperatorName ||
+      NameKind == DeclarationName::CXXConversionFunctionName)
+    return true;
+  return false;
 }
 
 // The CompletionRecorder captures Sema code-complete output, including context.
@@ -431,12 +467,17 @@ struct CompletionRecorder : public CodeCompleteConsumer {
   void ProcessCodeCompleteResults(class Sema &S, CodeCompletionContext Context,
                                   CodeCompletionResult *InResults,
                                   unsigned NumResults) override final {
+    // If a callback is called without any sema result and the context does not
+    // support index-based completion, we simply skip it to give way to
+    // potential future callbacks with results.
+    if (NumResults == 0 && !contextAllowsIndex(Context.getKind()))
+      return;
     if (CCSema) {
       log(llvm::formatv(
           "Multiple code complete callbacks (parser backtracked?). "
           "Dropping results from context {0}, keeping results from {1}.",
-          getCompletionKindString(this->CCContext.getKind()),
-          getCompletionKindString(Context.getKind())));
+          getCompletionKindString(Context.getKind()),
+          getCompletionKindString(this->CCContext.getKind())));
       return;
     }
     // Record the completion context.
@@ -454,9 +495,9 @@ struct CompletionRecorder : public CodeCompleteConsumer {
           (Result.Availability == CXAvailability_NotAvailable ||
            Result.Availability == CXAvailability_NotAccessible))
         continue;
-      // Destructor completion is rarely useful, and works inconsistently.
-      // (s.^ completes ~string, but s.~st^ is an error).
-      if (dyn_cast_or_null<CXXDestructorDecl>(Result.Declaration))
+      if (Result.Declaration &&
+          !Context.getBaseType().isNull() // is this a member-access context?
+          && isBlacklistedMember(*Result.Declaration))
         continue;
       // We choose to never append '::' to completion results in clangd.
       Result.StartsNestedNameSpecifier = false;
@@ -537,9 +578,11 @@ public:
       const auto *CCS = Candidate.CreateSignatureString(
           CurrentArg, S, *Allocator, CCTUInfo, true);
       assert(CCS && "Expected the CodeCompletionString to be non-null");
+      // FIXME: for headers, we need to get a comment from the index.
       SigHelp.signatures.push_back(ProcessOverloadCandidate(
           Candidate, *CCS,
-          getParameterDocComment(S.getASTContext(), Candidate, CurrentArg)));
+          getParameterDocComment(S.getASTContext(), Candidate, CurrentArg,
+                                 /*CommentsFromHeaders=*/false)));
     }
   }
 
@@ -645,39 +688,16 @@ bool semaCodeComplete(std::unique_ptr<CodeCompleteConsumer> Consumer,
                                           &DummyDiagsConsumer, false),
       Input.VFS);
   if (!CI) {
-    log("Couldn't create CompilerInvocation");;
+    log("Couldn't create CompilerInvocation");
     return false;
   }
-  CI->getFrontendOpts().DisableFree = false;
-  CI->getLangOpts()->CommentOpts.ParseAllComments = true;
-
-  std::unique_ptr<llvm::MemoryBuffer> ContentsBuffer =
-      llvm::MemoryBuffer::getMemBufferCopy(Input.Contents, Input.FileName);
-
-  // We reuse the preamble whether it's valid or not. This is a
-  // correctness/performance tradeoff: building without a preamble is slow, and
-  // completion is latency-sensitive.
-  if (Input.Preamble) {
-    auto Bounds =
-        ComputePreambleBounds(*CI->getLangOpts(), ContentsBuffer.get(), 0);
-    // FIXME(ibiryukov): Remove this call to CanReuse() after we'll fix
-    // clients relying on getting stats for preamble files during code
-    // completion.
-    // Note that results of CanReuse() are ignored, see the comment above.
-    Input.Preamble->CanReuse(*CI, ContentsBuffer.get(), Bounds,
-                             Input.VFS.get());
-  }
-  // The diagnostic options must be set before creating a CompilerInstance.
-  CI->getDiagnosticOpts().IgnoreWarnings = true;
-  auto Clang = prepareCompilerInstance(
-      std::move(CI), Input.Preamble, std::move(ContentsBuffer),
-      std::move(Input.PCHs), std::move(Input.VFS), DummyDiagsConsumer);
-
-  // Disable typo correction in Sema.
-  Clang->getLangOpts().SpellChecking = false;
-
-  auto &FrontendOpts = Clang->getFrontendOpts();
+  auto &FrontendOpts = CI->getFrontendOpts();
+  FrontendOpts.DisableFree = false;
   FrontendOpts.SkipFunctionBodies = true;
+  CI->getLangOpts()->CommentOpts.ParseAllComments = true;
+  // Disable typo correction in Sema.
+  CI->getLangOpts()->SpellChecking = false;
+  // Setup code completion.
   FrontendOpts.CodeCompleteOpts = Options;
   FrontendOpts.CodeCompletionAt.FileName = Input.FileName;
   auto Offset = positionToOffset(Input.Contents, Input.Pos);
@@ -690,6 +710,18 @@ bool semaCodeComplete(std::unique_ptr<CodeCompleteConsumer> Consumer,
            FrontendOpts.CodeCompletionAt.Column) =
       offsetToClangLineColumn(Input.Contents, *Offset);
 
+  std::unique_ptr<llvm::MemoryBuffer> ContentsBuffer =
+      llvm::MemoryBuffer::getMemBufferCopy(Input.Contents, Input.FileName);
+  // The diagnostic options must be set before creating a CompilerInstance.
+  CI->getDiagnosticOpts().IgnoreWarnings = true;
+  // We reuse the preamble whether it's valid or not. This is a
+  // correctness/performance tradeoff: building without a preamble is slow, and
+  // completion is latency-sensitive.
+  // NOTE: we must call BeginSourceFile after prepareCompilerInstance. Otherwise
+  // the remapped buffers do not get freed.
+  auto Clang = prepareCompilerInstance(
+      std::move(CI), Input.Preamble, std::move(ContentsBuffer),
+      std::move(Input.PCHs), std::move(Input.VFS), DummyDiagsConsumer);
   Clang->setCodeCompletionConsumer(Consumer.release());
 
   SyntaxOnlyAction Action;
@@ -727,50 +759,6 @@ bool semaCodeComplete(std::unique_ptr<CodeCompleteConsumer> Consumer,
   Action.EndSourceFile();
 
   return true;
-}
-
-// Should we perform index-based completion in a context of the specified kind?
-// FIXME: consider allowing completion, but restricting the result types.
-bool contextAllowsIndex(enum CodeCompletionContext::Kind K) {
-  switch (K) {
-  case CodeCompletionContext::CCC_TopLevel:
-  case CodeCompletionContext::CCC_ObjCInterface:
-  case CodeCompletionContext::CCC_ObjCImplementation:
-  case CodeCompletionContext::CCC_ObjCIvarList:
-  case CodeCompletionContext::CCC_ClassStructUnion:
-  case CodeCompletionContext::CCC_Statement:
-  case CodeCompletionContext::CCC_Expression:
-  case CodeCompletionContext::CCC_ObjCMessageReceiver:
-  case CodeCompletionContext::CCC_EnumTag:
-  case CodeCompletionContext::CCC_UnionTag:
-  case CodeCompletionContext::CCC_ClassOrStructTag:
-  case CodeCompletionContext::CCC_ObjCProtocolName:
-  case CodeCompletionContext::CCC_Namespace:
-  case CodeCompletionContext::CCC_Type:
-  case CodeCompletionContext::CCC_Name: // FIXME: why does ns::^ give this?
-  case CodeCompletionContext::CCC_PotentiallyQualifiedName:
-  case CodeCompletionContext::CCC_ParenthesizedExpression:
-  case CodeCompletionContext::CCC_ObjCInterfaceName:
-  case CodeCompletionContext::CCC_ObjCCategoryName:
-    return true;
-  case CodeCompletionContext::CCC_Other: // Be conservative.
-  case CodeCompletionContext::CCC_OtherWithMacros:
-  case CodeCompletionContext::CCC_DotMemberAccess:
-  case CodeCompletionContext::CCC_ArrowMemberAccess:
-  case CodeCompletionContext::CCC_ObjCPropertyAccess:
-  case CodeCompletionContext::CCC_MacroName:
-  case CodeCompletionContext::CCC_MacroNameUse:
-  case CodeCompletionContext::CCC_PreprocessorExpression:
-  case CodeCompletionContext::CCC_PreprocessorDirective:
-  case CodeCompletionContext::CCC_NaturalLanguage:
-  case CodeCompletionContext::CCC_SelectorName:
-  case CodeCompletionContext::CCC_TypeQualifiers:
-  case CodeCompletionContext::CCC_ObjCInstanceMessage:
-  case CodeCompletionContext::CCC_ObjCClassMessage:
-  case CodeCompletionContext::CCC_Recovery:
-    return false;
-  }
-  llvm_unreachable("unknown code completion context");
 }
 
 // Should we allow index completions in the specified context?
@@ -937,8 +925,10 @@ private:
     if (Opts.Limit)
       Req.MaxCandidateCount = Opts.Limit;
     Req.Query = Filter->pattern();
+    Req.RestrictForCodeCompletion = true;
     Req.Scopes = getQueryScopes(Recorder->CCContext,
                                 Recorder->CCSema->getSourceManager());
+    Req.ProximityPaths.push_back(FileName);
     log(llvm::formatv("Code complete: fuzzyFind(\"{0}\", scopes=[{1}])",
                       Req.Query,
                       llvm::join(Req.Scopes.begin(), Req.Scopes.end(), ",")));
@@ -982,6 +972,15 @@ private:
     return std::move(Top).items();
   }
 
+  Optional<float> fuzzyScore(const CompletionCandidate &C) {
+    // Macros can be very spammy, so we only support prefix completion.
+    // We won't end up with underfull index results, as macros are sema-only.
+    if (C.SemaResult && C.SemaResult->Kind == CodeCompletionResult::RK_Macro &&
+        !C.Name.startswith_lower(Filter->pattern()))
+      return None;
+    return Filter->match(C.Name);
+  }
+
   // Scores a candidate and adds it to the TopN structure.
   void addCandidate(TopN<ScoredCandidate, ScoredCandidateGreater> &Candidates,
                     const CodeCompletionResult *SemaResult,
@@ -993,12 +992,15 @@ private:
 
     SymbolQualitySignals Quality;
     SymbolRelevanceSignals Relevance;
-    if (auto FuzzyScore = Filter->match(C.Name))
+    Relevance.Query = SymbolRelevanceSignals::CodeComplete;
+    if (auto FuzzyScore = fuzzyScore(C))
       Relevance.NameMatch = *FuzzyScore;
     else
       return;
-    if (IndexResult)
+    if (IndexResult) {
       Quality.merge(*IndexResult);
+      Relevance.merge(*IndexResult);
+    }
     if (SemaResult) {
       Quality.merge(*SemaResult);
       Relevance.merge(*SemaResult);
@@ -1014,11 +1016,11 @@ private:
     Scores.symbolScore =
         Scores.filterScore ? Scores.finalScore / Scores.filterScore : QualScore;
 
-    DEBUG(llvm::dbgs() << "CodeComplete: " << C.Name
-                       << (IndexResult ? " (index)" : "")
-                       << (SemaResult ? " (sema)" : "") << " = "
-                       << Scores.finalScore << "\n"
-                       << Quality << Relevance << "\n");
+    LLVM_DEBUG(llvm::dbgs()
+               << "CodeComplete: " << C.Name << (IndexResult ? " (index)" : "")
+               << (SemaResult ? " (sema)" : "") << " = " << Scores.finalScore
+               << "\n"
+               << Quality << Relevance << "\n");
 
     NSema += bool(SemaResult);
     NIndex += bool(IndexResult);
@@ -1035,10 +1037,12 @@ private:
       SemaCCS = Recorder->codeCompletionString(*SR);
       if (Opts.IncludeComments) {
         assert(Recorder->CCSema);
-        DocComment = getDocComment(Recorder->CCSema->getASTContext(), *SR);
+        DocComment = getDocComment(Recorder->CCSema->getASTContext(), *SR,
+                                   /*CommentsFromHeader=*/false);
       }
     }
-    return Candidate.build(FileName, Scores, Opts, SemaCCS, Includes.get(), DocComment);
+    return Candidate.build(FileName, Scores, Opts, SemaCCS, Includes.get(),
+                           DocComment);
   }
 };
 
@@ -1073,6 +1077,17 @@ SignatureHelp signatureHelp(PathRef FileName,
                    {FileName, Command, Preamble, PreambleInclusions, Contents,
                     Pos, std::move(VFS), std::move(PCHs)});
   return Result;
+}
+
+bool isIndexedForCodeCompletion(const NamedDecl &ND, ASTContext &ASTCtx) {
+  using namespace clang::ast_matchers;
+  auto InTopLevelScope = hasDeclContext(
+      anyOf(namespaceDecl(), translationUnitDecl(), linkageSpecDecl()));
+  return !match(decl(anyOf(InTopLevelScope,
+                           hasDeclContext(
+                               enumDecl(InTopLevelScope, unless(isScoped()))))),
+                ND, ASTCtx)
+              .empty();
 }
 
 } // namespace clangd

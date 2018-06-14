@@ -655,6 +655,30 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
   case BuiltinType::Half:
   case BuiltinType::Float16:
   case BuiltinType::Float128:
+  case BuiltinType::ShortAccum:
+  case BuiltinType::Accum:
+  case BuiltinType::LongAccum:
+  case BuiltinType::UShortAccum:
+  case BuiltinType::UAccum:
+  case BuiltinType::ULongAccum:
+  case BuiltinType::ShortFract:
+  case BuiltinType::Fract:
+  case BuiltinType::LongFract:
+  case BuiltinType::UShortFract:
+  case BuiltinType::UFract:
+  case BuiltinType::ULongFract:
+  case BuiltinType::SatShortAccum:
+  case BuiltinType::SatAccum:
+  case BuiltinType::SatLongAccum:
+  case BuiltinType::SatUShortAccum:
+  case BuiltinType::SatUAccum:
+  case BuiltinType::SatULongAccum:
+  case BuiltinType::SatShortFract:
+  case BuiltinType::SatFract:
+  case BuiltinType::SatLongFract:
+  case BuiltinType::SatUShortFract:
+  case BuiltinType::SatUFract:
+  case BuiltinType::SatULongFract:
     // Various types which are non-trivial to correct.
     return false;
 

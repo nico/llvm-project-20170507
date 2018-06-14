@@ -304,6 +304,9 @@ public:
                         SMLoc Loc) override;
   void EmitWinEHHandlerData(SMLoc Loc) override;
 
+  void emitCGProfileEntry(const MCSymbolRefExpr *From,
+                          const MCSymbolRefExpr *To, uint64_t Count) override;
+
   void EmitInstruction(const MCInst &Inst, const MCSubtargetInfo &STI,
                        bool PrintSchedInfo) override;
 
@@ -312,7 +315,8 @@ public:
   void EmitBundleUnlock() override;
 
   bool EmitRelocDirective(const MCExpr &Offset, StringRef Name,
-                          const MCExpr *Expr, SMLoc Loc) override;
+                          const MCExpr *Expr, SMLoc Loc,
+                          const MCSubtargetInfo &STI) override;
 
   /// If this file is backed by an assembly streamer, this dumps the specified
   /// string in the output .s file. This capability is indicated by the
@@ -545,12 +549,19 @@ void MCAsmStreamer::EmitThumbFunc(MCSymbol *Func) {
 }
 
 void MCAsmStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
-  OS << ".set ";
-  Symbol->print(OS, MAI);
-  OS << ", ";
-  Value->print(OS, MAI);
+  // Do not emit a .set on inlined target assignments.
+  bool EmitSet = true;
+  if (auto *E = dyn_cast<MCTargetExpr>(Value))
+    if (E->inlineAssignedExpr())
+      EmitSet = false;
+  if (EmitSet) {
+    OS << ".set ";
+    Symbol->print(OS, MAI);
+    OS << ", ";
+    Value->print(OS, MAI);
 
-  EmitEOL();
+    EmitEOL();
+  }
 
   MCStreamer::EmitAssignment(Symbol, Value);
 }
@@ -1160,6 +1171,9 @@ void MCAsmStreamer::emitDwarfFile0Directive(StringRef Directory,
   // .file 0 is new for DWARF v5.
   if (getContext().getDwarfVersion() < 5)
     return;
+  // Inform MCDwarf about the root file.
+  getContext().setMCLineTableRootFile(CUID, Directory, Filename, Checksum,
+                                      Source);
 
   SmallString<128> Str;
   raw_svector_ostream OS1(Str);
@@ -1650,6 +1664,17 @@ void MCAsmStreamer::EmitWinCFIEndProlog(SMLoc Loc) {
   EmitEOL();
 }
 
+void MCAsmStreamer::emitCGProfileEntry(const MCSymbolRefExpr *From,
+                                       const MCSymbolRefExpr *To,
+                                       uint64_t Count) {
+  OS << "\t.cg_profile ";
+  From->getSymbol().print(OS, MAI);
+  OS << ", ";
+  To->getSymbol().print(OS, MAI);
+  OS << ", " << Count;
+  EmitEOL();
+}
+
 void MCAsmStreamer::AddEncodingComment(const MCInst &Inst,
                                        const MCSubtargetInfo &STI,
                                        bool PrintSchedInfo) {
@@ -1799,7 +1824,8 @@ void MCAsmStreamer::EmitBundleUnlock() {
 }
 
 bool MCAsmStreamer::EmitRelocDirective(const MCExpr &Offset, StringRef Name,
-                                       const MCExpr *Expr, SMLoc) {
+                                       const MCExpr *Expr, SMLoc,
+                                       const MCSubtargetInfo &STI) {
   OS << "\t.reloc ";
   Offset.print(OS, MAI);
   OS << ", " << Name;

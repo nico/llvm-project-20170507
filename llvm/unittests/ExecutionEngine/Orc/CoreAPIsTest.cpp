@@ -301,9 +301,16 @@ TEST(CoreAPIsTest, TestCircularDependenceInOneVSO) {
     EXPECT_TRUE(Unresolved.empty()) << "Failed to resolve \"Baz\"";
   }
 
+  // Add a circular dependency: Foo -> Bar, Bar -> Baz, Baz -> Foo.
   FooR->addDependencies({{&V, SymbolNameSet({Bar})}});
   BarR->addDependencies({{&V, SymbolNameSet({Baz})}});
   BazR->addDependencies({{&V, SymbolNameSet({Foo})}});
+
+  // Add self-dependencies for good measure. This tests that the implementation
+  // of addDependencies filters these out.
+  FooR->addDependencies({{&V, SymbolNameSet({Foo})}});
+  BarR->addDependencies({{&V, SymbolNameSet({Bar})}});
+  BazR->addDependencies({{&V, SymbolNameSet({Baz})}});
 
   EXPECT_FALSE(FooResolved) << "\"Foo\" should not be resolved yet";
   EXPECT_FALSE(BarResolved) << "\"Bar\" should not be resolved yet";
@@ -508,6 +515,33 @@ TEST(CoreAPIsTest, DefineMaterializingSymbol) {
   EXPECT_TRUE(BarResolved) << "Bar should have been resolved";
 }
 
+TEST(CoreAPIsTest, FallbackDefinitionGeneratorTest) {
+  constexpr JITTargetAddress FakeFooAddr = 0xdeadbeef;
+  constexpr JITTargetAddress FakeBarAddr = 0xcafef00d;
+
+  ExecutionSession ES;
+  auto Foo = ES.getSymbolStringPool().intern("foo");
+  auto Bar = ES.getSymbolStringPool().intern("bar");
+
+  auto FooSym = JITEvaluatedSymbol(FakeFooAddr, JITSymbolFlags::Exported);
+  auto BarSym = JITEvaluatedSymbol(FakeBarAddr, JITSymbolFlags::Exported);
+
+  auto &V = ES.createVSO("V");
+
+  cantFail(V.define(absoluteSymbols({{Foo, FooSym}})));
+
+  V.setFallbackDefinitionGenerator([&](VSO &W, const SymbolNameSet &Names) {
+    cantFail(W.define(absoluteSymbols({{Bar, BarSym}})));
+    return SymbolNameSet({Bar});
+  });
+
+  auto Result = cantFail(lookup({&V}, {Foo, Bar}));
+
+  EXPECT_EQ(Result.count(Bar), 1U) << "Expected to find fallback def for 'bar'";
+  EXPECT_EQ(Result[Bar].getAddress(), FakeBarAddr)
+      << "Expected address of fallback def for 'bar' to be " << FakeBarAddr;
+}
+
 TEST(CoreAPIsTest, FailResolution) {
   ExecutionSession ES;
   auto Foo = ES.getSymbolStringPool().intern("foo");
@@ -641,7 +675,7 @@ TEST(CoreAPIsTest, TestLookupWithUnthreadedMaterialization) {
 
   cantFail(V.define(MU));
 
-  auto FooLookupResult = cantFail(lookup({&V}, Foo, nullptr));
+  auto FooLookupResult = cantFail(lookup({&V}, Foo));
 
   EXPECT_EQ(FooLookupResult.getAddress(), FooSym.getAddress())
       << "lookup returned an incorrect address";
@@ -668,7 +702,7 @@ TEST(CoreAPIsTest, TestLookupWithThreadedMaterialization) {
   auto &V = ES.createVSO("V");
   cantFail(V.define(absoluteSymbols({{Foo, FooSym}})));
 
-  auto FooLookupResult = cantFail(lookup({&V}, Foo, nullptr));
+  auto FooLookupResult = cantFail(lookup({&V}, Foo));
 
   EXPECT_EQ(FooLookupResult.getAddress(), FooSym.getAddress())
       << "lookup returned an incorrect address";
@@ -676,6 +710,62 @@ TEST(CoreAPIsTest, TestLookupWithThreadedMaterialization) {
       << "lookup returned incorrect flags";
   MaterializationThread.join();
 #endif
+}
+
+TEST(CoreAPIsTest, TestGetRequestedSymbolsAndDelegate) {
+  ExecutionSession ES;
+  auto Foo = ES.getSymbolStringPool().intern("foo");
+  auto Bar = ES.getSymbolStringPool().intern("bar");
+
+  JITEvaluatedSymbol FooSym(0xdeadbeef, JITSymbolFlags::Exported);
+  JITEvaluatedSymbol BarSym(0xcafef00d, JITSymbolFlags::Exported);
+
+  SymbolNameSet Names({Foo, Bar});
+
+  bool FooMaterialized = false;
+  bool BarMaterialized = false;
+
+  auto MU = llvm::make_unique<SimpleMaterializationUnit>(
+      SymbolFlagsMap({{Foo, FooSym.getFlags()}, {Bar, BarSym.getFlags()}}),
+      [&](MaterializationResponsibility R) {
+        auto Requested = R.getRequestedSymbols();
+        EXPECT_EQ(Requested.size(), 1U) << "Expected one symbol requested";
+        EXPECT_EQ(*Requested.begin(), Foo) << "Expected \"Foo\" requested";
+
+        auto NewMU = llvm::make_unique<SimpleMaterializationUnit>(
+            SymbolFlagsMap({{Bar, BarSym.getFlags()}}),
+            [&](MaterializationResponsibility R2) {
+              R2.resolve(SymbolMap({{Bar, BarSym}}));
+              R2.finalize();
+              BarMaterialized = true;
+            });
+
+        R.delegate(std::move(NewMU));
+
+        R.resolve(SymbolMap({{Foo, FooSym}}));
+        R.finalize();
+
+        FooMaterialized = true;
+      });
+
+  auto &V = ES.createVSO("V");
+
+  cantFail(V.define(MU));
+
+  EXPECT_FALSE(FooMaterialized) << "Foo should not be materialized yet";
+  EXPECT_FALSE(BarMaterialized) << "Bar should not be materialized yet";
+
+  auto FooSymResult = cantFail(lookup({&V}, Foo));
+  EXPECT_EQ(FooSymResult.getAddress(), FooSym.getAddress())
+      << "Address mismatch for Foo";
+
+  EXPECT_TRUE(FooMaterialized) << "Foo should be materialized now";
+  EXPECT_FALSE(BarMaterialized) << "Bar still should not be materialized";
+
+  auto BarSymResult = cantFail(lookup({&V}, Bar));
+  EXPECT_EQ(BarSymResult.getAddress(), BarSym.getAddress())
+      << "Address mismatch for Bar";
+  EXPECT_TRUE(BarMaterialized) << "Bar should be materialized now";
 }
 
 } // namespace

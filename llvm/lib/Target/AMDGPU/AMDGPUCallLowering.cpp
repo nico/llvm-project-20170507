@@ -20,6 +20,7 @@
 #include "SIISelLowering.h"
 #include "SIMachineFunctionInfo.h"
 #include "SIRegisterInfo.h"
+#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -220,7 +221,7 @@ bool AMDGPUCallLowering::lowerFormalArguments(MachineIRBuilder &MIRBuilder,
     CCValAssign &VA = ArgLocs[i];
     lowerParameter(MIRBuilder, Arg->getType(),
                    VA.getLocMemOffset() +
-                   Subtarget->getExplicitKernelArgOffset(MF), VRegs[i]);
+                   Subtarget->getExplicitKernelArgOffset(F), VRegs[i]);
   }
 
   return true;

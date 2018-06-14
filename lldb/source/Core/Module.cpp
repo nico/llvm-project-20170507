@@ -53,7 +53,6 @@
 
 #include "Plugins/Language/CPlusPlus/CPlusPlusLanguage.h"
 #include "Plugins/Language/ObjC/ObjCLanguage.h"
-#include "Plugins/ObjectFile/JIT/ObjectFileJIT.h"
 
 #include "llvm/ADT/STLExtras.h"    // for make_unique
 #include "llvm/Support/Compiler.h" // for LLVM_PRETT...
@@ -600,21 +599,21 @@ uint32_t Module::ResolveSymbolContextsForFileSpec(const FileSpec &file_spec,
 
 size_t Module::FindGlobalVariables(const ConstString &name,
                                    const CompilerDeclContext *parent_decl_ctx,
-                                   bool append, size_t max_matches,
-                                   VariableList &variables) {
-  SymbolVendor *symbols = GetSymbolVendor();
-  if (symbols)
-    return symbols->FindGlobalVariables(name, parent_decl_ctx, append,
-                                        max_matches, variables);
-  return 0;
-}
-
-size_t Module::FindGlobalVariables(const RegularExpression &regex, bool append,
                                    size_t max_matches,
                                    VariableList &variables) {
   SymbolVendor *symbols = GetSymbolVendor();
   if (symbols)
-    return symbols->FindGlobalVariables(regex, append, max_matches, variables);
+    return symbols->FindGlobalVariables(name, parent_decl_ctx, max_matches,
+                                        variables);
+  return 0;
+}
+
+size_t Module::FindGlobalVariables(const RegularExpression &regex,
+                                   size_t max_matches,
+                                   VariableList &variables) {
+  SymbolVendor *symbols = GetSymbolVendor();
+  if (symbols)
+    return symbols->FindGlobalVariables(regex, max_matches, variables);
   return 0;
 }
 
@@ -1031,6 +1030,7 @@ size_t Module::FindTypes(
         std::string name_str(name.AsCString(""));
         typesmap.RemoveMismatchedTypes(type_scope, name_str, type_class,
                                        exact_match);
+        num_matches = typesmap.GetSize();
       }
     }
   }
@@ -1650,26 +1650,6 @@ uint32_t Module::GetVersion(uint32_t *versions, uint32_t num_versions) {
       versions[i] = LLDB_INVALID_MODULE_VERSION;
   }
   return 0;
-}
-
-ModuleSP
-Module::CreateJITModule(const lldb::ObjectFileJITDelegateSP &delegate_sp) {
-  if (delegate_sp) {
-    // Must create a module and place it into a shared pointer before we can
-    // create an object file since it has a std::weak_ptr back to the module,
-    // so we need to control the creation carefully in this static function
-    ModuleSP module_sp(new Module());
-    module_sp->m_objfile_sp =
-        std::make_shared<ObjectFileJIT>(module_sp, delegate_sp);
-    if (module_sp->m_objfile_sp) {
-      // Once we get the object file, update our module with the object file's
-      // architecture since it might differ in vendor/os if some parts were
-      // unknown.
-      module_sp->m_objfile_sp->GetArchitecture(module_sp->m_arch);
-    }
-    return module_sp;
-  }
-  return ModuleSP();
 }
 
 bool Module::GetIsDynamicLinkEditor() {

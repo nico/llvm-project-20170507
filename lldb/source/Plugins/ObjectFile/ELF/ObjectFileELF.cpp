@@ -1791,6 +1791,7 @@ void ObjectFileELF::CreateSections(SectionList &unified_section_list) {
       static ConstString g_sect_name_dwarf_debug_loc(".debug_loc");
       static ConstString g_sect_name_dwarf_debug_macinfo(".debug_macinfo");
       static ConstString g_sect_name_dwarf_debug_macro(".debug_macro");
+      static ConstString g_sect_name_dwarf_debug_names(".debug_names");
       static ConstString g_sect_name_dwarf_debug_pubnames(".debug_pubnames");
       static ConstString g_sect_name_dwarf_debug_pubtypes(".debug_pubtypes");
       static ConstString g_sect_name_dwarf_debug_ranges(".debug_ranges");
@@ -1866,6 +1867,8 @@ void ObjectFileELF::CreateSections(SectionList &unified_section_list) {
         sect_type = eSectionTypeDWARFDebugMacInfo;
       else if (name == g_sect_name_dwarf_debug_macro)
         sect_type = eSectionTypeDWARFDebugMacro;
+      else if (name == g_sect_name_dwarf_debug_names)
+        sect_type = eSectionTypeDWARFDebugNames;
       else if (name == g_sect_name_dwarf_debug_pubnames)
         sect_type = eSectionTypeDWARFDebugPubNames;
       else if (name == g_sect_name_dwarf_debug_pubtypes)
@@ -2044,8 +2047,8 @@ unsigned ObjectFileELF::ParseSymbols(Symtab *symtab, user_id_t start_id,
   // custom extension and file name makes it highly unlikely that this will
   // collide with anything else.
   ConstString file_extension = m_file.GetFileNameExtension();
-  bool skip_oatdata_oatexec = file_extension == ConstString("oat") ||
-                              file_extension == ConstString("odex");
+  bool skip_oatdata_oatexec = file_extension == ConstString(".oat") ||
+                              file_extension == ConstString(".odex");
 
   ArchSpec arch;
   GetArchitecture(arch);

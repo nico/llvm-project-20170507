@@ -12,7 +12,6 @@
 
 #include "ClangdUnit.h"
 #include "CodeComplete.h"
-#include "CompileArgsCache.h"
 #include "Function.h"
 #include "GlobalCompilationDatabase.h"
 #include "Protocol.h"
@@ -70,6 +69,9 @@ public:
     /// If 0, all requests are processed on the calling thread.
     unsigned AsyncThreadsCount = getDefaultAsyncThreadsCount();
 
+    /// AST caching policy. The default is to keep up to 3 ASTs in memory.
+    ASTRetentionPolicy RetentionPolicy;
+
     /// Cached preambles are potentially large. If false, store them on disk.
     bool StorePreamblesInMemory = true;
 
@@ -119,8 +121,7 @@ public:
   /// When \p SkipCache is true, compile commands will always be requested from
   /// compilation database even if they were cached in previous invocations.
   void addDocument(PathRef File, StringRef Contents,
-                   WantDiagnostics WD = WantDiagnostics::Auto,
-                   bool SkipCache = false);
+                   WantDiagnostics WD = WantDiagnostics::Auto);
 
   /// Remove \p File from list of tracked files, schedule a request to free
   /// resources associated with it.
@@ -155,7 +156,8 @@ public:
                               Callback<std::vector<DocumentHighlight>> CB);
 
   /// Get code hover for a given position.
-  void findHover(PathRef File, Position Pos, Callback<Hover> CB);
+  void findHover(PathRef File, Position Pos,
+                 Callback<llvm::Optional<Hover>> CB);
 
   /// Retrieve the top symbols from the workspace matching a query.
   void workspaceSymbols(StringRef Query, int Limit,
@@ -212,13 +214,16 @@ private:
   void consumeDiagnostics(PathRef File, DocVersion Version,
                           std::vector<Diag> Diags);
 
-  CompileArgsCache CompileArgs;
+  tooling::CompileCommand getCompileCommand(PathRef File);
+
+  GlobalCompilationDatabase &CDB;
   DiagnosticsConsumer &DiagConsumer;
   FileSystemProvider &FSProvider;
 
   /// Used to synchronize diagnostic responses for added and removed files.
   llvm::StringMap<DocVersion> InternalVersion;
 
+  Path ResourceDir;
   // The index used to look up symbols. This could be:
   //   - null (all index functionality is optional)
   //   - the dynamic index owned by ClangdServer (FileIdx)

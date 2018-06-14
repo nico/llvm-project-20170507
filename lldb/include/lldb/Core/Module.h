@@ -12,6 +12,7 @@
 
 #include "lldb/Core/Address.h"    // for Address
 #include "lldb/Core/ModuleSpec.h" // for ModuleSpec
+#include "lldb/Symbol/ObjectFile.h" // for ObjectFile
 #include "lldb/Symbol/SymbolContextScope.h"
 #include "lldb/Symbol/TypeSystem.h"
 #include "lldb/Target/PathMappingList.h"
@@ -155,8 +156,23 @@ public:
 
   Module(const ModuleSpec &module_spec);
 
-  static lldb::ModuleSP
-  CreateJITModule(const lldb::ObjectFileJITDelegateSP &delegate_sp);
+  template <typename ObjFilePlugin, typename... Args>
+  static lldb::ModuleSP CreateModuleFromObjectFile(Args &&... args) {
+    // Must create a module and place it into a shared pointer before we can
+    // create an object file since it has a std::weak_ptr back to the module,
+    // so we need to control the creation carefully in this static function
+    lldb::ModuleSP module_sp(new Module());
+    module_sp->m_objfile_sp =
+        std::make_shared<ObjFilePlugin>(module_sp, std::forward<Args>(args)...);
+
+    // Once we get the object file, update our module with the object file's
+    // architecture since it might differ in vendor/os if some parts were
+    // unknown.
+    if (!module_sp->m_objfile_sp->GetArchitecture(module_sp->m_arch))
+      return nullptr;
+
+    return module_sp;
+  }
 
   //------------------------------------------------------------------
   /// Destructor.
@@ -431,26 +447,19 @@ public:
   /// @param[in] parent_decl_ctx
   ///     If valid, a decl context that results must exist within
   ///
-  /// @param[in] append
-  ///     If \b true, any matches will be appended to \a
-  ///     variable_list, else matches replace the contents of
-  ///     \a variable_list.
-  ///
   /// @param[in] max_matches
   ///     Allow the number of matches to be limited to \a
   ///     max_matches. Specify UINT32_MAX to get all possible matches.
   ///
   /// @param[in] variable_list
-  ///     A list of variables that gets the matches appended to (if
-  ///     \a append it \b true), or replace (if \a append is \b false).
+  ///     A list of variables that gets the matches appended to.
   ///
   /// @return
   ///     The number of matches added to \a variable_list.
   //------------------------------------------------------------------
   size_t FindGlobalVariables(const ConstString &name,
                              const CompilerDeclContext *parent_decl_ctx,
-                             bool append, size_t max_matches,
-                             VariableList &variable_list);
+                             size_t max_matches, VariableList &variable_list);
 
   //------------------------------------------------------------------
   /// Find global and static variables by regular expression.
@@ -458,24 +467,18 @@ public:
   /// @param[in] regex
   ///     A regular expression to use when matching the name.
   ///
-  /// @param[in] append
-  ///     If \b true, any matches will be appended to \a
-  ///     variable_list, else matches replace the contents of
-  ///     \a variable_list.
-  ///
   /// @param[in] max_matches
   ///     Allow the number of matches to be limited to \a
   ///     max_matches. Specify UINT32_MAX to get all possible matches.
   ///
   /// @param[in] variable_list
-  ///     A list of variables that gets the matches appended to (if
-  ///     \a append it \b true), or replace (if \a append is \b false).
+  ///     A list of variables that gets the matches appended to.
   ///
   /// @return
   ///     The number of matches added to \a variable_list.
   //------------------------------------------------------------------
-  size_t FindGlobalVariables(const RegularExpression &regex, bool append,
-                             size_t max_matches, VariableList &variable_list);
+  size_t FindGlobalVariables(const RegularExpression &regex, size_t max_matches,
+                             VariableList &variable_list);
 
   //------------------------------------------------------------------
   /// Find types by name.

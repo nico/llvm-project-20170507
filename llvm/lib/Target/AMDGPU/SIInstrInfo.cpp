@@ -19,6 +19,7 @@
 #include "SIDefines.h"
 #include "SIMachineFunctionInfo.h"
 #include "SIRegisterInfo.h"
+#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "Utils/AMDGPUBaseInfo.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -1263,6 +1264,22 @@ bool SIInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
     // This only gets its own opcode so that SIFixWWMLiveness can tell when WWM
     // is exited.
     MI.setDesc(get(AMDGPU::S_MOV_B64));
+    break;
+  }
+  case TargetOpcode::BUNDLE: {
+    if (!MI.mayLoad())
+      return false;
+
+    // If it is a load it must be a memory clause
+    for (MachineBasicBlock::instr_iterator I = MI.getIterator();
+         I->isBundledWithSucc(); ++I) {
+      I->unbundleFromSucc();
+      for (MachineOperand &MO : I->operands())
+        if (MO.isReg())
+          MO.setIsInternalRead(false);
+    }
+
+    MI.eraseFromParent();
     break;
   }
   }
@@ -4917,4 +4934,17 @@ const MCInstrDesc &SIInstrInfo::getKillTerminatorFromPseudo(unsigned Opcode) con
   default:
     llvm_unreachable("invalid opcode, expected SI_KILL_*_PSEUDO");
   }
+}
+
+bool SIInstrInfo::isBufferSMRD(const MachineInstr &MI) const {
+  if (!isSMRD(MI))
+    return false;
+
+  // Check that it is using a buffer resource.
+  int Idx = AMDGPU::getNamedOperandIdx(MI.getOpcode(), AMDGPU::OpName::sbase);
+  if (Idx == -1) // e.g. s_memtime
+    return false;
+
+  const auto RCID = MI.getDesc().OpInfo[Idx].RegClass;
+  return RCID == AMDGPU::SReg_128RegClassID;
 }

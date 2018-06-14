@@ -94,9 +94,9 @@ static unsigned getLengthToMatchingParen(const FormatToken &Tok,
       break;
     if (!End->Next->closesScope())
       continue;
-    if (End->Next->MatchingParen->isOneOf(tok::l_brace,
-                                          TT_ArrayInitializerLSquare,
-                                          tok::less)) {
+    if (End->Next->MatchingParen &&
+        End->Next->MatchingParen->isOneOf(
+            tok::l_brace, TT_ArrayInitializerLSquare, tok::less)) {
       const ParenState *State = FindParenState(End->Next->MatchingParen);
       if (State && State->BreakBeforeClosingBrace)
         break;
@@ -131,7 +131,7 @@ static bool startsNextParameter(const FormatToken &Current,
            Style.BreakConstructorInitializers !=
                FormatStyle::BCIS_BeforeComma) &&
           (Previous.isNot(TT_InheritanceComma) ||
-           !Style.BreakBeforeInheritanceComma));
+           Style.BreakInheritanceList != FormatStyle::BILS_BeforeComma));
 }
 
 static bool opensProtoMessageField(const FormatToken &LessTok,
@@ -405,7 +405,7 @@ bool ContinuationIndenter::mustBreak(const LineState &State) {
   // If the template declaration spans multiple lines, force wrap before the
   // function/class declaration
   if (Previous.ClosesTemplateDeclaration &&
-      State.Stack.back().BreakBeforeParameter)
+      State.Stack.back().BreakBeforeParameter && Current.CanBreakBefore)
     return true;
 
   if (State.Column <= NewLineColumn)
@@ -576,7 +576,11 @@ void ContinuationIndenter::addTokenOnCurrentLine(LineState &State, bool DryRun,
 
   // If "BreakBeforeInheritanceComma" mode, don't break within the inheritance
   // declaration unless there is multiple inheritance.
-  if (Style.BreakBeforeInheritanceComma && Current.is(TT_InheritanceColon))
+  if (Style.BreakInheritanceList == FormatStyle::BILS_BeforeComma &&
+      Current.is(TT_InheritanceColon))
+    State.Stack.back().NoLineBreak = true;
+  if (Style.BreakInheritanceList == FormatStyle::BILS_AfterColon &&
+      Previous.is(TT_InheritanceColon))
     State.Stack.back().NoLineBreak = true;
 
   if (Current.is(TT_SelectorName) &&
@@ -804,7 +808,8 @@ unsigned ContinuationIndenter::addTokenOnNewLine(LineState &State,
        !State.Stack.back().AvoidBinPacking) ||
       Previous.is(TT_BinaryOperator))
     State.Stack.back().BreakBeforeParameter = false;
-  if (Previous.isOneOf(TT_TemplateCloser, TT_JavaAnnotation) &&
+  if (PreviousNonComment &&
+      PreviousNonComment->isOneOf(TT_TemplateCloser, TT_JavaAnnotation) &&
       Current.NestingLevel == 0)
     State.Stack.back().BreakBeforeParameter = false;
   if (NextNonComment->is(tok::question) ||
@@ -1018,6 +1023,9 @@ unsigned ContinuationIndenter::getNewLineColumn(const LineState &State) {
   if (PreviousNonComment && PreviousNonComment->is(TT_CtorInitializerColon) &&
       Style.BreakConstructorInitializers == FormatStyle::BCIS_AfterColon)
     return State.Stack.back().Indent;
+  if (PreviousNonComment && PreviousNonComment->is(TT_InheritanceColon) &&
+      Style.BreakInheritanceList == FormatStyle::BILS_AfterColon)
+    return State.Stack.back().Indent;
   if (NextNonComment->isOneOf(TT_CtorInitializerColon, TT_InheritanceColon,
                               TT_InheritanceComma))
     return State.FirstIndent + Style.ConstructorInitializerIndentWidth;
@@ -1073,34 +1081,8 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
   if (Current.isMemberAccess())
     State.Stack.back().StartOfFunctionCall =
         !Current.NextOperator ? 0 : State.Column;
-  if (Current.is(TT_SelectorName) &&
-      !State.Stack.back().ObjCSelectorNameFound) {
+  if (Current.is(TT_SelectorName))
     State.Stack.back().ObjCSelectorNameFound = true;
-
-    // Reevaluate whether ObjC message arguments fit into one line.
-    // If a receiver spans multiple lines, e.g.:
-    //   [[object block:^{
-    //     return 42;
-    //   }] a:42 b:42];
-    // BreakBeforeParameter is calculated based on an incorrect assumption
-    // (it is checked whether the whole expression fits into one line without
-    // considering a line break inside a message receiver).
-    if (Current.Previous && Current.Previous->closesScope() &&
-        Current.Previous->MatchingParen &&
-        Current.Previous->MatchingParen->Previous) {
-      const FormatToken &CurrentScopeOpener =
-          *Current.Previous->MatchingParen->Previous;
-      if (CurrentScopeOpener.is(TT_ObjCMethodExpr) &&
-          CurrentScopeOpener.MatchingParen) {
-        int NecessarySpaceInLine =
-            getLengthToMatchingParen(CurrentScopeOpener, State.Stack) +
-            CurrentScopeOpener.TotalLength - Current.TotalLength - 1;
-        if (State.Column + Current.ColumnWidth + NecessarySpaceInLine <=
-            Style.ColumnLimit)
-          State.Stack.back().BreakBeforeParameter = false;
-      }
-    }
-  }
   if (Current.is(TT_CtorInitializerColon) &&
       Style.BreakConstructorInitializers != FormatStyle::BCIS_AfterColon) {
     // Indent 2 from the column, so:
@@ -1128,7 +1110,7 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
   }
   if (Current.is(TT_InheritanceColon))
     State.Stack.back().Indent =
-        State.FirstIndent + Style.ContinuationIndentWidth;
+        State.FirstIndent + Style.ConstructorInitializerIndentWidth;
   if (Current.isOneOf(TT_BinaryOperator, TT_ConditionalExpr) && Newline)
     State.Stack.back().NestedBlockIndent =
         State.Column + Current.ColumnWidth + 1;

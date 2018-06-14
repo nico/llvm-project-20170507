@@ -252,6 +252,7 @@ else() # if this is included from LLVM's CMake
                                         -DCMAKE_C_COMPILER_WORKS=ON
                                         -DCMAKE_ASM_COMPILER_WORKS=ON
                              PASSTHROUGH_PREFIXES COMPILER_RT
+                                                  CLANG_DEFAULT
                              USE_TOOLCHAIN
                              ${EXTRA_ARGS})
   endfunction()
@@ -283,7 +284,8 @@ else() # if this is included from LLVM's CMake
                                         -DCMAKE_ASM_COMPILER_WORKS=ON
                                         -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON
                                         ${${target}_extra_args}
-                             TOOLCHAIN_TOOLS clang lld llvm-ar llvm-ranlib
+                             PASSTHROUGH_PREFIXES CLANG_DEFAULT
+                             TOOLCHAIN_TOOLS clang lld llvm-ar llvm-ranlib llvm-nm llvm-objcopy llvm-objdump llvm-strip
                              USE_TOOLCHAIN
                              ${EXTRA_ARGS})
   endfunction()
@@ -376,6 +378,7 @@ else() # if this is included from LLVM's CMake
                                         -DCMAKE_CXX_COMPILER_WORKS=ON
                                         -DCMAKE_ASM_COMPILER_WORKS=ON
                              PASSTHROUGH_PREFIXES LLVM_ENABLE_RUNTIMES
+                                                  CLANG_DEFAULT
                                                   ${ARG_PREFIXES}
                              EXTRA_TARGETS ${extra_targets}
                                            ${test_targets}
@@ -459,7 +462,8 @@ else() # if this is included from LLVM's CMake
                                         -DLLVM_RUNTIMES_TARGET=${name}
                                         ${${name}_extra_args}
                              PASSTHROUGH_PREFIXES LLVM_ENABLE_RUNTIMES
-                             TOOLCHAIN_TOOLS clang lld llvm-ar llvm-ranlib
+                                                  CLANG_DEFAULT
+                             TOOLCHAIN_TOOLS clang lld llvm-ar llvm-ranlib llvm-nm llvm-objcopy llvm-objdump llvm-strip
                              EXTRA_TARGETS ${${name}_extra_targets}
                                            ${${name}_test_targets}
                              USE_TOOLCHAIN

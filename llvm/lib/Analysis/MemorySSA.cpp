@@ -904,8 +904,8 @@ struct RenamePassData {
 namespace llvm {
 
 /// A MemorySSAWalker that does AA walks to disambiguate accesses. It no
-/// longer does caching on its own,
-/// but the name has been retained for the moment.
+/// longer does caching on its own, but the name has been retained for the
+/// moment.
 class MemorySSA::CachingWalker final : public MemorySSAWalker {
   ClobberWalker Walker;
 
@@ -1857,12 +1857,24 @@ void MemoryAccess::print(raw_ostream &OS) const {
 void MemoryDef::print(raw_ostream &OS) const {
   MemoryAccess *UO = getDefiningAccess();
 
+  auto printID = [&OS](MemoryAccess *A) {
+    if (A && A->getID())
+      OS << A->getID();
+    else
+      OS << LiveOnEntryStr;
+  };
+
   OS << getID() << " = MemoryDef(";
-  if (UO && UO->getID())
-    OS << UO->getID();
-  else
-    OS << LiveOnEntryStr;
-  OS << ')';
+  printID(UO);
+  OS << ")";
+
+  if (isOptimized()) {
+    OS << "->";
+    printID(getOptimized());
+
+    if (Optional<AliasResult> AR = getOptimizedAccessType())
+      OS << " " << *AR;
+  }
 }
 
 void MemoryPhi::print(raw_ostream &OS) const {
@@ -1899,6 +1911,9 @@ void MemoryUse::print(raw_ostream &OS) const {
   else
     OS << LiveOnEntryStr;
   OS << ')';
+
+  if (Optional<AliasResult> AR = getOptimizedAccessType())
+    OS << " " << *AR;
 }
 
 void MemoryAccess::dump() const {

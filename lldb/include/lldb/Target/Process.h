@@ -318,7 +318,8 @@ public:
                            NameMatch process_name_match_type)
       : m_match_info(), m_name_match_type(process_name_match_type),
         m_match_all_users(false) {
-    m_match_info.GetExecutableFile().SetFile(process_name, false);
+    m_match_info.GetExecutableFile().SetFile(process_name, false,
+                                             FileSpec::Style::native);
   }
 
   ProcessInstanceInfo &GetProcessInfo() { return m_match_info; }
@@ -761,7 +762,7 @@ public:
   /// This object will be used to resolve plug-in commands and can be
   /// triggered by a call to:
   ///
-  ///     (lldb) process commmand <args>
+  ///     (lldb) process command <args>
   ///
   /// @return
   ///     A CommandObject which can be one of the concrete subclasses

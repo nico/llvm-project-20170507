@@ -15,6 +15,7 @@
 #include "R600MachineScheduler.h"
 #include "AMDGPUSubtarget.h"
 #include "R600InstrInfo.h"
+#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Pass.h"
@@ -458,7 +459,7 @@ SUnit* R600SchedStrategy::pickOther(int QID) {
   }
   if (!AQ.empty()) {
     SU = AQ.back();
-    AQ.resize(AQ.size() - 1);
+    AQ.pop_back();
   }
   return SU;
 }

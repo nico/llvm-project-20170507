@@ -258,7 +258,7 @@ protected:
       FileSpec file_spec;
 
       if (file_path)
-        file_spec.SetFile(file_path, true);
+        file_spec.SetFile(file_path, true, FileSpec::Style::native);
 
       bool must_set_platform_path = false;
 
@@ -752,7 +752,7 @@ public:
                                     VariableList &variable_list) {
     Target *target = static_cast<Target *>(baton);
     if (target) {
-      return target->GetImages().FindGlobalVariables(ConstString(name), true,
+      return target->GetImages().FindGlobalVariables(ConstString(name),
                                                      UINT32_MAX, variable_list);
     }
     return 0;
@@ -818,8 +818,8 @@ protected:
             return false;
           }
           use_var_name = true;
-          matches = target->GetImages().FindGlobalVariables(
-              regex, true, UINT32_MAX, variable_list);
+          matches = target->GetImages().FindGlobalVariables(regex, UINT32_MAX,
+                                                            variable_list);
         } else {
           Status error(Variable::GetValuesForVariableExpressionPath(
               arg, m_exe_ctx.GetBestExecutionContextScope(),
@@ -947,8 +947,8 @@ protected:
                     llvm::StringRef(
                         ".")); // Any global with at least one character
                 VariableList variable_list;
-                sc.module_sp->FindGlobalVariables(all_globals_regex, append,
-                                                  UINT32_MAX, variable_list);
+                sc.module_sp->FindGlobalVariables(all_globals_regex, UINT32_MAX,
+                                                  variable_list);
                 DumpGlobalVariableList(m_exe_ctx, sc, variable_list, s);
               }
             }
@@ -3581,7 +3581,7 @@ public:
         break;
 
       case 'f':
-        m_file.SetFile(option_arg, false);
+        m_file.SetFile(option_arg, false, FileSpec::Style::native);
         m_type = eLookupTypeFileLine;
         break;
 
@@ -4319,7 +4319,8 @@ protected:
 
         for (auto &entry : args.entries()) {
           if (!entry.ref.empty()) {
-            module_spec.GetSymbolFileSpec().SetFile(entry.ref, true);
+            module_spec.GetSymbolFileSpec().SetFile(entry.ref, true,
+                                                    FileSpec::Style::native);
             if (file_option_set) {
               module_spec.GetFileSpec() =
                   m_file_option.GetOptionValue().GetCurrentValue();
