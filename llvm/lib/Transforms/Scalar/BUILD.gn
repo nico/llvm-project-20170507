@@ -39,6 +39,7 @@ static_library("Scalar") {
     "LoopDeletion.cpp",
     "LoopDistribute.cpp",
     "LoopIdiomRecognize.cpp",
+    "LoopInstSimplify.cpp",
     "LoopInterchange.cpp",
     "LoopLoadElimination.cpp",
     "LoopPassManager.cpp",

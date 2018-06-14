@@ -22,6 +22,7 @@ static_library("wasm") {
     "Driver.cpp",
     "InputChunks.cpp",
     "InputFiles.cpp",
+    "LTO.cpp",
     "MarkLive.cpp",
     "OutputSections.cpp",
     "SymbolTable.cpp",

@@ -10,6 +10,7 @@ static_library("Driver") {
   configs += [ "//gn:lld_code" ]
   deps = [
     ":DarwinLdOptions",
+    "//lld/Common",
     "//lld/lib/Core",
     "//lld/lib/ReaderWriter",
     "//lld/lib/ReaderWriter/MachO",

@@ -104,6 +104,7 @@ static_library("Support") {
     "Twine.cpp",
     "Unicode.cpp",
     "UnicodeCaseFold.cpp",
+    "VersionTuple.cpp",
     "WithColor.cpp",
     "YAMLParser.cpp",
     "YAMLTraits.cpp",

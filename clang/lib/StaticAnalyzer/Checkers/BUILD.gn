@@ -36,6 +36,7 @@ static_library("Checkers") {
     "ClangCheckers.cpp",
     "CloneChecker.cpp",
     "ConversionChecker.cpp",
+    "DanglingInternalBufferChecker.cpp",
     "DeadStoresChecker.cpp",
     "DebugCheckers.cpp",
     "DeleteWithNonVirtualDtorChecker.cpp",

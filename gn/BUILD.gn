@@ -30,9 +30,7 @@ config("compiler_defaults") {
     } else {
       cflags += [ "-O3" ]
     }
-    cflags += [
-      "-fdiagnostics-color",
-    ]
+    cflags += [ "-fdiagnostics-color" ]
     cflags_cc = [
       "-std=c++11",
       "-fno-exceptions",
@@ -95,9 +93,7 @@ config("compiler_defaults") {
       "-Wstring-conversion",
     ]
     if (is_clang) {
-      cflags += [
-        "-Wdelete-non-virtual-dtor",
-      ]
+      cflags += [ "-Wdelete-non-virtual-dtor" ]
     }
     if (is_clang && use_goma) {
       # goma converts all paths to lowercase on the server, breaking this

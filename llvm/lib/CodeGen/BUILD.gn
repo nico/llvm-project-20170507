@@ -177,6 +177,7 @@ static_library("CodeGen") {
     "UnreachableBlockElim.cpp",
     "ValueTypes.cpp",
     "VirtRegMap.cpp",
+    "WasmEHPrepare.cpp",
     "WinEHPrepare.cpp",
     "XRayInstrumentation.cpp",
   ]

@@ -94,7 +94,6 @@ static_library("Basic") {
     # FIXME: This should be in its own target that passes -DHAVE_SVN_VERSION_INC
     # and that also depends on a target generating SVNVersion.inc.
     "Version.cpp",
-    "VersionTuple.cpp",
     "VirtualFileSystem.cpp",
     "Warnings.cpp",
     "XRayInstr.cpp",
