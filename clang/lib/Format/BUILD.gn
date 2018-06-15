@@ -5,6 +5,7 @@ static_library("Format") {
     "//clang/lib/Basic",
     "//clang/lib/Lex",
     "//clang/lib/Tooling/Core",
+    "//clang/lib/Tooling/Inclusions",
     "//llvm/lib/Support",
   ]
   sources = [
