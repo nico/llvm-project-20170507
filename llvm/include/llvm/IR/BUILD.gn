@@ -1,8 +1,15 @@
 import("//llvm/utils/TableGen/tablegen.gni")
 
-tablegen("Intrinsics") {
+tablegen("IntrinsicEnums") {
   visibility = [ ":tablegen" ]
-  args = [ "-gen-intrinsic" ]
+  args = [ "-gen-intrinsic-enums" ]
+  td_file = "Intrinsics.td"
+}
+
+tablegen("IntrinsicImpl") {
+  visibility = [ ":tablegen" ]
+  args = [ "-gen-intrinsic-impl" ]
+  td_file = "Intrinsics.td"
 }
 
 tablegen("Attributes") {
@@ -13,6 +20,7 @@ tablegen("Attributes") {
 group("tablegen") {
   public_deps = [
     ":Attributes",
-    ":Intrinsics",
+    ":IntrinsicEnums",
+    ":IntrinsicImpl",
   ]
 }

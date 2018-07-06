@@ -126,6 +126,7 @@ static_library("LLVMARMCodeGen") {
     "ARMMachineFunctionInfo.cpp",
     "ARMMacroFusion.cpp",
     "ARMOptimizeBarriersPass.cpp",
+    "ARMParallelDSP.cpp",
     "ARMRegisterBankInfo.cpp",
     "ARMRegisterInfo.cpp",
     "ARMSelectionDAGInfo.cpp",

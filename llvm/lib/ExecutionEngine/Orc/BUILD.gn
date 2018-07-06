@@ -10,11 +10,13 @@ static_library("Orc") {
     "//llvm/lib/Transforms/Utils",
   ]
   sources = [
+    "CompileOnDemandLayer.cpp",
     "Core.cpp",
     "ExecutionUtils.cpp",
     "IRCompileLayer.cpp",
     "IRTransformLayer.cpp",
     "IndirectionUtils.cpp",
+    "LLJIT.cpp",
     "Layer.cpp",
     "Legacy.cpp",
     "NullResolver.cpp",

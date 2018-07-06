@@ -133,6 +133,7 @@ group("test") {
     "//clang/tools/driver:symlinks",
     "//clang/unittests",
     "//clang/utils/TableGen:clang-tblgen",
+    "//clang/utils/hmaptool",
     "//llvm/tools/llc",
     "//llvm/tools/llvm-bcanalyzer",
     "//llvm/tools/llvm-cat",

@@ -1,4 +1,4 @@
-executable("LLVMExegesisX86Tests") {
+executable("LLVMExegesisARMTests") {
   # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
   output_dir = target_out_dir
   deps = [
@@ -7,22 +7,17 @@ executable("LLVMExegesisX86Tests") {
     "//llvm/lib/MC/MCParser",
     "//llvm/lib/Object",
     "//llvm/lib/Support",
-    "//llvm/lib/Target/X86",
-    "//llvm/lib/Target/X86:tablegen",
+    "//llvm/lib/Target/ARM",
+    "//llvm/lib/Target/ARM:tablegen",
     "//llvm/tools/llvm-exegesis/lib",
-    "//llvm/tools/llvm-exegesis/lib/X86",
     "//llvm/utils/unittest/UnitTestMain",
   ]
   include_dirs = [
-    "//llvm/lib/Target/X86",
+    "//llvm/lib/Target/ARM",
     "//llvm/tools/llvm-exegesis/lib",
   ]
   sources = [
-    "AnalysisTest.cpp",
     "AssemblerTest.cpp",
-    "RegisterAliasingTest.cpp",
-    "SnippetGeneratorTest.cpp",
-    "TargetTest.cpp",
   ]
   testonly = true
 }

@@ -21,7 +21,6 @@ executable("lli") {
     "//llvm/lib/Transforms/Utils",
   ]
   sources = [
-    "OrcLazyJIT.cpp",
     "lli.cpp",
   ]
   if (host_os == "linux") {

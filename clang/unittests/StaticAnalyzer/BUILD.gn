@@ -7,11 +7,14 @@ executable("StaticAnalysisTests") {
     "//clang/lib/Analysis",
     "//clang/lib/Basic",
     "//clang/lib/StaticAnalyzer/Core",
+    "//clang/lib/StaticAnalyzer/Frontend",
+    "//clang/lib/Tooling",
     "//llvm/lib/Support",
     "//llvm/utils/unittest/UnitTestMain",
   ]
   sources = [
     "AnalyzerOptionsTest.cpp",
+    "RegisterCustomCheckersTest.cpp",
   ]
   testonly = true
 }

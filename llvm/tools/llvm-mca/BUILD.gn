@@ -11,8 +11,6 @@ executable("llvm-mca") {
     "//llvm/lib/Target:AllTargetsInfos",
   ]
   sources = [
-    "Backend.cpp",
-    "BackendPrinter.cpp",
     "CodeRegion.cpp",
     "DispatchStage.cpp",
     "DispatchStatistics.cpp",
@@ -24,6 +22,8 @@ executable("llvm-mca") {
     "InstructionInfoView.cpp",
     "InstructionTables.cpp",
     "LSUnit.cpp",
+    "Pipeline.cpp",
+    "PipelinePrinter.cpp",
     "RegisterFile.cpp",
     "RegisterFileStatistics.cpp",
     "ResourcePressureView.cpp",

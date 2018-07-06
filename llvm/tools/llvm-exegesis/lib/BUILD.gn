@@ -1,3 +1,5 @@
+import("//llvm/lib/Target/targets.gni")
+
 static_library("lib") {
   output_name = "LLVMExegesis"
   deps = [
@@ -8,6 +10,7 @@ static_library("lib") {
     "//llvm/lib/IR",
     "//llvm/lib/MC",
     "//llvm/lib/Object",
+    "//llvm/lib/ObjectYAML",
     "//llvm/lib/Support",
   ]
   sources = [
@@ -21,7 +24,14 @@ static_library("lib") {
     "MCInstrDescView.cpp",
     "PerfHelper.cpp",
     "RegisterAliasing.cpp",
+    "Target.cpp",
     "Uops.cpp",
-    "X86.cpp",
   ]
+
+  if (llvm_build_AArch64) {
+    deps += [ "AArch64" ]
+  }
+  if (llvm_build_X86) {
+    deps += [ "X86" ]
+  }
 }

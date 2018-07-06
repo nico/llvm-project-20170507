@@ -1,0 +1,11 @@
+static_library("X86") {
+  output_name = "LLVMExegesisX86"
+  deps = [
+    "//llvm/lib/Target/X86",
+    "//llvm/lib/Target/X86:tablegen",
+  ]
+  sources = [
+    "Target.cpp",
+  ]
+  include_dirs = [ "//llvm/lib/Target/X86" ]
+}

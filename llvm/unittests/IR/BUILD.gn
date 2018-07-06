@@ -19,6 +19,7 @@ executable("IRTests") {
     "DebugInfoTest.cpp",
     "DebugTypeODRUniquingTest.cpp",
     "DeferredDominanceTest.cpp",
+    "DomTreeUpdaterTest.cpp",
     "DominatorTreeBatchUpdatesTest.cpp",
     "DominatorTreeTest.cpp",
     "FunctionTest.cpp",
