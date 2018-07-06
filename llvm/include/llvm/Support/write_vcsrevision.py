@@ -57,11 +57,13 @@ def main():
         return 0
 
     # http://neugierig.org/software/blog/2014/11/binary-revisions.html
-    build_dir = os.getcwd()
-    with open(args.depfile, 'w') as depfile:
-        depfile.write('%s: %s\n' % (
-            args.vcs_header,
-            os.path.relpath(os.path.join(git_dir, 'logs', 'HEAD'), build_dir)))
+    if args.depfile:
+        build_dir = os.getcwd()
+        with open(args.depfile, 'w') as depfile:
+            depfile.write('%s: %s\n' % (
+                args.vcs_header,
+                os.path.relpath(os.path.join(git_dir, 'logs', 'HEAD'),
+                                build_dir)))
     open(args.vcs_header, 'w').write(vcsrevision_contents)
 
     return 0

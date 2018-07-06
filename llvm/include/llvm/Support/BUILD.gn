@@ -1,18 +1,23 @@
+declare_args() {
+  # If this set to false, VCSRevision.h is updated after every git commit.
+  # That's technically correct, but results in rebuilds after every commit.
+  # If it's true (default), VCSRevision.h will usually be somewhat
+  # out-of-date, but builds will be faster.
+  llvm_allow_tardy_revision = true
+}
+
 action("vcsrevision") {
   script = "write_vcsrevision.py"
   header = "$target_gen_dir/VCSRevision.h"
-  depfile = "$header.d"
 
-  args = [
-    rebase_path(header, root_build_dir),
-
-    # FIXME: Add a llvm_tardy_revision or similar arg that disables this
-    # depfile arg so that all the llvm binaries don't need to relink after
-    # every git commit (doing so is technically correct, but annoying for
-    # development, and devs don't care that --version output is slightly off).
-    "-d",
-    rebase_path(depfile, root_build_dir),
-  ]
+  args = [ rebase_path(header, root_build_dir) ]
+  if (!llvm_allow_tardy_revision) {
+    depfile = "$header.d"
+    args += [
+      "-d",
+      rebase_path(depfile, root_build_dir),
+    ]
+  }
 
   outputs = [
     header,
