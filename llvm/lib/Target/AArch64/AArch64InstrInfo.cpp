@@ -19,7 +19,6 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/CodeGen/LiveRegUnits.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -4928,27 +4927,8 @@ enum MachineOutlinerMBBFlags {
   HasCalls = 0x4
 };
 
-bool AArch64InstrInfo::canOutlineWithoutLRSave(
-    MachineBasicBlock::iterator &CallInsertionPt) const {
-  // Was LR saved in the function containing this basic block?
-  MachineBasicBlock &MBB = *(CallInsertionPt->getParent());
-  LiveRegUnits LRU(getRegisterInfo());
-  LRU.addLiveOuts(MBB);
-
-  // Get liveness information from the end of the block to the end of the
-  // prospective outlined region.
-  std::for_each(MBB.rbegin(),
-                (MachineBasicBlock::reverse_iterator)CallInsertionPt,
-                [&LRU](MachineInstr &MI) { LRU.stepBackward(MI); });
-
-  // If the link register is available at this point, then we can safely outline
-  // the region without saving/restoring LR. Otherwise, we must emit a save and
-  // restore.
-  return LRU.available(AArch64::LR);
-}
-
 outliner::TargetCostInfo
-AArch64InstrInfo::getOutlininingCandidateInfo(
+AArch64InstrInfo::getOutliningCandidateInfo(
     std::vector<outliner::Candidate> &RepeatedSequenceLocs) const {
   unsigned SequenceSize = std::accumulate(
       RepeatedSequenceLocs[0].front(),
@@ -4961,8 +4941,38 @@ AArch64InstrInfo::getOutlininingCandidateInfo(
   unsigned NumBytesForCall = 12;
   unsigned NumBytesToCreateFrame = 4;
 
-  auto DoesntNeedLRSave = 
-    [this](outliner::Candidate &I) {return canOutlineWithoutLRSave(I.back());};
+  // Compute liveness information for each candidate.
+  const TargetRegisterInfo &TRI = getRegisterInfo();
+  std::for_each(RepeatedSequenceLocs.begin(), RepeatedSequenceLocs.end(),
+                [&TRI](outliner::Candidate &C) { C.initLRU(TRI); });
+
+  // According to the AArch64 Procedure Call Standard, the following are
+  // undefined on entry/exit from a function call:
+  //
+  // * Registers x16, x17, (and thus w16, w17)
+  // * Condition codes (and thus the NZCV register)
+  //
+  // Because if this, we can't outline any sequence of instructions where
+  // one
+  // of these registers is live into/across it. Thus, we need to delete
+  // those
+  // candidates.
+  auto CantGuaranteeValueAcrossCall = [](outliner::Candidate &C) {
+    LiveRegUnits LRU = C.LRU;
+    return (!LRU.available(AArch64::W16) || !LRU.available(AArch64::W17) ||
+            !LRU.available(AArch64::NZCV));
+  };
+
+  // Erase every candidate that violates the restrictions above. (It could be
+  // true that we have viable candidates, so it's not worth bailing out in
+  // the case that, say, 1 out of 20 candidates violate the restructions.)
+  RepeatedSequenceLocs.erase(std::remove_if(RepeatedSequenceLocs.begin(),
+                                            RepeatedSequenceLocs.end(),
+                                            CantGuaranteeValueAcrossCall),
+                             RepeatedSequenceLocs.end());
+
+  // At this point, we have only "safe" candidates to outline. Figure out
+  // frame + call instruction information.
 
   unsigned LastInstrOpcode = RepeatedSequenceLocs[0].back()->getOpcode();
 
@@ -4983,8 +4993,15 @@ AArch64InstrInfo::getOutlininingCandidateInfo(
     NumBytesToCreateFrame = 0;
   }
 
-  else if (std::all_of(RepeatedSequenceLocs.begin(), RepeatedSequenceLocs.end(),
-                       DoesntNeedLRSave)) {
+  // Make sure that LR isn't live on entry to this candidate. The only
+  // instructions that use LR that could possibly appear in a repeated sequence
+  // are calls. Therefore, we only have to check and see if LR is dead on entry
+  // to (or exit from) some candidate.
+  else if (std::all_of(RepeatedSequenceLocs.begin(),
+                       RepeatedSequenceLocs.end(),
+                       [](outliner::Candidate &C) {
+                         return C.LRU.available(AArch64::LR);
+                         })) {
     CallID = MachineOutlinerNoLRSave;
     FrameID = MachineOutlinerNoLRSave;
     NumBytesForCall = 4;
@@ -5302,7 +5319,7 @@ void AArch64InstrInfo::fixupPostOutline(MachineBasicBlock &MBB) const {
   }
 }
 
-void AArch64InstrInfo::insertOutlinerEpilogue(
+void AArch64InstrInfo::buildOutlinedFrame(
     MachineBasicBlock &MBB, MachineFunction &MF,
     const outliner::TargetCostInfo &TCI) const {
   // For thunk outlining, rewrite the last instruction from a call to a
@@ -5398,10 +5415,6 @@ void AArch64InstrInfo::insertOutlinerEpilogue(
   // Walk over the basic block and fix up all the stack accesses.
   fixupPostOutline(MBB);
 }
-
-void AArch64InstrInfo::insertOutlinerPrologue(
-    MachineBasicBlock &MBB, MachineFunction &MF,
-    const outliner::TargetCostInfo &TCI) const {}
 
 MachineBasicBlock::iterator AArch64InstrInfo::insertOutlinedCall(
     Module &M, MachineBasicBlock &MBB, MachineBasicBlock::iterator &It,

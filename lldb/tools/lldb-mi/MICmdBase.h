@@ -11,6 +11,8 @@
 
 // C Includes
 // C++ Includes
+#include <functional> // for function
+
 // Other libraries and framework includes
 #include "lldb/API/SBError.h"
 
@@ -82,7 +84,14 @@ public:
   // Methods:
 protected:
   void SetError(const CMIUtilString &rErrMsg);
-  void SetError(const lldb::SBError &error);
+  bool HandleSBError(const lldb::SBError &error,
+                     const std::function<bool()> &successHandler =
+                     [] { return MIstatus::success; },
+                     const std::function<void()> &errorHandler = [] {});
+  bool HandleSBErrorWithSuccess(const lldb::SBError &error,
+                                const std::function<bool()> &successHandler);
+  bool HandleSBErrorWithFailure(const lldb::SBError &error,
+                                const std::function<void()> &errorHandler);
   template <class T> T *GetOption(const CMIUtilString &vStrOptionName);
   bool ParseValidateCmdOptions();
 

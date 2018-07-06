@@ -54,6 +54,7 @@
 #include "lldb/lldb-private.h"
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/Support/VersionTuple.h"
 
 namespace lldb_private {
 
@@ -1447,26 +1448,11 @@ public:
   /// platform that might itself be running natively, but have different
   /// heuristics for figuring out which OS is is emulating.
   ///
-  /// @param[out] major
-  ///    The major OS version, or UINT32_MAX if it can't be determined
-  ///
-  /// @param[out] minor
-  ///    The minor OS version, or UINT32_MAX if it can't be determined
-  ///
-  /// @param[out] update
-  ///    The update OS version, or UINT32_MAX if it can't be determined
-  ///
   /// @return
-  ///     Returns \b true if the host OS version info was filled in
-  ///     and \b false otherwise.
+  ///     Returns the version tuple of the host OS. In case of failure an empty
+  ///     VersionTuple is returner.
   //------------------------------------------------------------------
-  virtual bool GetHostOSVersion(uint32_t &major, uint32_t &minor,
-                                uint32_t &update) {
-    major = UINT32_MAX;
-    minor = UINT32_MAX;
-    update = UINT32_MAX;
-    return false;
-  }
+  virtual llvm::VersionTuple GetHostOSVersion() { return llvm::VersionTuple(); }
 
   //------------------------------------------------------------------
   /// Get the target object pointer for this module.
@@ -1475,7 +1461,7 @@ public:
   ///     A Target object pointer to the target that owns this
   ///     module.
   //------------------------------------------------------------------
-  Target &GetTarget() { return *m_target_sp.lock(); }
+  Target &GetTarget() { return *m_target_wp.lock(); }
 
   //------------------------------------------------------------------
   /// Get the const target object pointer for this module.
@@ -1484,7 +1470,7 @@ public:
   ///     A const Target object pointer to the target that owns this
   ///     module.
   //------------------------------------------------------------------
-  const Target &GetTarget() const { return *m_target_sp.lock(); }
+  const Target &GetTarget() const { return *m_target_wp.lock(); }
 
   //------------------------------------------------------------------
   /// Flush all data in the process.
@@ -3008,7 +2994,7 @@ protected:
   //------------------------------------------------------------------
   // Member variables
   //------------------------------------------------------------------
-  std::weak_ptr<Target> m_target_sp; ///< The target that owns this process.
+  std::weak_ptr<Target> m_target_wp; ///< The target that owns this process.
   ThreadSafeValue<lldb::StateType> m_public_state;
   ThreadSafeValue<lldb::StateType>
       m_private_state;                     // The actual state of our process

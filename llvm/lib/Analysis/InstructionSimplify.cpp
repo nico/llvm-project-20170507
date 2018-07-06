@@ -902,7 +902,10 @@ static Value *simplifyDivRem(Value *Op0, Value *Op1, bool IsDiv) {
   // X % 1 -> 0
   // If this is a boolean op (single-bit element type), we can't have
   // division-by-zero or remainder-by-zero, so assume the divisor is 1.
-  if (match(Op1, m_One()) || Ty->isIntOrIntVectorTy(1))
+  // Similarly, if we're zero-extending a boolean divisor, then assume it's a 1.
+  Value *X;
+  if (match(Op1, m_One()) || Ty->isIntOrIntVectorTy(1) ||
+      (match(Op1, m_ZExt(m_Value(X))) && X->getType()->isIntOrIntVectorTy(1)))
     return IsDiv ? Op0 : Constant::getNullValue(Ty);
 
   return nullptr;
@@ -1096,6 +1099,12 @@ Value *llvm::SimplifyUDivInst(Value *Op0, Value *Op1, const SimplifyQuery &Q) {
 /// If not, this returns null.
 static Value *SimplifySRemInst(Value *Op0, Value *Op1, const SimplifyQuery &Q,
                                unsigned MaxRecurse) {
+  // If the divisor is 0, the result is undefined, so assume the divisor is -1.
+  // srem Op0, (sext i1 X) --> srem Op0, -1 --> 0
+  Value *X;
+  if (match(Op1, m_SExt(m_Value(X))) && X->getType()->isIntOrIntVectorTy(1))
+    return ConstantInt::getNullValue(Op0->getType());
+
   return simplifyRem(Instruction::SRem, Op0, Op1, Q, MaxRecurse);
 }
 
@@ -1153,7 +1162,11 @@ static Value *SimplifyShift(Instruction::BinaryOps Opcode, Value *Op0,
     return Constant::getNullValue(Op0->getType());
 
   // X shift by 0 -> X
-  if (match(Op1, m_Zero()))
+  // Shift-by-sign-extended bool must be shift-by-0 because shift-by-all-ones
+  // would be poison.
+  Value *X;
+  if (match(Op1, m_Zero()) ||
+      (match(Op1, m_SExt(m_Value(X))) && X->getType()->isIntOrIntVectorTy(1)))
     return Op0;
 
   // Fold undefined shifts.
@@ -1313,7 +1326,7 @@ static Value *simplifyUnsignedRangeCheck(ICmpInst *ZeroICmp,
       ICmpInst::isUnsigned(UnsignedPred))
     ;
   else if (match(UnsignedICmp,
-                 m_ICmp(UnsignedPred, m_Value(Y), m_Specific(X))) &&
+                 m_ICmp(UnsignedPred, m_Specific(Y), m_Value(X))) &&
            ICmpInst::isUnsigned(UnsignedPred))
     UnsignedPred = ICmpInst::getSwappedPredicate(UnsignedPred);
   else

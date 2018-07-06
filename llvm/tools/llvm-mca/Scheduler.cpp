@@ -12,14 +12,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "Scheduler.h"
-#include "Backend.h"
-#include "HWEventListener.h"
 #include "Support.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
 namespace mca {
 
 using namespace llvm;
+
+#define DEBUG_TYPE "llvm-mca"
 
 uint64_t ResourceState::selectNextInSequence() {
   assert(isReady());
@@ -292,7 +293,8 @@ void Scheduler::promoteToReadyQueue(SmallVectorImpl<InstRef> &Ready) {
 
     // Check if this instruction is now ready. In case, force
     // a transition in state using method 'update()'.
-    IS->update();
+    if (!IS->isReady())
+      IS->update();
 
     const InstrDesc &Desc = IS->getDesc();
     bool IsMemOp = Desc.MayLoad || Desc.MayStore;
@@ -310,16 +312,31 @@ void Scheduler::promoteToReadyQueue(SmallVectorImpl<InstRef> &Ready) {
 }
 
 InstRef Scheduler::select() {
-  // Give priority to older instructions in the ReadyQueue. Since the ready
-  // queue is ordered by key, this will always prioritize older instructions.
-  const auto It = std::find_if(ReadyQueue.begin(), ReadyQueue.end(),
-                               [&](const QueueEntryTy &Entry) {
-                                 const InstrDesc &D = Entry.second->getDesc();
-                                 return Resources->canBeIssued(D);
-                               });
+  // Find the oldest ready-to-issue instruction in the ReadyQueue.
+  auto It = std::find_if(ReadyQueue.begin(), ReadyQueue.end(),
+                         [&](const QueueEntryTy &Entry) {
+                           const InstrDesc &D = Entry.second->getDesc();
+                           return Resources->canBeIssued(D);
+                         });
 
   if (It == ReadyQueue.end())
     return {0, nullptr};
+
+  // We want to prioritize older instructions over younger instructions to
+  // minimize the pressure on the reorder buffer.  We also want to
+  // rank higher the instructions with more users to better expose ILP.
+
+  // Compute a rank value based on the age of an instruction (i.e. its source
+  // index) and its number of users. The lower the rank value, the better.
+  int Rank = It->first - It->second->getNumUsers();
+  for (auto I = It, E = ReadyQueue.end(); I != E; ++I) {
+    int CurrentRank = I->first - I->second->getNumUsers();
+    if (CurrentRank < Rank) {
+      const InstrDesc &D = I->second->getDesc();
+      if (Resources->canBeIssued(D))
+        It = I;
+    }
+  }
 
   // We found an instruction to issue.
   InstRef IR(It->first, It->second);

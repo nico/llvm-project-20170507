@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines abstractions used by the Backend to model register reads,
+// This file defines abstractions used by the Pipeline to model register reads,
 // register writes and instructions.
 //
 //===----------------------------------------------------------------------===//
@@ -32,14 +32,16 @@ void ReadState::writeStartEvent(unsigned Cycles) {
   --DependentWrites;
   TotalCycles = std::max(TotalCycles, Cycles);
 
-  if (!DependentWrites)
+  if (!DependentWrites) {
     CyclesLeft = TotalCycles;
+    IsReady = !CyclesLeft;
+  }
 }
 
 void WriteState::onInstructionIssued() {
   assert(CyclesLeft == UNKNOWN_CYCLES);
   // Update the number of cycles left based on the WriteDescriptor info.
-  CyclesLeft = WD.Latency;
+  CyclesLeft = getLatency();
 
   // Now that the time left before write-back is known, notify
   // all the users.
@@ -83,14 +85,24 @@ void ReadState::cycleEvent() {
   if (CyclesLeft == UNKNOWN_CYCLES)
     return;
 
-  if (CyclesLeft)
+  if (CyclesLeft) {
     --CyclesLeft;
+    IsReady = !CyclesLeft;
+  }
 }
 
 #ifndef NDEBUG
 void WriteState::dump() const {
-  dbgs() << "{ OpIdx=" << WD.OpIndex << ", Lat=" << WD.Latency << ", RegID "
-         << getRegisterID() << ", Cycles Left=" << getCyclesLeft() << " }\n";
+  dbgs() << "{ OpIdx=" << WD.OpIndex << ", Lat=" << getLatency() << ", RegID "
+         << getRegisterID() << ", Cycles Left=" << getCyclesLeft() << " }";
+}
+
+void WriteRef::dump() const {
+  dbgs() << "IID=" << getSourceIndex() << ' ';
+  if (isValid())
+    getWriteState()->dump();
+  else
+    dbgs() << "(null)";
 }
 #endif
 
@@ -119,9 +131,7 @@ void Instruction::execute() {
 }
 
 void Instruction::update() {
-  if (!isDispatched())
-    return;
-
+  assert(isDispatched() && "Unexpected instruction stage found!");
   if (llvm::all_of(Uses, [](const UniqueUse &Use) { return Use->isReady(); }))
     Stage = IS_READY;
 }
@@ -131,9 +141,14 @@ void Instruction::cycleEvent() {
     return;
 
   if (isDispatched()) {
-    for (UniqueUse &Use : Uses)
+    bool IsReady = true;
+    for (UniqueUse &Use : Uses) {
       Use->cycleEvent();
-    update();
+      IsReady &= Use->isReady();
+    }
+
+    if (IsReady)
+      Stage = IS_READY;
     return;
   }
 
@@ -145,4 +160,7 @@ void Instruction::cycleEvent() {
   if (!CyclesLeft)
     Stage = IS_EXECUTED;
 }
+
+const unsigned WriteRef::INVALID_IID = std::numeric_limits<unsigned>::max();
+
 } // namespace mca

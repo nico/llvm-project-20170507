@@ -15,7 +15,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "RetireStage.h"
-#include "Backend.h"
 #include "HWEventListener.h"
 #include "llvm/Support/Debug.h"
 
@@ -50,7 +49,7 @@ void RetireStage::notifyInstructionRetired(const InstRef &IR) {
 
   for (const std::unique_ptr<WriteState> &WS : IR.getInstruction()->getDefs())
     PRF.removeRegisterWrite(*WS.get(), FreedRegs, !Desc.isZeroLatency());
-  Owner->notifyInstructionEvent(HWInstructionRetiredEvent(IR, FreedRegs));
+  notifyInstructionEvent(HWInstructionRetiredEvent(IR, FreedRegs));
 }
 
 } // namespace mca

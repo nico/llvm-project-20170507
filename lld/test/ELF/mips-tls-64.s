@@ -1,3 +1,4 @@
+# REQUIRES: mips
 # Check MIPS TLS 64-bit relocations handling.
 
 # RUN: llvm-mc -filetype=obj -triple=mips64-unknown-linux \
@@ -12,8 +13,6 @@
 # RUN: ld.lld -shared %t.o %t.so -o %t-out.so
 # RUN: llvm-objdump -d -s -t %t-out.so | FileCheck -check-prefix=DIS-SO %s
 # RUN: llvm-readobj -r -mips-plt-got %t-out.so | FileCheck -check-prefix=SO %s
-
-# REQUIRES: mips
 
 # DIS:      __start:
 # DIS-NEXT:    20000:   24 62 80 30   addiu   $2, $3, -32720
@@ -68,12 +67,12 @@
 # SO:      Relocations [
 # SO-NEXT:   Section (7) .rel.dyn {
 # SO-NEXT:     0x20030 R_MIPS_TLS_DTPMOD64/R_MIPS_NONE/R_MIPS_NONE - 0x0
-# SO-NEXT:     0x20010 R_MIPS_TLS_TPREL64/R_MIPS_NONE/R_MIPS_NONE foo 0x0
-# SO-NEXT:     0x20020 R_MIPS_TLS_DTPMOD64/R_MIPS_NONE/R_MIPS_NONE foo 0x0
-# SO-NEXT:     0x20028 R_MIPS_TLS_DTPREL64/R_MIPS_NONE/R_MIPS_NONE foo 0x0
 # SO-NEXT:     0x20018 R_MIPS_TLS_TPREL64/R_MIPS_NONE/R_MIPS_NONE bar 0x0
 # SO-NEXT:     0x20040 R_MIPS_TLS_DTPMOD64/R_MIPS_NONE/R_MIPS_NONE bar 0x0
 # SO-NEXT:     0x20048 R_MIPS_TLS_DTPREL64/R_MIPS_NONE/R_MIPS_NONE bar 0x0
+# SO-NEXT:     0x20010 R_MIPS_TLS_TPREL64/R_MIPS_NONE/R_MIPS_NONE foo 0x0
+# SO-NEXT:     0x20020 R_MIPS_TLS_DTPMOD64/R_MIPS_NONE/R_MIPS_NONE foo 0x0
+# SO-NEXT:     0x20028 R_MIPS_TLS_DTPREL64/R_MIPS_NONE/R_MIPS_NONE foo 0x0
 # SO-NEXT:   }
 # SO-NEXT: ]
 # SO-NEXT: Primary GOT {

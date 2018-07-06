@@ -747,6 +747,15 @@ class WebAssemblyTargetCodeGenInfo final : public TargetCodeGenInfo {
 public:
   explicit WebAssemblyTargetCodeGenInfo(CodeGen::CodeGenTypes &CGT)
       : TargetCodeGenInfo(new WebAssemblyABIInfo(CGT)) {}
+
+  void setTargetAttributes(const Decl *D, llvm::GlobalValue *GV,
+                           CodeGen::CodeGenModule &CGM) const override {
+    if (auto *FD = dyn_cast_or_null<FunctionDecl>(D)) {
+      llvm::Function *Fn = cast<llvm::Function>(GV);
+      if (!FD->doesThisDeclarationHaveABody() && !FD->hasPrototype())
+        Fn->addFnAttr("no-prototype");
+    }
+  }
 };
 
 /// Classify argument of given type \p Ty.
@@ -4610,7 +4619,9 @@ bool PPC64_SVR4_ABIInfo::isHomogeneousAggregateBaseType(QualType Ty) const {
   if (const BuiltinType *BT = Ty->getAs<BuiltinType>()) {
     if (BT->getKind() == BuiltinType::Float ||
         BT->getKind() == BuiltinType::Double ||
-        BT->getKind() == BuiltinType::LongDouble) {
+        BT->getKind() == BuiltinType::LongDouble ||
+        (getContext().getTargetInfo().hasFloat128Type() &&
+          (BT->getKind() == BuiltinType::Float128))) {
       if (IsSoftFloatABI)
         return false;
       return true;
@@ -4625,10 +4636,13 @@ bool PPC64_SVR4_ABIInfo::isHomogeneousAggregateBaseType(QualType Ty) const {
 
 bool PPC64_SVR4_ABIInfo::isHomogeneousAggregateSmallEnough(
     const Type *Base, uint64_t Members) const {
-  // Vector types require one register, floating point types require one
-  // or two registers depending on their size.
+  // Vector and fp128 types require one register, other floating point types
+  // require one or two registers depending on their size.
   uint32_t NumRegs =
-      Base->isVectorType() ? 1 : (getContext().getTypeSize(Base) + 63) / 64;
+      ((getContext().getTargetInfo().hasFloat128Type() &&
+          Base->isFloat128Type()) ||
+        Base->isVectorType()) ? 1
+                              : (getContext().getTypeSize(Base) + 63) / 64;
 
   // Homogeneous Aggregates may occupy at most 8 registers.
   return Members * NumRegs <= 8;

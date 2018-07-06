@@ -88,6 +88,16 @@ const IdentifierInfo* QualType::getBaseTypeIdentifier() const {
   return nullptr;
 }
 
+bool QualType::mayBeDynamicClass() const {
+  const auto *ClassDecl = getTypePtr()->getPointeeCXXRecordDecl();
+  return ClassDecl && ClassDecl->mayBeDynamicClass();
+}
+
+bool QualType::mayBeNotDynamicClass() const {
+  const auto *ClassDecl = getTypePtr()->getPointeeCXXRecordDecl();
+  return !ClassDecl || ClassDecl->mayBeNonDynamicClass();
+}
+
 bool QualType::isConstant(QualType T, const ASTContext &Ctx) {
   if (T.isConstQualified())
     return true;
@@ -3985,4 +3995,20 @@ QualType::DestructionKind QualType::isDestructedTypeImpl(QualType type) {
 
 CXXRecordDecl *MemberPointerType::getMostRecentCXXRecordDecl() const {
   return getClass()->getAsCXXRecordDecl()->getMostRecentNonInjectedDecl();
+}
+
+void clang::FixedPointValueToString(SmallVectorImpl<char> &Str,
+                                    const llvm::APSInt &Val, unsigned Scale,
+                                    unsigned Radix) {
+  llvm::APSInt ScaleVal = llvm::APSInt::getUnsigned(1ULL << Scale);
+  llvm::APSInt IntPart = Val / ScaleVal;
+  llvm::APSInt FractPart = Val % ScaleVal;
+  llvm::APSInt RadixInt = llvm::APSInt::getUnsigned(Radix);
+
+  IntPart.toString(Str, Radix);
+  Str.push_back('.');
+  do {
+    (FractPart * RadixInt / ScaleVal).toString(Str, Radix);
+    FractPart = (FractPart * RadixInt) % ScaleVal;
+  } while (FractPart.getExtValue());
 }

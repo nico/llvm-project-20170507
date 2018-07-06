@@ -16,7 +16,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "ExecuteStage.h"
-#include "Backend.h"
 #include "Scheduler.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
@@ -110,9 +109,10 @@ bool ExecuteStage::execute(InstRef &IR) {
   HWS.reserveBuffers(Desc.Buffers);
   notifyReservedBuffers(Desc.Buffers);
 
-  // Obtain a slot in the LSU.
+  // Obtain a slot in the LSU.  If we cannot reserve resources, return true, so
+  // that succeeding stages can make progress.
   if (!HWS.reserveResources(IR))
-    return false;
+    return true;
 
   // If we did not return early, then the scheduler is ready for execution.
   notifyInstructionReady(IR);
@@ -154,19 +154,20 @@ bool ExecuteStage::execute(InstRef &IR) {
 void ExecuteStage::notifyInstructionExecuted(const InstRef &IR) {
   HWS.onInstructionExecuted(IR);
   LLVM_DEBUG(dbgs() << "[E] Instruction Executed: " << IR << '\n');
-  Owner->notifyInstructionEvent(
-      HWInstructionEvent(HWInstructionEvent::Executed, IR));
+  notifyInstructionEvent(HWInstructionEvent(HWInstructionEvent::Executed, IR));
   RCU.onInstructionExecuted(IR.getInstruction()->getRCUTokenID());
 }
 
 void ExecuteStage::notifyInstructionReady(const InstRef &IR) {
   LLVM_DEBUG(dbgs() << "[E] Instruction Ready: " << IR << '\n');
-  Owner->notifyInstructionEvent(
-      HWInstructionEvent(HWInstructionEvent::Ready, IR));
+  notifyInstructionEvent(HWInstructionEvent(HWInstructionEvent::Ready, IR));
 }
 
 void ExecuteStage::notifyResourceAvailable(const ResourceRef &RR) {
-  Owner->notifyResourceAvailable(RR);
+  LLVM_DEBUG(dbgs() << "[E] Resource Available: [" << RR.first << '.'
+                    << RR.second << "]\n");
+  for (HWEventListener *Listener : getListeners())
+    Listener->onResourceAvailable(RR);
 }
 
 void ExecuteStage::notifyInstructionIssued(
@@ -179,7 +180,7 @@ void ExecuteStage::notifyInstructionIssued(
       dbgs() << "           cycles: " << Resource.second << '\n';
     }
   });
-  Owner->notifyInstructionEvent(HWInstructionIssuedEvent(IR, Used));
+  notifyInstructionEvent(HWInstructionIssuedEvent(IR, Used));
 }
 
 void ExecuteStage::notifyReservedBuffers(ArrayRef<uint64_t> Buffers) {
@@ -189,7 +190,8 @@ void ExecuteStage::notifyReservedBuffers(ArrayRef<uint64_t> Buffers) {
   SmallVector<unsigned, 4> BufferIDs(Buffers.begin(), Buffers.end());
   std::transform(Buffers.begin(), Buffers.end(), BufferIDs.begin(),
                  [&](uint64_t Op) { return HWS.getResourceID(Op); });
-  Owner->notifyReservedBuffers(BufferIDs);
+  for (HWEventListener *Listener : getListeners())
+    Listener->onReservedBuffers(BufferIDs);
 }
 
 void ExecuteStage::notifyReleasedBuffers(ArrayRef<uint64_t> Buffers) {
@@ -199,7 +201,8 @@ void ExecuteStage::notifyReleasedBuffers(ArrayRef<uint64_t> Buffers) {
   SmallVector<unsigned, 4> BufferIDs(Buffers.begin(), Buffers.end());
   std::transform(Buffers.begin(), Buffers.end(), BufferIDs.begin(),
                  [&](uint64_t Op) { return HWS.getResourceID(Op); });
-  Owner->notifyReleasedBuffers(BufferIDs);
+  for (HWEventListener *Listener : getListeners())
+    Listener->onReleasedBuffers(BufferIDs);
 }
 
 } // namespace mca

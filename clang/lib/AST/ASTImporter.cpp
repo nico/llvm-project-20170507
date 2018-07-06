@@ -71,6 +71,25 @@
 
 namespace clang {
 
+  template <class T>
+  SmallVector<Decl*, 2>
+  getCanonicalForwardRedeclChain(Redeclarable<T>* D) {
+    SmallVector<Decl*, 2> Redecls;
+    for (auto *R : D->getFirstDecl()->redecls()) {
+      if (R != D->getFirstDecl())
+        Redecls.push_back(R);
+    }
+    Redecls.push_back(D->getFirstDecl());
+    std::reverse(Redecls.begin(), Redecls.end());
+    return Redecls;
+  }
+
+  SmallVector<Decl*, 2> getCanonicalForwardRedeclChain(Decl* D) {
+    // Currently only FunctionDecl is supported
+    auto FD = cast<FunctionDecl>(D);
+    return getCanonicalForwardRedeclChain<FunctionDecl>(FD);
+  }
+
   class ASTNodeImporter : public TypeVisitor<ASTNodeImporter, QualType>,
                           public DeclVisitor<ASTNodeImporter, Decl *>,
                           public StmtVisitor<ASTNodeImporter, Stmt *> {
@@ -194,6 +213,12 @@ namespace clang {
                                         SourceLocation FromRAngleLoc,
                                         const InContainerTy &Container,
                                         TemplateArgumentListInfo &Result);
+
+    using TemplateArgsTy = SmallVector<TemplateArgument, 8>;
+    using OptionalTemplateArgsTy = Optional<TemplateArgsTy>;
+    std::tuple<FunctionTemplateDecl *, OptionalTemplateArgsTy>
+    ImportFunctionTemplateWithTemplateArgsFromSpecialization(
+        FunctionDecl *FromFD);
 
     bool ImportTemplateInformation(FunctionDecl *FromFD, FunctionDecl *ToFD);
 
@@ -359,6 +384,7 @@ namespace clang {
     Expr *VisitCallExpr(CallExpr *E);
     Expr *VisitLambdaExpr(LambdaExpr *LE);
     Expr *VisitInitListExpr(InitListExpr *E);
+    Expr *VisitCXXStdInitializerListExpr(CXXStdInitializerListExpr *E);
     Expr *VisitArrayInitLoopExpr(ArrayInitLoopExpr *E);
     Expr *VisitArrayInitIndexExpr(ArrayInitIndexExpr *E);
     Expr *VisitCXXDefaultInitExpr(CXXDefaultInitExpr *E);
@@ -408,6 +434,8 @@ namespace clang {
 
     // Importing overrides.
     void ImportOverrides(CXXMethodDecl *ToMethod, CXXMethodDecl *FromMethod);
+
+    FunctionDecl *FindFunctionTemplateSpecialization(FunctionDecl *FromFD);
   };
 
 template <typename InContainerTy>
@@ -435,6 +463,25 @@ bool ASTNodeImporter::ImportTemplateArgumentListInfo<
                                  TemplateArgumentListInfo &Result) {
   return ImportTemplateArgumentListInfo(From.LAngleLoc, From.RAngleLoc,
                                         From.arguments(), Result);
+}
+
+std::tuple<FunctionTemplateDecl *, ASTNodeImporter::OptionalTemplateArgsTy>
+ASTNodeImporter::ImportFunctionTemplateWithTemplateArgsFromSpecialization(
+    FunctionDecl *FromFD) {
+  assert(FromFD->getTemplatedKind() ==
+         FunctionDecl::TK_FunctionTemplateSpecialization);
+  auto *FTSInfo = FromFD->getTemplateSpecializationInfo();
+  auto *Template = cast_or_null<FunctionTemplateDecl>(
+      Importer.Import(FTSInfo->getTemplate()));
+
+  // Import template arguments.
+  auto TemplArgs = FTSInfo->TemplateArguments->asArray();
+  TemplateArgsTy ToTemplArgs;
+  if (ImportTemplateArguments(TemplArgs.data(), TemplArgs.size(),
+                              ToTemplArgs)) // Error during import.
+    return std::make_tuple(Template, OptionalTemplateArgsTy());
+
+  return std::make_tuple(Template, ToTemplArgs);
 }
 
 } // namespace clang
@@ -2025,17 +2072,8 @@ Decl *ASTNodeImporter::VisitRecordDecl(RecordDecl *D) {
 
       if (auto *FoundRecord = dyn_cast<RecordDecl>(Found)) {
         if (!SearchName) {
-          // If both unnamed structs/unions are in a record context, make sure
-          // they occur in the same location in the context records.
-          if (Optional<unsigned> Index1 =
-                  StructuralEquivalenceContext::findUntaggedStructOrUnionIndex(
-                      D)) {
-            if (Optional<unsigned> Index2 = StructuralEquivalenceContext::
-                    findUntaggedStructOrUnionIndex(FoundRecord)) {
-              if (*Index1 != *Index2)
-                continue;
-            }
-          }
+          if (!IsStructuralMatch(D, FoundRecord, false))
+            continue;
         }
 
         PrevDecl = FoundRecord;
@@ -2135,6 +2173,29 @@ Decl *ASTNodeImporter::VisitRecordDecl(RecordDecl *D) {
         if (!ToDescribed)
           return nullptr;
         D2CXX->setDescribedClassTemplate(ToDescribed);
+        if (!DCXX->isInjectedClassName()) {
+          // In a record describing a template the type should be an
+          // InjectedClassNameType (see Sema::CheckClassTemplate). Update the
+          // previously set type to the correct value here (ToDescribed is not
+          // available at record create).
+          // FIXME: The previous type is cleared but not removed from
+          // ASTContext's internal storage.
+          CXXRecordDecl *Injected = nullptr;
+          for (NamedDecl *Found : D2CXX->noload_lookup(Name)) {
+            auto *Record = dyn_cast<CXXRecordDecl>(Found);
+            if (Record && Record->isInjectedClassName()) {
+              Injected = Record;
+              break;
+            }
+          }
+          D2CXX->setTypeForDecl(nullptr);
+          Importer.getToContext().getInjectedClassNameType(D2CXX,
+              ToDescribed->getInjectedClassNameSpecialization());
+          if (Injected) {
+            Injected->setTypeForDecl(nullptr);
+            Importer.getToContext().getTypeDeclType(Injected, D2CXX);
+          }
+        }
       } else if (MemberSpecializationInfo *MemberInfo =
                    DCXX->getMemberSpecializationInfo()) {
         TemplateSpecializationKind SK =
@@ -2252,23 +2313,17 @@ bool ASTNodeImporter::ImportTemplateInformation(FunctionDecl *FromFD,
   }
 
   case FunctionDecl::TK_FunctionTemplateSpecialization: {
-    auto *FTSInfo = FromFD->getTemplateSpecializationInfo();
-    auto *Template = cast_or_null<FunctionTemplateDecl>(
-        Importer.Import(FTSInfo->getTemplate()));
-    if (!Template)
-      return true;
-    TemplateSpecializationKind TSK = FTSInfo->getTemplateSpecializationKind();
-
-    // Import template arguments.
-    auto TemplArgs = FTSInfo->TemplateArguments->asArray();
-    SmallVector<TemplateArgument, 8> ToTemplArgs;
-    if (ImportTemplateArguments(TemplArgs.data(), TemplArgs.size(),
-                                ToTemplArgs))
+    FunctionTemplateDecl* Template;
+    OptionalTemplateArgsTy ToTemplArgs;
+    std::tie(Template, ToTemplArgs) =
+        ImportFunctionTemplateWithTemplateArgsFromSpecialization(FromFD);
+    if (!Template || !ToTemplArgs)
       return true;
 
     TemplateArgumentList *ToTAList = TemplateArgumentList::CreateCopy(
-          Importer.getToContext(), ToTemplArgs);
+          Importer.getToContext(), *ToTemplArgs);
 
+    auto *FTSInfo = FromFD->getTemplateSpecializationInfo();
     TemplateArgumentListInfo ToTAInfo;
     const auto *FromTAArgsAsWritten = FTSInfo->TemplateArgumentsAsWritten;
     if (FromTAArgsAsWritten)
@@ -2277,6 +2332,7 @@ bool ASTNodeImporter::ImportTemplateInformation(FunctionDecl *FromFD,
 
     SourceLocation POI = Importer.Import(FTSInfo->getPointOfInstantiation());
 
+    TemplateSpecializationKind TSK = FTSInfo->getTemplateSpecializationKind();
     ToFD->setFunctionTemplateSpecialization(
         Template, ToTAList, /* InsertPos= */ nullptr,
         TSK, FromTAArgsAsWritten ? &ToTAInfo : nullptr, POI);
@@ -2312,7 +2368,31 @@ bool ASTNodeImporter::ImportTemplateInformation(FunctionDecl *FromFD,
   llvm_unreachable("All cases should be covered!");
 }
 
+FunctionDecl *
+ASTNodeImporter::FindFunctionTemplateSpecialization(FunctionDecl *FromFD) {
+  FunctionTemplateDecl* Template;
+  OptionalTemplateArgsTy ToTemplArgs;
+  std::tie(Template, ToTemplArgs) =
+      ImportFunctionTemplateWithTemplateArgsFromSpecialization(FromFD);
+  if (!Template || !ToTemplArgs)
+    return nullptr;
+
+  void *InsertPos = nullptr;
+  auto *FoundSpec = Template->findSpecialization(*ToTemplArgs, InsertPos);
+  return FoundSpec;
+}
+
 Decl *ASTNodeImporter::VisitFunctionDecl(FunctionDecl *D) {
+
+  SmallVector<Decl*, 2> Redecls = getCanonicalForwardRedeclChain(D);
+  auto RedeclIt = Redecls.begin();
+  // Import the first part of the decl chain. I.e. import all previous
+  // declarations starting from the canonical decl.
+  for (; RedeclIt != Redecls.end() && *RedeclIt != D; ++RedeclIt)
+    if (!Importer.Import(*RedeclIt))
+      return nullptr;
+  assert(*RedeclIt == D);
+
   // Import the major distinguishing characteristics of this function.
   DeclContext *DC, *LexicalDC;
   DeclarationName Name;
@@ -2323,13 +2403,27 @@ Decl *ASTNodeImporter::VisitFunctionDecl(FunctionDecl *D) {
   if (ToD)
     return ToD;
 
-  const FunctionDecl *FoundWithoutBody = nullptr;
+  const FunctionDecl *FoundByLookup = nullptr;
 
+  // If this is a function template specialization, then try to find the same
+  // existing specialization in the "to" context. The localUncachedLookup
+  // below will not find any specialization, but would find the primary
+  // template; thus, we have to skip normal lookup in case of specializations.
+  // FIXME handle member function templates (TK_MemberSpecialization) similarly?
+  if (D->getTemplatedKind() ==
+      FunctionDecl::TK_FunctionTemplateSpecialization) {
+    if (FunctionDecl *FoundFunction = FindFunctionTemplateSpecialization(D)) {
+      if (D->doesThisDeclarationHaveABody() &&
+          FoundFunction->hasBody())
+        return Importer.Imported(D, FoundFunction);
+      FoundByLookup = FoundFunction;
+    }
+  }
   // Try to find a function in our own ("to") context with the same name, same
   // type, and in the same context as the function we're importing.
-  if (!LexicalDC->isFunctionOrMethod()) {
+  else if (!LexicalDC->isFunctionOrMethod()) {
     SmallVector<NamedDecl *, 4> ConflictingDecls;
-    unsigned IDNS = Decl::IDNS_Ordinary;
+    unsigned IDNS = Decl::IDNS_Ordinary | Decl::IDNS_OrdinaryFriend;
     SmallVector<NamedDecl *, 2> FoundDecls;
     DC->getRedeclContext()->localUncachedLookup(Name, FoundDecls);
     for (auto *FoundDecl : FoundDecls) {
@@ -2341,15 +2435,11 @@ Decl *ASTNodeImporter::VisitFunctionDecl(FunctionDecl *D) {
             D->hasExternalFormalLinkage()) {
           if (Importer.IsStructurallyEquivalent(D->getType(), 
                                                 FoundFunction->getType())) {
-            // FIXME: Actually try to merge the body and other attributes.
-            const FunctionDecl *FromBodyDecl = nullptr;
-            D->hasBody(FromBodyDecl);
-            if (D == FromBodyDecl && !FoundFunction->hasBody()) {
-              // This function is needed to merge completely.
-              FoundWithoutBody = FoundFunction;
+              if (D->doesThisDeclarationHaveABody() &&
+                  FoundFunction->hasBody())
+                return Importer.Imported(D, FoundFunction);
+              FoundByLookup = FoundFunction;
               break;
-            }
-            return Importer.Imported(D, FoundFunction);
           }
 
           // FIXME: Check for overloading more carefully, e.g., by boosting
@@ -2499,9 +2589,9 @@ Decl *ASTNodeImporter::VisitFunctionDecl(FunctionDecl *D) {
   }
   ToFunction->setParams(Parameters);
 
-  if (FoundWithoutBody) {
+  if (FoundByLookup) {
     auto *Recent = const_cast<FunctionDecl *>(
-          FoundWithoutBody->getMostRecentDecl());
+          FoundByLookup->getMostRecentDecl());
     ToFunction->setPreviousDecl(Recent);
   }
 
@@ -2523,10 +2613,11 @@ Decl *ASTNodeImporter::VisitFunctionDecl(FunctionDecl *D) {
     ToFunction->setType(T);
   }
 
-  // Import the body, if any.
-  if (Stmt *FromBody = D->getBody()) {
-    if (Stmt *ToBody = Importer.Import(FromBody)) {
-      ToFunction->setBody(ToBody);
+  if (D->doesThisDeclarationHaveABody()) {
+    if (Stmt *FromBody = D->getBody()) {
+      if (Stmt *ToBody = Importer.Import(FromBody)) {
+        ToFunction->setBody(ToBody);
+      }
     }
   }
 
@@ -2536,13 +2627,28 @@ Decl *ASTNodeImporter::VisitFunctionDecl(FunctionDecl *D) {
   if (ImportTemplateInformation(D, ToFunction))
     return nullptr;
 
-  // Add this function to the lexical context.
-  // NOTE: If the function is templated declaration, it should be not added into
-  // LexicalDC. But described template is imported during import of
-  // FunctionTemplateDecl (it happens later). So, we use source declaration
-  // to determine if we should add the result function.
-  if (!D->getDescribedFunctionTemplate())
+  bool IsFriend = D->isInIdentifierNamespace(Decl::IDNS_OrdinaryFriend);
+
+  // TODO Can we generalize this approach to other AST nodes as well?
+  if (D->getDeclContext()->containsDeclAndLoad(D))
+    DC->addDeclInternal(ToFunction);
+  if (DC != LexicalDC && D->getLexicalDeclContext()->containsDeclAndLoad(D))
     LexicalDC->addDeclInternal(ToFunction);
+
+  // Friend declaration's lexical context is the befriending class, but the
+  // semantic context is the enclosing scope of the befriending class.
+  // We want the friend functions to be found in the semantic context by lookup.
+  // FIXME should we handle this generically in VisitFriendDecl?
+  // In Other cases when LexicalDC != DC we don't want it to be added,
+  // e.g out-of-class definitions like void B::f() {} .
+  if (LexicalDC != DC && IsFriend) {
+    DC->makeDeclVisibleInContext(ToFunction);
+  }
+
+  // Import the rest of the chain. I.e. import all subsequent declarations.
+  for (++RedeclIt; RedeclIt != Redecls.end(); ++RedeclIt)
+    if (!Importer.Import(*RedeclIt))
+      return nullptr;
 
   if (auto *FromCXXMethod = dyn_cast<CXXMethodDecl>(D))
     ImportOverrides(cast<CXXMethodDecl>(ToFunction), FromCXXMethod);
@@ -6508,6 +6614,19 @@ Expr *ASTNodeImporter::VisitInitListExpr(InitListExpr *ILE) {
   return To;
 }
 
+Expr *ASTNodeImporter::VisitCXXStdInitializerListExpr(
+    CXXStdInitializerListExpr *E) {
+  QualType T = Importer.Import(E->getType());
+  if (T.isNull())
+    return nullptr;
+
+  Expr *SE = Importer.Import(E->getSubExpr());
+  if (!SE)
+    return nullptr;
+
+  return new (Importer.getToContext()) CXXStdInitializerListExpr(T, SE);
+}
+
 Expr *ASTNodeImporter::VisitArrayInitLoopExpr(ArrayInitLoopExpr *E) {
   QualType ToType = Importer.Import(E->getType());
   if (ToType.isNull())
@@ -7036,19 +7155,13 @@ SourceLocation ASTImporter::Import(SourceLocation FromLoc) {
     return {};
 
   SourceManager &FromSM = FromContext.getSourceManager();
-  
-  // For now, map everything down to its file location, so that we
-  // don't have to import macro expansions.
-  // FIXME: Import macro expansions!
-  FromLoc = FromSM.getFileLoc(FromLoc);
+
   std::pair<FileID, unsigned> Decomposed = FromSM.getDecomposedLoc(FromLoc);
-  SourceManager &ToSM = ToContext.getSourceManager();
   FileID ToFileID = Import(Decomposed.first);
   if (ToFileID.isInvalid())
     return {};
-  SourceLocation ret = ToSM.getLocForStartOfFile(ToFileID)
-                           .getLocWithOffset(Decomposed.second);
-  return ret;
+  SourceManager &ToSM = ToContext.getSourceManager();
+  return ToSM.getComposedLoc(ToFileID, Decomposed.second);
 }
 
 SourceRange ASTImporter::Import(SourceRange FromRange) {
@@ -7056,41 +7169,56 @@ SourceRange ASTImporter::Import(SourceRange FromRange) {
 }
 
 FileID ASTImporter::Import(FileID FromID) {
-  llvm::DenseMap<FileID, FileID>::iterator Pos
-    = ImportedFileIDs.find(FromID);
+  llvm::DenseMap<FileID, FileID>::iterator Pos = ImportedFileIDs.find(FromID);
   if (Pos != ImportedFileIDs.end())
     return Pos->second;
-  
+
   SourceManager &FromSM = FromContext.getSourceManager();
   SourceManager &ToSM = ToContext.getSourceManager();
   const SrcMgr::SLocEntry &FromSLoc = FromSM.getSLocEntry(FromID);
-  assert(FromSLoc.isFile() && "Cannot handle macro expansions yet");
-  
-  // Include location of this file.
-  SourceLocation ToIncludeLoc = Import(FromSLoc.getFile().getIncludeLoc());
-  
-  // Map the FileID for to the "to" source manager.
+
+  // Map the FromID to the "to" source manager.
   FileID ToID;
-  const SrcMgr::ContentCache *Cache = FromSLoc.getFile().getContentCache();
-  if (Cache->OrigEntry && Cache->OrigEntry->getDir()) {
-    // FIXME: We probably want to use getVirtualFile(), so we don't hit the
-    // disk again
-    // FIXME: We definitely want to re-use the existing MemoryBuffer, rather
-    // than mmap the files several times.
-    const FileEntry *Entry = ToFileManager.getFile(Cache->OrigEntry->getName());
-    if (!Entry)
-      return {};
-    ToID = ToSM.createFileID(Entry, ToIncludeLoc, 
-                             FromSLoc.getFile().getFileCharacteristic());
+  if (FromSLoc.isExpansion()) {
+    const SrcMgr::ExpansionInfo &FromEx = FromSLoc.getExpansion();
+    SourceLocation ToSpLoc = Import(FromEx.getSpellingLoc());
+    SourceLocation ToExLocS = Import(FromEx.getExpansionLocStart());
+    unsigned TokenLen = FromSM.getFileIDSize(FromID);
+    SourceLocation MLoc;
+    if (FromEx.isMacroArgExpansion()) {
+      MLoc = ToSM.createMacroArgExpansionLoc(ToSpLoc, ToExLocS, TokenLen);
+    } else {
+      SourceLocation ToExLocE = Import(FromEx.getExpansionLocEnd());
+      MLoc = ToSM.createExpansionLoc(ToSpLoc, ToExLocS, ToExLocE, TokenLen,
+                                     FromEx.isExpansionTokenRange());
+    }
+    ToID = ToSM.getFileID(MLoc);
   } else {
-    // FIXME: We want to re-use the existing MemoryBuffer!
-    const llvm::MemoryBuffer *
-        FromBuf = Cache->getBuffer(FromContext.getDiagnostics(), FromSM);
-    std::unique_ptr<llvm::MemoryBuffer> ToBuf
-      = llvm::MemoryBuffer::getMemBufferCopy(FromBuf->getBuffer(),
-                                             FromBuf->getBufferIdentifier());
-    ToID = ToSM.createFileID(std::move(ToBuf),
-                             FromSLoc.getFile().getFileCharacteristic());
+    // Include location of this file.
+    SourceLocation ToIncludeLoc = Import(FromSLoc.getFile().getIncludeLoc());
+
+    const SrcMgr::ContentCache *Cache = FromSLoc.getFile().getContentCache();
+    if (Cache->OrigEntry && Cache->OrigEntry->getDir()) {
+      // FIXME: We probably want to use getVirtualFile(), so we don't hit the
+      // disk again
+      // FIXME: We definitely want to re-use the existing MemoryBuffer, rather
+      // than mmap the files several times.
+      const FileEntry *Entry =
+          ToFileManager.getFile(Cache->OrigEntry->getName());
+      if (!Entry)
+        return {};
+      ToID = ToSM.createFileID(Entry, ToIncludeLoc,
+                               FromSLoc.getFile().getFileCharacteristic());
+    } else {
+      // FIXME: We want to re-use the existing MemoryBuffer!
+      const llvm::MemoryBuffer *FromBuf =
+          Cache->getBuffer(FromContext.getDiagnostics(), FromSM);
+      std::unique_ptr<llvm::MemoryBuffer> ToBuf =
+          llvm::MemoryBuffer::getMemBufferCopy(FromBuf->getBuffer(),
+                                               FromBuf->getBufferIdentifier());
+      ToID = ToSM.createFileID(std::move(ToBuf),
+                               FromSLoc.getFile().getFileCharacteristic());
+    }
   }
 
   ImportedFileIDs[FromID] = ToID;

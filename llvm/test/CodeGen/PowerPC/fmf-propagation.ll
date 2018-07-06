@@ -15,15 +15,14 @@ declare float @llvm.sqrt.f32(float)
 ; X * Y + Z --> fma(X, Y, Z)
 
 ; FMFDEBUG-LABEL: Optimized lowered selection DAG: %bb.0 'fmul_fadd_contract1:'
-; FMFDEBUG:         fmul {{t[0-9]+}}, {{t[0-9]+}}
-; FMFDEBUG:         fadd contract {{t[0-9]+}}, {{t[0-9]+}}
+; FMFDEBUG:         fma contract {{t[0-9]+}}, {{t[0-9]+}}, {{t[0-9]+}}
 ; FMFDEBUG:       Type-legalized selection DAG: %bb.0 'fmul_fadd_contract1:'
 
 define float @fmul_fadd_contract1(float %x, float %y, float %z) {
 ; FMF-LABEL: fmul_fadd_contract1:
 ; FMF:       # %bb.0:
-; FMF-NEXT:    xsmulsp 0, 1, 2
-; FMF-NEXT:    xsaddsp 1, 0, 3
+; FMF-NEXT:    xsmaddasp 3, 1, 2
+; FMF-NEXT:    fmr 1, 3
 ; FMF-NEXT:    blr
 ;
 ; GLOBAL-LABEL: fmul_fadd_contract1:
@@ -62,15 +61,14 @@ define float @fmul_fadd_contract2(float %x, float %y, float %z) {
 ; Reassociation implies that FMA contraction is allowed.
 
 ; FMFDEBUG-LABEL: Optimized lowered selection DAG: %bb.0 'fmul_fadd_reassoc1:'
-; FMFDEBUG:         fmul {{t[0-9]+}}, {{t[0-9]+}}
-; FMFDEBUG:         fadd reassoc {{t[0-9]+}}, {{t[0-9]+}}
+; FMFDEBUG:         fma reassoc {{t[0-9]+}}, {{t[0-9]+}}, {{t[0-9]+}}
 ; FMFDEBUG:       Type-legalized selection DAG: %bb.0 'fmul_fadd_reassoc1:'
 
 define float @fmul_fadd_reassoc1(float %x, float %y, float %z) {
 ; FMF-LABEL: fmul_fadd_reassoc1:
 ; FMF:       # %bb.0:
-; FMF-NEXT:    xsmulsp 0, 1, 2
-; FMF-NEXT:    xsaddsp 1, 0, 3
+; FMF-NEXT:    xsmaddasp 3, 1, 2
+; FMF-NEXT:    fmr 1, 3
 ; FMF-NEXT:    blr
 ;
 ; GLOBAL-LABEL: fmul_fadd_reassoc1:
@@ -156,7 +154,7 @@ define float @fmul_fadd_fast2(float %x, float %y, float %z) {
 ; This is the minimum FMF needed for this transform - the FMA allows reassociation.
 
 ; FMFDEBUG-LABEL: Optimized lowered selection DAG: %bb.0 'fmul_fma_reassoc1:'
-; FMFDEBUG:         fma reassoc {{t[0-9]+}}
+; FMFDEBUG:         fmul reassoc {{t[0-9]+}},
 ; FMFDEBUG:       Type-legalized selection DAG: %bb.0 'fmul_fma_reassoc1:'
 
 ; GLOBALDEBUG-LABEL: Optimized lowered selection DAG: %bb.0 'fmul_fma_reassoc1:'
@@ -169,12 +167,7 @@ define float @fmul_fma_reassoc1(float %x) {
 ; FMF-NEXT:    addis 3, 2, .LCPI6_0@toc@ha
 ; FMF-NEXT:    addi 3, 3, .LCPI6_0@toc@l
 ; FMF-NEXT:    lfsx 0, 0, 3
-; FMF-NEXT:    addis 3, 2, .LCPI6_1@toc@ha
-; FMF-NEXT:    addi 3, 3, .LCPI6_1@toc@l
-; FMF-NEXT:    lfsx 2, 0, 3
-; FMF-NEXT:    xsmulsp 0, 1, 0
-; FMF-NEXT:    xsmaddasp 0, 1, 2
-; FMF-NEXT:    fmr 1, 0
+; FMF-NEXT:    xsmulsp 1, 1, 0
 ; FMF-NEXT:    blr
 ;
 ; GLOBAL-LABEL: fmul_fma_reassoc1:
@@ -193,7 +186,6 @@ define float @fmul_fma_reassoc1(float %x) {
 
 ; FMFDEBUG-LABEL: Optimized lowered selection DAG: %bb.0 'fmul_fma_reassoc2:'
 ; FMFDEBUG:         fmul reassoc {{t[0-9]+}}
-; FMFDEBUG:         fma reassoc {{t[0-9]+}}
 ; FMFDEBUG:       Type-legalized selection DAG: %bb.0 'fmul_fma_reassoc2:'
 
 ; GLOBALDEBUG-LABEL: Optimized lowered selection DAG: %bb.0 'fmul_fma_reassoc2:'
@@ -206,12 +198,7 @@ define float @fmul_fma_reassoc2(float %x) {
 ; FMF-NEXT:    addis 3, 2, .LCPI7_0@toc@ha
 ; FMF-NEXT:    addi 3, 3, .LCPI7_0@toc@l
 ; FMF-NEXT:    lfsx 0, 0, 3
-; FMF-NEXT:    addis 3, 2, .LCPI7_1@toc@ha
-; FMF-NEXT:    addi 3, 3, .LCPI7_1@toc@l
-; FMF-NEXT:    lfsx 2, 0, 3
-; FMF-NEXT:    xsmulsp 0, 1, 0
-; FMF-NEXT:    xsmaddasp 0, 1, 2
-; FMF-NEXT:    fmr 1, 0
+; FMF-NEXT:    xsmulsp 1, 1, 0
 ; FMF-NEXT:    blr
 ;
 ; GLOBAL-LABEL: fmul_fma_reassoc2:
@@ -229,7 +216,7 @@ define float @fmul_fma_reassoc2(float %x) {
 ; The FMA is now fully 'fast'. This implies that reassociation is allowed.
 
 ; FMFDEBUG-LABEL: Optimized lowered selection DAG: %bb.0 'fmul_fma_fast1:'
-; FMFDEBUG:         fma nnan ninf nsz arcp contract afn reassoc {{t[0-9]+}}
+; FMFDEBUG:         fmul nnan ninf nsz arcp contract afn reassoc {{t[0-9]+}}
 ; FMFDEBUG:       Type-legalized selection DAG: %bb.0 'fmul_fma_fast1:'
 
 ; GLOBALDEBUG-LABEL: Optimized lowered selection DAG: %bb.0 'fmul_fma_fast1:'
@@ -242,12 +229,7 @@ define float @fmul_fma_fast1(float %x) {
 ; FMF-NEXT:    addis 3, 2, .LCPI8_0@toc@ha
 ; FMF-NEXT:    addi 3, 3, .LCPI8_0@toc@l
 ; FMF-NEXT:    lfsx 0, 0, 3
-; FMF-NEXT:    addis 3, 2, .LCPI8_1@toc@ha
-; FMF-NEXT:    addi 3, 3, .LCPI8_1@toc@l
-; FMF-NEXT:    lfsx 2, 0, 3
-; FMF-NEXT:    xsmulsp 0, 1, 0
-; FMF-NEXT:    xsmaddasp 0, 1, 2
-; FMF-NEXT:    fmr 1, 0
+; FMF-NEXT:    xsmulsp 1, 1, 0
 ; FMF-NEXT:    blr
 ;
 ; GLOBAL-LABEL: fmul_fma_fast1:
@@ -266,7 +248,6 @@ define float @fmul_fma_fast1(float %x) {
 
 ; FMFDEBUG-LABEL: Optimized lowered selection DAG: %bb.0 'fmul_fma_fast2:'
 ; FMFDEBUG:         fmul nnan ninf nsz arcp contract afn reassoc {{t[0-9]+}}
-; FMFDEBUG:         fma nnan ninf nsz arcp contract afn reassoc {{t[0-9]+}}
 ; FMFDEBUG:       Type-legalized selection DAG: %bb.0 'fmul_fma_fast2:'
 
 ; GLOBALDEBUG-LABEL: Optimized lowered selection DAG: %bb.0 'fmul_fma_fast2:'
@@ -279,12 +260,7 @@ define float @fmul_fma_fast2(float %x) {
 ; FMF-NEXT:    addis 3, 2, .LCPI9_0@toc@ha
 ; FMF-NEXT:    addi 3, 3, .LCPI9_0@toc@l
 ; FMF-NEXT:    lfsx 0, 0, 3
-; FMF-NEXT:    addis 3, 2, .LCPI9_1@toc@ha
-; FMF-NEXT:    addi 3, 3, .LCPI9_1@toc@l
-; FMF-NEXT:    lfsx 2, 0, 3
-; FMF-NEXT:    xsmulsp 0, 1, 0
-; FMF-NEXT:    xsmaddasp 0, 1, 2
-; FMF-NEXT:    fmr 1, 0
+; FMF-NEXT:    xsmulsp 1, 1, 0
 ; FMF-NEXT:    blr
 ;
 ; GLOBAL-LABEL: fmul_fma_fast2:
@@ -311,25 +287,25 @@ define float @fmul_fma_fast2(float %x) {
 
 define float @sqrt_afn(float %x) {
 ; FMF-LABEL: sqrt_afn:
-; FMF:          # %bb.0:
-; FMF-NEXT:       xxlxor 0, 0, 0
-; FMF-NEXT:       fcmpu 0, 1, 0
-; FMF-NEXT:       beq 0, .LBB10_2
-; FMF-NEXT:     # %bb.1:
-; FMF-NEXT:       addis 3, 2, .LCPI10_0@toc@ha
-; FMF-NEXT:       xsrsqrtesp 3, 1
-; FMF-NEXT:       addi 3, 3, .LCPI10_0@toc@l
-; FMF-NEXT:       lfsx 0, 0, 3
-; FMF-NEXT:       xsmulsp 2, 1, 0
-; FMF-NEXT:       xsmulsp 4, 3, 3
-; FMF-NEXT:       xssubsp 2, 2, 1
-; FMF-NEXT:       xsmulsp 2, 2, 4
-; FMF-NEXT:       xssubsp 0, 0, 2
-; FMF-NEXT:       xsmulsp 0, 3, 0
-; FMF-NEXT:       xsmulsp 0, 0, 1
-; FMF-NEXT:     .LBB10_2:
-; FMF-NEXT:       fmr 1, 0
-; FMF-NEXT:       blr
+; FMF:       # %bb.0:
+; FMF-NEXT:    xxlxor 0, 0, 0
+; FMF-NEXT:    fcmpu 0, 1, 0
+; FMF-NEXT:    beq 0, .LBB10_2
+; FMF-NEXT:  # %bb.1:
+; FMF-NEXT:    addis 3, 2, .LCPI10_0@toc@ha
+; FMF-NEXT:    xsrsqrtesp 3, 1
+; FMF-NEXT:    addi 3, 3, .LCPI10_0@toc@l
+; FMF-NEXT:    lfsx 0, 0, 3
+; FMF-NEXT:    xsmulsp 2, 1, 0
+; FMF-NEXT:    xsmulsp 4, 3, 3
+; FMF-NEXT:    xssubsp 2, 2, 1
+; FMF-NEXT:    xsmulsp 2, 2, 4
+; FMF-NEXT:    xssubsp 0, 0, 2
+; FMF-NEXT:    xsmulsp 0, 3, 0
+; FMF-NEXT:    xsmulsp 0, 0, 1
+; FMF-NEXT:  .LBB10_2:
+; FMF-NEXT:    fmr 1, 0
+; FMF-NEXT:    blr
 ;
 ; GLOBAL-LABEL: sqrt_afn:
 ; GLOBAL:       # %bb.0:
@@ -338,8 +314,8 @@ define float @sqrt_afn(float %x) {
 ; GLOBAL-NEXT:    beq 0, .LBB10_2
 ; GLOBAL-NEXT:  # %bb.1:
 ; GLOBAL-NEXT:    xsrsqrtesp 2, 1
-; GLOBAL-NEXT:    addis 3, 2, .LCPI10_0@toc@ha
 ; GLOBAL-NEXT:    fneg 0, 1
+; GLOBAL-NEXT:    addis 3, 2, .LCPI10_0@toc@ha
 ; GLOBAL-NEXT:    fmr 4, 1
 ; GLOBAL-NEXT:    addi 3, 3, .LCPI10_0@toc@l
 ; GLOBAL-NEXT:    lfsx 3, 0, 3
@@ -367,25 +343,25 @@ define float @sqrt_afn(float %x) {
 
 define float @sqrt_fast(float %x) {
 ; FMF-LABEL: sqrt_fast:
-; FMF:          # %bb.0:
-; FMF-NEXT:       xxlxor 0, 0, 0
-; FMF-NEXT:       fcmpu 0, 1, 0
-; FMF-NEXT:       beq 0, .LBB11_2
-; FMF-NEXT:     # %bb.1:
-; FMF-NEXT:       xsrsqrtesp 2, 1
-; FMF-NEXT:       addis 3, 2, .LCPI11_0@toc@ha
-; FMF-NEXT:       fneg 0, 1
-; FMF-NEXT:       fmr 4, 1
-; FMF-NEXT:       addi 3, 3, .LCPI11_0@toc@l
-; FMF-NEXT:       lfsx 3, 0, 3
-; FMF-NEXT:       xsmaddasp 4, 0, 3
-; FMF-NEXT:       xsmulsp 0, 2, 2
-; FMF-NEXT:       xsmaddasp 3, 4, 0
-; FMF-NEXT:       xsmulsp 0, 2, 3
-; FMF-NEXT:       xsmulsp 0, 0, 1
-; FMF-NEXT:     .LBB11_2:
-; FMF-NEXT:       fmr 1, 0
-; FMF-NEXT:       blr
+; FMF:       # %bb.0:
+; FMF-NEXT:    xxlxor 0, 0, 0
+; FMF-NEXT:    fcmpu 0, 1, 0
+; FMF-NEXT:    beq 0, .LBB11_2
+; FMF-NEXT:  # %bb.1:
+; FMF-NEXT:    xsrsqrtesp 2, 1
+; FMF-NEXT:    fneg 0, 1
+; FMF-NEXT:    addis 3, 2, .LCPI11_0@toc@ha
+; FMF-NEXT:    fmr 4, 1
+; FMF-NEXT:    addi 3, 3, .LCPI11_0@toc@l
+; FMF-NEXT:    lfsx 3, 0, 3
+; FMF-NEXT:    xsmaddasp 4, 0, 3
+; FMF-NEXT:    xsmulsp 0, 2, 2
+; FMF-NEXT:    xsmaddasp 3, 4, 0
+; FMF-NEXT:    xsmulsp 0, 2, 3
+; FMF-NEXT:    xsmulsp 0, 0, 1
+; FMF-NEXT:  .LBB11_2:
+; FMF-NEXT:    fmr 1, 0
+; FMF-NEXT:    blr
 ;
 ; GLOBAL-LABEL: sqrt_fast:
 ; GLOBAL:       # %bb.0:
@@ -394,8 +370,8 @@ define float @sqrt_fast(float %x) {
 ; GLOBAL-NEXT:    beq 0, .LBB11_2
 ; GLOBAL-NEXT:  # %bb.1:
 ; GLOBAL-NEXT:    xsrsqrtesp 2, 1
-; GLOBAL-NEXT:    addis 3, 2, .LCPI11_0@toc@ha
 ; GLOBAL-NEXT:    fneg 0, 1
+; GLOBAL-NEXT:    addis 3, 2, .LCPI11_0@toc@ha
 ; GLOBAL-NEXT:    fmr 4, 1
 ; GLOBAL-NEXT:    addi 3, 3, .LCPI11_0@toc@l
 ; GLOBAL-NEXT:    lfsx 3, 0, 3

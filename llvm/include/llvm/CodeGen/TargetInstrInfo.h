@@ -1602,12 +1602,9 @@ public:
     return false;
   }
 
-  /// Returns true if the target implements the MachineOutliner.
-  virtual bool useMachineOutliner() const { return false; }
-
   /// Returns a \p outliner::TargetCostInfo struct containing target-specific
   /// information for a set of outlining candidates.
-  virtual outliner::TargetCostInfo getOutlininingCandidateInfo(
+  virtual outliner::TargetCostInfo getOutliningCandidateInfo(
       std::vector<outliner::Candidate> &RepeatedSequenceLocs) const {
     llvm_unreachable(
         "Target didn't implement TargetInstrInfo::getOutliningCandidateInfo!");
@@ -1626,14 +1623,12 @@ public:
     return 0x0;
   }
 
-  /// Insert a custom epilogue for outlined functions.
-  /// This may be empty, in which case no epilogue or return statement will be
-  /// emitted.
-  virtual void insertOutlinerEpilogue(MachineBasicBlock &MBB,
+  /// Insert a custom frame for outlined functions.
+  virtual void buildOutlinedFrame(MachineBasicBlock &MBB,
                                       MachineFunction &MF,
                                     const outliner::TargetCostInfo &TCI) const {
     llvm_unreachable(
-        "Target didn't implement TargetInstrInfo::insertOutlinerEpilogue!");
+        "Target didn't implement TargetInstrInfo::buildOutlinedFrame!");
   }
 
   /// Insert a call to an outlined function into the program.
@@ -1647,15 +1642,6 @@ public:
         "Target didn't implement TargetInstrInfo::insertOutlinedCall!");
   }
 
-  /// Insert a custom prologue for outlined functions.
-  /// This may be empty, in which case no prologue will be emitted.
-  virtual void insertOutlinerPrologue(MachineBasicBlock &MBB,
-                                      MachineFunction &MF,
-                                    const outliner::TargetCostInfo &TCI) const {
-    llvm_unreachable(
-        "Target didn't implement TargetInstrInfo::insertOutlinerPrologue!");
-  }
-
   /// Return true if the function can safely be outlined from.
   /// A function \p MF is considered safe for outlining if an outlined function
   /// produced from instructions in F will produce a program which produces the
@@ -1664,6 +1650,11 @@ public:
                                            bool OutlineFromLinkOnceODRs) const {
     llvm_unreachable("Target didn't implement "
                      "TargetInstrInfo::isFunctionSafeToOutlineFrom!");
+  }
+
+  /// Return true if the function should be outlined from by default.
+  virtual bool shouldOutlineFromFunctionByDefault(MachineFunction &MF) const {
+    return false;
   }
 
 private:

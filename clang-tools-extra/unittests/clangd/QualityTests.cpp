@@ -17,13 +17,23 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "FileDistance.h"
 #include "Quality.h"
+#include "TestFS.h"
 #include "TestTU.h"
+#include "clang/AST/Decl.h"
+#include "clang/AST/DeclCXX.h"
+#include "llvm/Support/Casting.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace clang {
 namespace clangd {
+
+// Force the unittest URI scheme to be linked,
+static int LLVM_ATTRIBUTE_UNUSED UnittestSchemeAnchorDest =
+    UnittestSchemeAnchorSource;
+
 namespace {
 
 TEST(QualityTests, SymbolQualitySignalExtraction) {
@@ -78,6 +88,7 @@ TEST(QualityTests, SymbolRelevanceSignalExtraction) {
     int deprecated() { return 0; }
 
     namespace { struct X { void y() { int z; } }; }
+    struct S{}
   )cpp";
   auto AST = Test.build();
 
@@ -91,13 +102,14 @@ TEST(QualityTests, SymbolRelevanceSignalExtraction) {
 
   Relevance = {};
   Relevance.merge(CodeCompletionResult(&findDecl(AST, "main"), 42));
-  EXPECT_FLOAT_EQ(Relevance.ProximityScore, 1.0) << "Decl in current file";
+  EXPECT_FLOAT_EQ(Relevance.SemaProximityScore, 1.0f) << "Decl in current file";
   Relevance = {};
   Relevance.merge(CodeCompletionResult(&findDecl(AST, "header"), 42));
-  EXPECT_FLOAT_EQ(Relevance.ProximityScore, 0.0) << "Decl from header";
+  EXPECT_FLOAT_EQ(Relevance.SemaProximityScore, 0.6f) << "Decl from header";
   Relevance = {};
   Relevance.merge(CodeCompletionResult(&findDecl(AST, "header_main"), 42));
-  EXPECT_FLOAT_EQ(Relevance.ProximityScore, 1.0) << "Current file and header";
+  EXPECT_FLOAT_EQ(Relevance.SemaProximityScore, 1.0f)
+      << "Current file and header";
 
   Relevance = {};
   Relevance.merge(CodeCompletionResult(&findAnyDecl(AST, "X"), 42));
@@ -108,6 +120,10 @@ TEST(QualityTests, SymbolRelevanceSignalExtraction) {
   Relevance = {};
   Relevance.merge(CodeCompletionResult(&findAnyDecl(AST, "z"), 42));
   EXPECT_EQ(Relevance.Scope, SymbolRelevanceSignals::FunctionScope);
+  // The injected class name is treated as the outer class name.
+  Relevance = {};
+  Relevance.merge(CodeCompletionResult(&findDecl(AST, "S::S"), 42));
+  EXPECT_EQ(Relevance.Scope, SymbolRelevanceSignals::GlobalScope);
 }
 
 // Do the signals move the scores in the direction we expect?
@@ -124,7 +140,7 @@ TEST(QualityTests, SymbolQualitySignalsSanity) {
   EXPECT_LT(ReservedName.evaluate(), Default.evaluate());
 
   SymbolQualitySignals WithReferences, ManyReferences;
-  WithReferences.References = 10;
+  WithReferences.References = 20;
   ManyReferences.References = 1000;
   EXPECT_GT(WithReferences.evaluate(), Default.evaluate());
   EXPECT_GT(ManyReferences.evaluate(), WithReferences.evaluate());
@@ -150,9 +166,22 @@ TEST(QualityTests, SymbolRelevanceSignalsSanity) {
   PoorNameMatch.NameMatch = 0.2f;
   EXPECT_LT(PoorNameMatch.evaluate(), Default.evaluate());
 
-  SymbolRelevanceSignals WithProximity;
-  WithProximity.ProximityScore = 0.2f;
-  EXPECT_GT(WithProximity.evaluate(), Default.evaluate());
+  SymbolRelevanceSignals WithSemaProximity;
+  WithSemaProximity.SemaProximityScore = 0.2f;
+  EXPECT_GT(WithSemaProximity.evaluate(), Default.evaluate());
+
+  SymbolRelevanceSignals IndexProximate;
+  IndexProximate.SymbolURI = "unittest:/foo/bar.h";
+  llvm::StringMap<SourceParams> ProxSources;
+  ProxSources.try_emplace(testPath("foo/baz.h"));
+  URIDistance Distance(ProxSources);
+  IndexProximate.FileProximityMatch = &Distance;
+  EXPECT_GT(IndexProximate.evaluate(), Default.evaluate());
+  SymbolRelevanceSignals IndexDistant = IndexProximate;
+  IndexDistant.SymbolURI = "unittest:/elsewhere/path.h";
+  EXPECT_GT(IndexProximate.evaluate(), IndexDistant.evaluate())
+      << IndexProximate << IndexDistant;
+  EXPECT_GT(IndexDistant.evaluate(), Default.evaluate());
 
   SymbolRelevanceSignals Scoped;
   Scoped.Scope = SymbolRelevanceSignals::FileScope;
@@ -171,6 +200,31 @@ TEST(QualityTests, SortText) {
 
   EXPECT_LT(sortText(1, "z"), sortText(0, "a"));
   EXPECT_LT(sortText(0, "a"), sortText(0, "z"));
+}
+
+TEST(QualityTests, NoBoostForClassConstructor) {
+  auto Header = TestTU::withHeaderCode(R"cpp(
+    class Foo {
+    public:
+      Foo(int);
+    };
+  )cpp");
+  auto Symbols = Header.headerSymbols();
+  auto AST = Header.build();
+
+  const NamedDecl *Foo = &findDecl(AST, "Foo");
+  SymbolRelevanceSignals Cls;
+  Cls.merge(CodeCompletionResult(Foo, /*Priority=*/0));
+
+  const NamedDecl *CtorDecl = &findAnyDecl(AST, [](const NamedDecl &ND) {
+    return (ND.getQualifiedNameAsString() == "Foo::Foo") &&
+           llvm::isa<CXXConstructorDecl>(&ND);
+  });
+  SymbolRelevanceSignals Ctor;
+  Ctor.merge(CodeCompletionResult(CtorDecl, /*Priority=*/0));
+
+  EXPECT_EQ(Cls.Scope, SymbolRelevanceSignals::GlobalScope);
+  EXPECT_EQ(Ctor.Scope, SymbolRelevanceSignals::GlobalScope);
 }
 
 } // namespace

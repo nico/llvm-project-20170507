@@ -1,3 +1,4 @@
+# REQUIRES: mips
 # Check MIPS TLS relocations handling.
 
 # RUN: llvm-mc -filetype=obj -triple=mips-unknown-linux \
@@ -12,8 +13,6 @@
 # RUN: ld.lld -shared %t.o %t.so -o %t-out.so
 # RUN: llvm-objdump -d -s -t %t-out.so | FileCheck -check-prefix=DIS-SO %s
 # RUN: llvm-readobj -r -mips-plt-got %t-out.so | FileCheck -check-prefix=SO %s
-
-# REQUIRES: mips
 
 # DIS:      __start:
 # DIS-NEXT:    20000:   24 62 80 20   addiu   $2, $3, -32736
@@ -64,12 +63,12 @@
 # SO:      Relocations [
 # SO-NEXT:   Section (7) .rel.dyn {
 # SO-NEXT:     0x20018 R_MIPS_TLS_DTPMOD32 - 0x0
-# SO-NEXT:     0x20008 R_MIPS_TLS_TPREL32 foo 0x0
-# SO-NEXT:     0x20010 R_MIPS_TLS_DTPMOD32 foo 0x0
-# SO-NEXT:     0x20014 R_MIPS_TLS_DTPREL32 foo 0x0
 # SO-NEXT:     0x2000C R_MIPS_TLS_TPREL32 bar 0x0
 # SO-NEXT:     0x20020 R_MIPS_TLS_DTPMOD32 bar 0x0
 # SO-NEXT:     0x20024 R_MIPS_TLS_DTPREL32 bar 0x0
+# SO-NEXT:     0x20008 R_MIPS_TLS_TPREL32 foo 0x0
+# SO-NEXT:     0x20010 R_MIPS_TLS_DTPMOD32 foo 0x0
+# SO-NEXT:     0x20014 R_MIPS_TLS_DTPREL32 foo 0x0
 # SO-NEXT:   }
 # SO-NEXT: ]
 # SO-NEXT: Primary GOT {

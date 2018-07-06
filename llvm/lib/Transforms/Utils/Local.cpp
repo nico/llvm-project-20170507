@@ -1228,6 +1228,31 @@ static bool PhiHasDebugValue(DILocalVariable *DIVar,
   return false;
 }
 
+/// Check if the alloc size of \p ValTy is large enough to cover the variable
+/// (or fragment of the variable) described by \p DII.
+///
+/// This is primarily intended as a helper for the different
+/// ConvertDebugDeclareToDebugValue functions. The dbg.declare/dbg.addr that is
+/// converted describes an alloca'd variable, so we need to use the
+/// alloc size of the value when doing the comparison. E.g. an i1 value will be
+/// identified as covering an n-bit fragment, if the store size of i1 is at
+/// least n bits.
+static bool valueCoversEntireFragment(Type *ValTy, DbgInfoIntrinsic *DII) {
+  const DataLayout &DL = DII->getModule()->getDataLayout();
+  uint64_t ValueSize = DL.getTypeAllocSizeInBits(ValTy);
+  if (auto FragmentSize = DII->getFragmentSizeInBits())
+    return ValueSize >= *FragmentSize;
+  // We can't always calculate the size of the DI variable (e.g. if it is a
+  // VLA). Try to use the size of the alloca that the dbg intrinsic describes
+  // intead.
+  if (DII->isAddressOfVariable())
+    if (auto *AI = dyn_cast_or_null<AllocaInst>(DII->getVariableLocation()))
+      if (auto FragmentSize = AI->getAllocationSizeInBits(DL))
+        return ValueSize >= *FragmentSize;
+  // Could not determine size of variable. Conservatively return false.
+  return false;
+}
+
 /// Inserts a llvm.dbg.value intrinsic before a store to an alloca'd value
 /// that has an associated llvm.dbg.declare or llvm.dbg.addr intrinsic.
 void llvm::ConvertDebugDeclareToDebugValue(DbgInfoIntrinsic *DII,
@@ -1237,6 +1262,21 @@ void llvm::ConvertDebugDeclareToDebugValue(DbgInfoIntrinsic *DII,
   assert(DIVar && "Missing variable");
   auto *DIExpr = DII->getExpression();
   Value *DV = SI->getOperand(0);
+
+  if (!valueCoversEntireFragment(SI->getValueOperand()->getType(), DII)) {
+    // FIXME: If storing to a part of the variable described by the dbg.declare,
+    // then we want to insert a dbg.value for the corresponding fragment.
+    LLVM_DEBUG(dbgs() << "Failed to convert dbg.declare to dbg.value: "
+                      << *DII << '\n');
+    // For now, when there is a store to parts of the variable (but we do not
+    // know which part) we insert an dbg.value instrinsic to indicate that we
+    // know nothing about the variable's content.
+    DV = UndefValue::get(DV->getType());
+    if (!LdStHasDebugValue(DIVar, DIExpr, SI))
+      Builder.insertDbgValueIntrinsic(DV, DIVar, DIExpr, DII->getDebugLoc(),
+                                      SI);
+    return;
+  }
 
   // If an argument is zero extended then use argument directly. The ZExt
   // may be zapped by an optimization pass in future.
@@ -1281,6 +1321,15 @@ void llvm::ConvertDebugDeclareToDebugValue(DbgInfoIntrinsic *DII,
   if (LdStHasDebugValue(DIVar, DIExpr, LI))
     return;
 
+  if (!valueCoversEntireFragment(LI->getType(), DII)) {
+    // FIXME: If only referring to a part of the variable described by the
+    // dbg.declare, then we want to insert a dbg.value for the corresponding
+    // fragment.
+    LLVM_DEBUG(dbgs() << "Failed to convert dbg.declare to dbg.value: "
+                      << *DII << '\n');
+    return;
+  }
+
   // We are now tracking the loaded value instead of the address. In the
   // future if multi-location support is added to the IR, it might be
   // preferable to keep tracking both the loaded value and the original
@@ -1300,6 +1349,15 @@ void llvm::ConvertDebugDeclareToDebugValue(DbgInfoIntrinsic *DII,
 
   if (PhiHasDebugValue(DIVar, DIExpr, APN))
     return;
+
+  if (!valueCoversEntireFragment(APN->getType(), DII)) {
+    // FIXME: If only referring to a part of the variable described by the
+    // dbg.declare, then we want to insert a dbg.value for the corresponding
+    // fragment.
+    LLVM_DEBUG(dbgs() << "Failed to convert dbg.declare to dbg.value: "
+                      << *DII << '\n');
+    return;
+  }
 
   BasicBlock *BB = APN->getParent();
   auto InsertionPt = BB->getFirstInsertionPt();
@@ -1420,6 +1478,10 @@ void llvm::insertDebugValuesForPHIs(BasicBlock *BB,
 /// 'V' points to. This may include a mix of dbg.declare and
 /// dbg.addr intrinsics.
 TinyPtrVector<DbgInfoIntrinsic *> llvm::FindDbgAddrUses(Value *V) {
+  // This function is hot. Check whether the value has any metadata to avoid a
+  // DenseMap lookup.
+  if (!V->isUsedByMetadata())
+    return {};
   auto *L = LocalAsMetadata::getIfExists(V);
   if (!L)
     return {};
@@ -1438,6 +1500,10 @@ TinyPtrVector<DbgInfoIntrinsic *> llvm::FindDbgAddrUses(Value *V) {
 }
 
 void llvm::findDbgValues(SmallVectorImpl<DbgValueInst *> &DbgValues, Value *V) {
+  // This function is hot. Check whether the value has any metadata to avoid a
+  // DenseMap lookup.
+  if (!V->isUsedByMetadata())
+    return;
   if (auto *L = LocalAsMetadata::getIfExists(V))
     if (auto *MDV = MetadataAsValue::getIfExists(V->getContext(), L))
       for (User *U : MDV->users())
@@ -1447,6 +1513,10 @@ void llvm::findDbgValues(SmallVectorImpl<DbgValueInst *> &DbgValues, Value *V) {
 
 void llvm::findDbgUsers(SmallVectorImpl<DbgInfoIntrinsic *> &DbgUsers,
                         Value *V) {
+  // This function is hot. Check whether the value has any metadata to avoid a
+  // DenseMap lookup.
+  if (!V->isUsedByMetadata())
+    return;
   if (auto *L = LocalAsMetadata::getIfExists(V))
     if (auto *MDV = MetadataAsValue::getIfExists(V->getContext(), L))
       for (User *U : MDV->users())
@@ -1521,11 +1591,6 @@ void llvm::replaceDbgValueForAlloca(AllocaInst *AI, Value *NewAllocaAddress,
 }
 
 void llvm::salvageDebugInfo(Instruction &I) {
-  // This function is hot. An early check to determine whether the instruction
-  // has any metadata to save allows it to return earlier on average.
-  if (!I.isUsedByMetadata())
-    return;
-
   SmallVector<DbgInfoIntrinsic *, 1> DbgUsers;
   findDbgUsers(DbgUsers, &I);
   if (DbgUsers.empty())
@@ -1540,8 +1605,13 @@ void llvm::salvageDebugInfo(Instruction &I) {
 
   auto doSalvage = [&](DbgInfoIntrinsic *DII, SmallVectorImpl<uint64_t> &Ops) {
     auto *DIExpr = DII->getExpression();
-    DIExpr =
-        DIExpression::prependOpcodes(DIExpr, Ops, DIExpression::WithStackValue);
+    if (!Ops.empty()) {
+      // Do not add DW_OP_stack_value for DbgDeclare and DbgAddr, because they
+      // are implicitly pointing out the value as a DWARF memory location
+      // description.
+      bool WithStackValue = isa<DbgValueInst>(DII);
+      DIExpr = DIExpression::prependOpcodes(DIExpr, Ops, WithStackValue);
+    }
     DII->setOperand(0, wrapMD(I.getOperand(0)));
     DII->setOperand(2, MetadataAsValue::get(I.getContext(), DIExpr));
     LLVM_DEBUG(dbgs() << "SALVAGE: " << *DII << '\n');
@@ -1637,6 +1707,35 @@ void llvm::salvageDebugInfo(Instruction &I) {
       LLVM_DEBUG(dbgs() << "SALVAGE:  " << *DII << '\n');
     }
   }
+}
+
+void llvm::insertReplacementDbgValues(
+    Value &From, Value &To, Instruction &InsertBefore,
+    function_ref<DIExpression *(DbgInfoIntrinsic &OldDII)> RewriteExpr) {
+  // Collect all debug users of From.
+  SmallVector<DbgInfoIntrinsic *, 1> Users;
+  findDbgUsers(Users, &From);
+  if (Users.empty())
+    return;
+
+  // Insert a replacement debug value for each old debug user. It's assumed
+  // that the old debug users will be erased later.
+  DIBuilder DIB(*InsertBefore.getModule());
+  for (auto *OldDII : Users)
+    if (DIExpression *Expr = RewriteExpr(*OldDII)) {
+      auto *I = DIB.insertDbgValueIntrinsic(&To, OldDII->getVariable(), Expr,
+                                            OldDII->getDebugLoc().get(),
+                                            &InsertBefore);
+      (void)I;
+      LLVM_DEBUG(dbgs() << "REPLACE:  " << *I << '\n');
+    }
+}
+
+void llvm::insertReplacementDbgValues(Value &From, Value &To,
+                                      Instruction &InsertBefore) {
+  return llvm::insertReplacementDbgValues(
+      From, To, InsertBefore,
+      [](DbgInfoIntrinsic &OldDII) { return OldDII.getExpression(); });
 }
 
 unsigned llvm::removeAllNonTerminatorAndEHPadInstructions(BasicBlock *BB) {

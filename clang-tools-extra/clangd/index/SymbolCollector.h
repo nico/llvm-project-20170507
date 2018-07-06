@@ -29,7 +29,7 @@ namespace clangd {
 /// - Library-specific private declarations (e.g. private declaration generated
 /// by protobuf compiler)
 ///
-/// See also shouldFilterDecl().
+/// See also shouldCollectSymbol(...).
 ///
 /// Clients (e.g. clangd) can use SymbolCollector together with
 /// index::indexTopLevelDecls to retrieve all symbols when the source file is
@@ -52,9 +52,16 @@ public:
     const CanonicalIncludes *Includes = nullptr;
     // Populate the Symbol.References field.
     bool CountReferences = false;
+    // Every symbol collected will be stamped with this origin.
+    SymbolOrigin Origin = SymbolOrigin::Unknown;
   };
 
   SymbolCollector(Options Opts);
+
+  /// Returns true is \p ND should be collected.
+  /// AST matchers require non-const ASTContext.
+  static bool shouldCollectSymbol(const NamedDecl &ND, ASTContext &ASTCtx,
+                                  const Options &Opts);
 
   void initialize(ASTContext &Ctx) override;
 

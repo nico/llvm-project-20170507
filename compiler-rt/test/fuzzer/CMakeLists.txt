@@ -3,6 +3,10 @@ if (NOT COMPILER_RT_STANDALONE_BUILD)
   list(APPEND LIBFUZZER_TEST_DEPS fuzzer asan ubsan)
 endif()
 
+if (APPLE)
+  darwin_filter_host_archs(FUZZER_SUPPORTED_ARCH FUZZER_SUPPORTED_ARCH)
+endif()
+
 if(COMPILER_RT_INCLUDE_TESTS)
   list(APPEND LIBFUZZER_TEST_DEPS FuzzerUnitTests)
 endif()
@@ -38,6 +42,8 @@ macro(test_fuzzer stdlib)
     set(LIBFUZZER_TEST_COMPILER ${COMPILER_RT_TEST_COMPILER})
     get_test_cc_for_arch(${arch} LIBFUZZER_TEST_COMPILER LIBFUZZER_TEST_FLAGS)
 
+    set(LIBFUZZER_TEST_APPLE_PLATFORM "osx")
+
     set(LIBFUZZER_TEST_STDLIB ${stdlib})
 
     string(TOUPPER ${arch} ARCH_UPPER_CASE)
@@ -50,7 +56,7 @@ macro(test_fuzzer stdlib)
       )
 
     add_lit_testsuite(check-fuzzer-${stdlib_name}-${arch}
-      "Running Fuzzer ${stdlib} tests"
+      "Running libFuzzer ${stdlib} tests for arch ${arch}"
       ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_NAME}/
       DEPENDS ${LIBFUZZER_TEST_DEPS})
     if(TEST_DEPS)
@@ -70,4 +76,27 @@ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
   if(TARGET cxx_static)
     test_fuzzer("static-libc++" DEPS cxx_static)
   endif()
+endif()
+
+if (APPLE)
+  set(EXCLUDE_FROM_ALL ON)
+
+  foreach(arch ${DARWIN_ios_ARCHS})
+    set(LIBFUZZER_TEST_APPLE_PLATFORM "ios")
+    set(LIBFUZZER_TEST_TARGET_ARCH ${arch})
+    set(LIBFUZZER_TEST_FLAGS "-arch ${arch} -isysroot ${DARWIN_ios_SYSROOT} ${COMPILER_RT_TEST_COMPILER_CFLAGS}")
+    set(LIBFUZZER_TEST_CONFIG_SUFFIX "-${arch}-${LIBFUZZER_TEST_APPLE_PLATFORM}")
+    string(TOUPPER ${arch} ARCH_UPPER_CASE)
+    set(CONFIG_NAME "IOS${ARCH_UPPER_CASE}Config")
+    configure_lit_site_cfg(
+      ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.in
+      ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_NAME}/lit.site.cfg
+      )
+    add_lit_testsuite(check-fuzzer-ios-${arch} "libFuzzer iOS ${arch} tests"
+      ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_NAME}/
+      DEPENDS ${LIBFUZZER_TEST_DEPS})
+
+  endforeach()
+
+  set(EXCLUDE_FROM_ALL OFF)
 endif()

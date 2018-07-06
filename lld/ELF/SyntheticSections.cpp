@@ -633,7 +633,6 @@ void GotSection::writeTo(uint8_t *Buf) {
   // whereas InputSectionBase::relocateAlloc() expects its argument
   // to point to the start of the output section.
   Target->writeGotHeader(Buf);
-  Buf += Target->GotHeaderEntriesNum * Target->GotEntrySize;
   relocateAlloc(Buf - OutSecOff, Buf - OutSecOff + Size);
 }
 
@@ -848,17 +847,22 @@ template <class ELFT> void MipsGotSection::build() {
     }
   }
 
-  // Merge GOTs. Try to join as much as possible GOTs but do not
-  // exceed maximum GOT size. In case of overflow create new GOT
-  // and continue merging.
+  // Merge GOTs. Try to join as much as possible GOTs but do not exceed
+  // maximum GOT size. At first, try to fill the primary GOT because
+  // the primary GOT can be accessed in the most effective way. If it
+  // is not possible, try to fill the last GOT in the list, and finally
+  // create a new GOT if both attempts failed.
   for (FileGot &SrcGot : Gots) {
-    FileGot &DstGot = MergedGots.back();
     InputFile *File = SrcGot.File;
-    if (!tryMergeGots(DstGot, SrcGot, &DstGot == PrimGot)) {
-      MergedGots.emplace_back();
-      std::swap(MergedGots.back(), SrcGot);
+    if (tryMergeGots(MergedGots.front(), SrcGot, true)) {
+      File->MipsGotIndex = 0;
+    } else {
+      if (!tryMergeGots(MergedGots.back(), SrcGot, false)) {
+        MergedGots.emplace_back();
+        std::swap(MergedGots.back(), SrcGot);
+      }
+      File->MipsGotIndex = MergedGots.size() - 1;
     }
-    File->MipsGotIndex = MergedGots.size() - 1;
   }
   std::swap(Gots, MergedGots);
 
@@ -1239,6 +1243,8 @@ template <class ELFT> void DynamicSection<ELFT>::finalizeContents() {
   uint32_t DtFlags1 = 0;
   if (Config->Bsymbolic)
     DtFlags |= DF_SYMBOLIC;
+  if (Config->ZInitfirst)
+    DtFlags1 |= DF_1_INITFIRST;
   if (Config->ZNodelete)
     DtFlags1 |= DF_1_NODELETE;
   if (Config->ZNodlopen)
@@ -1703,10 +1709,12 @@ SymbolTableBaseSection::SymbolTableBaseSection(StringTableSection &StrTabSec)
 static bool sortMipsSymbols(const SymbolTableEntry &L,
                             const SymbolTableEntry &R) {
   // Sort entries related to non-local preemptible symbols by GOT indexes.
-  // All other entries go to the first part of GOT in arbitrary order.
-  if (!L.Sym->isInGot() || !R.Sym->isInGot())
-    return !L.Sym->isInGot();
-  return L.Sym->GotIndex < R.Sym->GotIndex;
+  // All other entries go to the beginning of a dynsym in arbitrary order.
+  if (L.Sym->isInGot() && R.Sym->isInGot())
+    return L.Sym->GotIndex < R.Sym->GotIndex;
+  if (!L.Sym->isInGot() && !R.Sym->isInGot())
+    return false;
+  return !L.Sym->isInGot();
 }
 
 void SymbolTableBaseSection::finalizeContents() {
@@ -1753,19 +1761,19 @@ void SymbolTableBaseSection::postThunkContents() {
   size_t NumLocals = E - Symbols.begin();
   getParent()->Info = NumLocals + 1;
 
-  // Assign the growing unique ID for each local symbol's file.
-  DenseMap<InputFile *, unsigned> FileIDs;
-  for (auto I = Symbols.begin(); I != E; ++I)
-    FileIDs.insert({I->Sym->File, FileIDs.size()});
+  // We want to group the local symbols by file. For that we rebuild the local
+  // part of the symbols vector. We do not need to care about the STT_FILE
+  // symbols, they are already naturally placed first in each group. That
+  // happens because STT_FILE is always the first symbol in the object and hence
+  // precede all other local symbols we add for a file.
+  MapVector<InputFile *, std::vector<SymbolTableEntry>> Arr;
+  for (const SymbolTableEntry &S : llvm::make_range(Symbols.begin(), E))
+    Arr[S.Sym->File].push_back(S);
 
-  // Sort the local symbols to group them by file. We do not need to care about
-  // the STT_FILE symbols, they are already naturally placed first in each group.
-  // That happens because STT_FILE is always the first symbol in the object and
-  // hence precede all other local symbols we add for a file.
-  std::stable_sort(Symbols.begin(), E,
-                   [&](const SymbolTableEntry &L, const SymbolTableEntry &R) {
-                     return FileIDs[L.Sym->File] < FileIDs[R.Sym->File];
-                   });
+  auto I = Symbols.begin();
+  for (std::pair<InputFile *, std::vector<SymbolTableEntry>> &P : Arr)
+    for (SymbolTableEntry &Entry : P.second)
+      *I++ = Entry;
 }
 
 void SymbolTableBaseSection::addSymbol(Symbol *B) {

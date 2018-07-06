@@ -5456,6 +5456,12 @@ QualType ASTContext::isPromotableBitField(Expr *E) const {
   if (E->isTypeDependent() || E->isValueDependent())
     return {};
 
+  // C++ [conv.prom]p5:
+  //    If the bit-field has an enumerated type, it is treated as any other
+  //    value of that type for promotion purposes.
+  if (getLangOpts().CPlusPlus && E->getType()->isEnumeralType())
+    return {};
+
   // FIXME: We should not do this unless E->refersToBitField() is true. This
   // matters in C where getSourceBitField() will find bit-fields for various
   // cases where the source expression is not a bit-field designator.
@@ -5482,13 +5488,15 @@ QualType ASTContext::isPromotableBitField(Expr *E) const {
   //
   // FIXME: C does not permit promotion of a 'long : 3' bitfield to int.
   //        We perform that promotion here to match GCC and C++.
+  // FIXME: C does not permit promotion of an enum bit-field whose rank is
+  //        greater than that of 'int'. We perform that promotion to match GCC.
   if (BitWidth < IntSize)
     return IntTy;
 
   if (BitWidth == IntSize)
     return FT->isSignedIntegerType() ? IntTy : UnsignedIntTy;
 
-  // Types bigger than int are not subject to promotions, and therefore act
+  // Bit-fields wider than int are not subject to promotions, and therefore act
   // like the base type. GCC has some weird bugs in this area that we
   // deliberately do not follow (GCC follows a pre-standard resolution to
   // C's DR315 which treats bit-width as being part of the type, and this leaks
@@ -9553,6 +9561,29 @@ bool ASTContext::DeclMustBeEmitted(const Decl *D) {
   else
     return false;
 
+  if (D->isFromASTFile() && !LangOpts.BuildingPCHWithObjectFile) {
+    assert(getExternalSource() && "It's from an AST file; must have a source.");
+    // On Windows, PCH files are built together with an object file. If this
+    // declaration comes from such a PCH and DeclMustBeEmitted would return
+    // true, it would have returned true and the decl would have been emitted
+    // into that object file, so it doesn't need to be emitted here.
+    // Note that decls are still emitted if they're referenced, as usual;
+    // DeclMustBeEmitted is used to decide whether a decl must be emitted even
+    // if it's not referenced.
+    //
+    // Explicit template instantiation definitions are tricky. If there was an
+    // explicit template instantiation decl in the PCH before, it will look like
+    // the definition comes from there, even if that was just the declaration.
+    // (Explicit instantiation defs of variable templates always get emitted.)
+    bool IsExpInstDef =
+        isa<FunctionDecl>(D) &&
+        cast<FunctionDecl>(D)->getTemplateSpecializationKind() ==
+            TSK_ExplicitInstantiationDefinition;
+
+    if (getExternalSource()->DeclIsFromPCHWithObjectFile(D) && !IsExpInstDef)
+      return false;
+  }
+
   // If this is a member of a class template, we do not need to emit it.
   if (D->getDeclContext()->isDependentContext())
     return false;
@@ -9573,7 +9604,7 @@ bool ASTContext::DeclMustBeEmitted(const Decl *D) {
     // Constructors and destructors are required.
     if (FD->hasAttr<ConstructorAttr>() || FD->hasAttr<DestructorAttr>())
       return true;
-    
+
     // The key function for a class is required.  This rule only comes
     // into play when inline functions can be key functions, though.
     if (getTargetInfo().getCXXABI().canKeyFunctionBeInline()) {
@@ -9594,7 +9625,7 @@ bool ASTContext::DeclMustBeEmitted(const Decl *D) {
     // Implicit template instantiations can also be deferred in C++.
     return !isDiscardableGVALinkage(Linkage);
   }
-  
+
   const auto *VD = cast<VarDecl>(D);
   assert(VD->isFileVarDecl() && "Expected file scoped var");
 
@@ -10162,3 +10193,92 @@ clang::LazyGenerationalUpdatePtr<
 clang::LazyGenerationalUpdatePtr<
     const Decl *, Decl *, &ExternalASTSource::CompleteRedeclChain>::makeValue(
         const clang::ASTContext &Ctx, Decl *Value);
+
+unsigned char ASTContext::getFixedPointScale(QualType Ty) const {
+  assert(Ty->isFixedPointType());
+
+  const auto *BT = Ty->getAs<BuiltinType>();
+  const TargetInfo &Target = getTargetInfo();
+  switch (BT->getKind()) {
+    default:
+      llvm_unreachable("Not a fixed point type!");
+    case BuiltinType::ShortAccum:
+    case BuiltinType::SatShortAccum:
+      return Target.getShortAccumScale();
+    case BuiltinType::Accum:
+    case BuiltinType::SatAccum:
+      return Target.getAccumScale();
+    case BuiltinType::LongAccum:
+    case BuiltinType::SatLongAccum:
+      return Target.getLongAccumScale();
+    case BuiltinType::UShortAccum:
+    case BuiltinType::SatUShortAccum:
+      return Target.getUnsignedShortAccumScale();
+    case BuiltinType::UAccum:
+    case BuiltinType::SatUAccum:
+      return Target.getUnsignedAccumScale();
+    case BuiltinType::ULongAccum:
+    case BuiltinType::SatULongAccum:
+      return Target.getUnsignedLongAccumScale();
+    case BuiltinType::ShortFract:
+    case BuiltinType::SatShortFract:
+      return Target.getShortFractScale();
+    case BuiltinType::Fract:
+    case BuiltinType::SatFract:
+      return Target.getFractScale();
+    case BuiltinType::LongFract:
+    case BuiltinType::SatLongFract:
+      return Target.getLongFractScale();
+    case BuiltinType::UShortFract:
+    case BuiltinType::SatUShortFract:
+      return Target.getUnsignedShortFractScale();
+    case BuiltinType::UFract:
+    case BuiltinType::SatUFract:
+      return Target.getUnsignedFractScale();
+    case BuiltinType::ULongFract:
+    case BuiltinType::SatULongFract:
+      return Target.getUnsignedLongFractScale();
+  }
+}
+
+unsigned char ASTContext::getFixedPointIBits(QualType Ty) const {
+  assert(Ty->isFixedPointType());
+
+  const auto *BT = Ty->getAs<BuiltinType>();
+  const TargetInfo &Target = getTargetInfo();
+  switch (BT->getKind()) {
+    default:
+      llvm_unreachable("Not a fixed point type!");
+    case BuiltinType::ShortAccum:
+    case BuiltinType::SatShortAccum:
+      return Target.getShortAccumIBits();
+    case BuiltinType::Accum:
+    case BuiltinType::SatAccum:
+      return Target.getAccumIBits();
+    case BuiltinType::LongAccum:
+    case BuiltinType::SatLongAccum:
+      return Target.getLongAccumIBits();
+    case BuiltinType::UShortAccum:
+    case BuiltinType::SatUShortAccum:
+      return Target.getUnsignedShortAccumIBits();
+    case BuiltinType::UAccum:
+    case BuiltinType::SatUAccum:
+      return Target.getUnsignedAccumIBits();
+    case BuiltinType::ULongAccum:
+    case BuiltinType::SatULongAccum:
+      return Target.getUnsignedLongAccumIBits();
+    case BuiltinType::ShortFract:
+    case BuiltinType::SatShortFract:
+    case BuiltinType::Fract:
+    case BuiltinType::SatFract:
+    case BuiltinType::LongFract:
+    case BuiltinType::SatLongFract:
+    case BuiltinType::UShortFract:
+    case BuiltinType::SatUShortFract:
+    case BuiltinType::UFract:
+    case BuiltinType::SatUFract:
+    case BuiltinType::ULongFract:
+    case BuiltinType::SatULongFract:
+      return 0;
+  }
+}

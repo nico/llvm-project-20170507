@@ -193,6 +193,10 @@ Improvements to clang-tidy
   <clang-tidy/checks/cppcoreguidelines-avoid-goto>`
   added.
 
+- Removed the `google-readability-redundant-smartptr-get` alias of the
+  :doc:`readability-redundant-smartptr-get
+  <clang-tidy/checks/readability-redundant-smartptr-get>` check.
+
 - The 'misc-forwarding-reference-overload' check was renamed to :doc:`bugprone-forwarding-reference-overload
   <clang-tidy/checks/bugprone-forwarding-reference-overload>`
 
@@ -248,6 +252,17 @@ Improvements to clang-tidy
   <clang-tidy/checks/bugprone-unused-raii>`
 
 - The 'google-runtime-member-string-references' check was removed.
+
+- New `cert-msc51-cpp
+  <http://clang.llvm.org/extra/clang-tidy/checks/cert-properly-seeded-random-generator.html>`_ check
+
+  Detects inappropriate seeding of C++ random generators and C ``srand()`` function.
+  
+- New `cert-msc32-c
+  <http://clang.llvm.org/extra/clang-tidy/checks/cert-properly-seeded-random-generator.html>`_ check
+
+  Detects inappropriate seeding of ``srand()`` function.
+
 
 Improvements to include-fixer
 -----------------------------

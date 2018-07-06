@@ -169,9 +169,10 @@ public:
   ~ASTWorker();
 
   void update(ParseInputs Inputs, WantDiagnostics,
-              UniqueFunction<void(std::vector<Diag>)> OnUpdated);
-  void runWithAST(llvm::StringRef Name,
-                  UniqueFunction<void(llvm::Expected<InputsAndAST>)> Action);
+              llvm::unique_function<void(std::vector<Diag>)> OnUpdated);
+  void
+  runWithAST(llvm::StringRef Name,
+             llvm::unique_function<void(llvm::Expected<InputsAndAST>)> Action);
   bool blockUntilIdle(Deadline Timeout) const;
 
   std::shared_ptr<const PreambleData> getPossiblyStalePreamble() const;
@@ -186,7 +187,7 @@ private:
   /// Signal that run() should finish processing pending requests and exit.
   void stop();
   /// Adds a new task to the end of the request queue.
-  void startTask(llvm::StringRef Name, UniqueFunction<void()> Task,
+  void startTask(llvm::StringRef Name, llvm::unique_function<void()> Task,
                  llvm::Optional<WantDiagnostics> UpdateType);
   /// Determines the next action to perform.
   /// All actions that should never run are disarded.
@@ -197,7 +198,7 @@ private:
   bool shouldSkipHeadLocked() const;
 
   struct Request {
-    UniqueFunction<void()> Action;
+    llvm::unique_function<void()> Action;
     std::string Name;
     steady_clock::time_point AddTime;
     Context Ctx;
@@ -221,8 +222,6 @@ private:
   Semaphore &Barrier;
   /// Inputs, corresponding to the current state of AST.
   ParseInputs FileInputs;
-  /// CompilerInvocation used for FileInputs.
-  std::unique_ptr<CompilerInvocation> Invocation;
   /// Size of the last AST
   /// Guards members used by both TUScheduler and the worker thread.
   mutable std::mutex Mutex;
@@ -313,8 +312,9 @@ ASTWorker::~ASTWorker() {
 #endif
 }
 
-void ASTWorker::update(ParseInputs Inputs, WantDiagnostics WantDiags,
-                       UniqueFunction<void(std::vector<Diag>)> OnUpdated) {
+void ASTWorker::update(
+    ParseInputs Inputs, WantDiagnostics WantDiags,
+    llvm::unique_function<void(std::vector<Diag>)> OnUpdated) {
   auto Task = [=](decltype(OnUpdated) OnUpdated) mutable {
     tooling::CompileCommand OldCommand = std::move(FileInputs.CompileCommand);
     FileInputs = Inputs;
@@ -325,7 +325,8 @@ void ASTWorker::update(ParseInputs Inputs, WantDiagnostics WantDiags,
         Inputs.CompileCommand.Directory + "] " +
         llvm::join(Inputs.CompileCommand.CommandLine, " "));
     // Rebuild the preamble and the AST.
-    Invocation = buildCompilerInvocation(Inputs);
+    std::unique_ptr<CompilerInvocation> Invocation =
+        buildCompilerInvocation(Inputs);
     if (!Invocation) {
       log("Could not build CompilerInvocation for file " + FileName);
       return;
@@ -341,8 +342,7 @@ void ASTWorker::update(ParseInputs Inputs, WantDiagnostics WantDiags,
     }
     // Build the AST for diagnostics.
     llvm::Optional<ParsedAST> AST =
-        buildAST(FileName, llvm::make_unique<CompilerInvocation>(*Invocation),
-                 Inputs, NewPreamble, PCHs);
+        buildAST(FileName, std::move(Invocation), Inputs, NewPreamble, PCHs);
     // We want to report the diagnostics even if this update was cancelled.
     // It seems more useful than making the clients wait indefinitely if they
     // spam us with updates.
@@ -358,10 +358,12 @@ void ASTWorker::update(ParseInputs Inputs, WantDiagnostics WantDiags,
 
 void ASTWorker::runWithAST(
     llvm::StringRef Name,
-    UniqueFunction<void(llvm::Expected<InputsAndAST>)> Action) {
+    llvm::unique_function<void(llvm::Expected<InputsAndAST>)> Action) {
   auto Task = [=](decltype(Action) Action) {
     llvm::Optional<std::unique_ptr<ParsedAST>> AST = IdleASTs.take(this);
     if (!AST) {
+      std::unique_ptr<CompilerInvocation> Invocation =
+          buildCompilerInvocation(FileInputs);
       // Try rebuilding the AST.
       llvm::Optional<ParsedAST> NewAST =
           Invocation
@@ -411,7 +413,8 @@ void ASTWorker::stop() {
   RequestsCV.notify_all();
 }
 
-void ASTWorker::startTask(llvm::StringRef Name, UniqueFunction<void()> Task,
+void ASTWorker::startTask(llvm::StringRef Name,
+                          llvm::unique_function<void()> Task,
                           llvm::Optional<WantDiagnostics> UpdateType) {
   if (RunSync) {
     assert(!Done && "running a task after stop()");
@@ -586,9 +589,9 @@ bool TUScheduler::blockUntilIdle(Deadline D) const {
   return true;
 }
 
-void TUScheduler::update(PathRef File, ParseInputs Inputs,
-                         WantDiagnostics WantDiags,
-                         UniqueFunction<void(std::vector<Diag>)> OnUpdated) {
+void TUScheduler::update(
+    PathRef File, ParseInputs Inputs, WantDiagnostics WantDiags,
+    llvm::unique_function<void(std::vector<Diag>)> OnUpdated) {
   std::unique_ptr<FileData> &FD = Files[File];
   if (!FD) {
     // Create a new worker to process the AST-related tasks.
@@ -614,7 +617,7 @@ void TUScheduler::remove(PathRef File) {
 
 void TUScheduler::runWithAST(
     llvm::StringRef Name, PathRef File,
-    UniqueFunction<void(llvm::Expected<InputsAndAST>)> Action) {
+    llvm::unique_function<void(llvm::Expected<InputsAndAST>)> Action) {
   auto It = Files.find(File);
   if (It == Files.end()) {
     Action(llvm::make_error<llvm::StringError>(
@@ -628,7 +631,7 @@ void TUScheduler::runWithAST(
 
 void TUScheduler::runWithPreamble(
     llvm::StringRef Name, PathRef File,
-    UniqueFunction<void(llvm::Expected<InputsAndPreamble>)> Action) {
+    llvm::unique_function<void(llvm::Expected<InputsAndPreamble>)> Action) {
   auto It = Files.find(File);
   if (It == Files.end()) {
     Action(llvm::make_error<llvm::StringError>(

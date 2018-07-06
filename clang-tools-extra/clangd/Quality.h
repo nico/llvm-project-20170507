@@ -26,6 +26,7 @@
 //===---------------------------------------------------------------------===//
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANGD_QUALITY_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANGD_QUALITY_H
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include <algorithm>
 #include <functional>
@@ -37,6 +38,7 @@ namespace clang {
 class CodeCompletionResult;
 namespace clangd {
 struct Symbol;
+class URIDistance;
 
 // Signals structs are designed to be aggregated from 0 or more sources.
 // A default instance has neutral signals, and sources are merged into it.
@@ -73,8 +75,15 @@ struct SymbolRelevanceSignals {
   /// 0-1+ fuzzy-match score for unqualified name. Must be explicitly assigned.
   float NameMatch = 1;
   bool Forbidden = false; // Unavailable (e.g const) or inaccessible (private).
+
+  URIDistance *FileProximityMatch = nullptr;
+  /// This is used to calculate proximity between the index symbol and the
+  /// query.
+  llvm::StringRef SymbolURI;
   /// Proximity between best declaration and the query. [0-1], 1 is closest.
-  float ProximityScore = 0;
+  /// FIXME: unify with index proximity score - signals should be
+  /// source-independent.
+  float SemaProximityScore = 0;
 
   // An approximate measure of where we expect the symbol to be used.
   enum AccessibleScope {

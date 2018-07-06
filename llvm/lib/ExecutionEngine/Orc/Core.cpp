@@ -10,6 +10,7 @@
 #include "llvm/ExecutionEngine/Orc/Core.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/ExecutionEngine/Orc/OrcError.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/Support/Format.h"
 
 #if LLVM_ENABLE_THREADS
@@ -147,6 +148,12 @@ AsynchronousSymbolQuery::AsynchronousSymbolQuery(
 
   for (auto &S : Symbols)
     ResolvedSymbols[S] = nullptr;
+
+  // If the query is empty it is trivially resolved/ready.
+  if (Symbols.empty()) {
+    handleFullyResolved();
+    handleFullyReady();
+  }
 }
 
 void AsynchronousSymbolQuery::resolve(const SymbolStringPtr &Name,
@@ -189,13 +196,14 @@ void AsynchronousSymbolQuery::handleFailed(Error Err) {
   assert(QueryRegistrations.empty() && ResolvedSymbols.empty() &&
          NotYetResolvedCount == 0 && NotYetReadyCount == 0 &&
          "Query should already have been abandoned");
-  if (NotifySymbolsResolved)
+  if (NotifySymbolsResolved) {
     NotifySymbolsResolved(std::move(Err));
-  else {
+    NotifySymbolsResolved = SymbolsResolvedCallback();
+  } else {
     assert(NotifySymbolsReady && "Failed after both callbacks issued?");
     NotifySymbolsReady(std::move(Err));
-    NotifySymbolsReady = SymbolsReadyCallback();
   }
+  NotifySymbolsReady = SymbolsReadyCallback();
 }
 
 void AsynchronousSymbolQuery::addQueryDependence(VSO &V, SymbolStringPtr Name) {
@@ -228,8 +236,10 @@ MaterializationResponsibility::MaterializationResponsibility(
     : V(V), SymbolFlags(std::move(SymbolFlags)) {
   assert(!this->SymbolFlags.empty() && "Materializing nothing?");
 
+#ifndef NDEBUG
   for (auto &KV : this->SymbolFlags)
     KV.second |= JITSymbolFlags::Materializing;
+#endif
 }
 
 MaterializationResponsibility::~MaterializationResponsibility() {
@@ -242,15 +252,21 @@ SymbolNameSet MaterializationResponsibility::getRequestedSymbols() {
 }
 
 void MaterializationResponsibility::resolve(const SymbolMap &Symbols) {
+#ifndef NDEBUG
   for (auto &KV : Symbols) {
     auto I = SymbolFlags.find(KV.first);
     assert(I != SymbolFlags.end() &&
            "Resolving symbol outside this responsibility set");
     assert(I->second.isMaterializing() && "Duplicate resolution");
     I->second &= ~JITSymbolFlags::Materializing;
-    assert(KV.second.getFlags() == I->second &&
-           "Resolving symbol with incorrect flags");
+    if (I->second.isWeak())
+      assert(I->second == (KV.second.getFlags() | JITSymbolFlags::Weak) &&
+             "Resolving symbol with incorrect flags");
+    else
+      assert(I->second == KV.second.getFlags() &&
+             "Resolving symbol with incorrect flags");
   }
+#endif
 
   V.resolve(Symbols);
 }
@@ -274,7 +290,10 @@ Error MaterializationResponsibility::defineMaterializing(
   // symbol error.
   for (auto &KV : NewSymbolFlags) {
     auto I = SymbolFlags.insert(KV).first;
+    (void)I;
+#ifndef NDEBUG
     I->second |= JITSymbolFlags::Materializing;
+#endif
   }
 
   return V.defineMaterializing(NewSymbolFlags);
@@ -325,6 +344,69 @@ AbsoluteSymbolsMaterializationUnit::extractFlags(const SymbolMap &Symbols) {
   for (const auto &KV : Symbols)
     Flags[KV.first] = KV.second.getFlags();
   return Flags;
+}
+
+SymbolAliasesMaterializationUnit::SymbolAliasesMaterializationUnit(
+    SymbolAliasMap Aliases)
+    : MaterializationUnit(extractFlags(Aliases)), Aliases(std::move(Aliases)) {}
+
+void SymbolAliasesMaterializationUnit::materialize(
+    MaterializationResponsibility R) {
+  auto &V = R.getTargetVSO();
+  auto &ES = V.getExecutionSession();
+
+  // FIXME: Use a unique_ptr when we move to C++14 and have generalized lambda
+  // capture.
+  auto SharedR = std::make_shared<MaterializationResponsibility>(std::move(R));
+
+  auto OnResolve = [this, SharedR](
+                       Expected<AsynchronousSymbolQuery::ResolutionResult> RR) {
+    if (RR) {
+      SymbolMap ResolutionMap;
+      for (auto &KV : Aliases) {
+        assert(RR->Symbols.count(KV.second.Aliasee) &&
+               "Result map missing entry?");
+        ResolutionMap[KV.first] = JITEvaluatedSymbol(
+            RR->Symbols[KV.second.Aliasee].getAddress(), KV.second.AliasFlags);
+      }
+
+      SharedR->resolve(ResolutionMap);
+      SharedR->finalize();
+    } else {
+      auto &ES = SharedR->getTargetVSO().getExecutionSession();
+      ES.reportError(RR.takeError());
+      SharedR->failMaterialization();
+    }
+  };
+
+  auto OnReady = [&ES](Error Err) { ES.reportError(std::move(Err)); };
+
+  SymbolNameSet Aliasees;
+  for (auto &KV : Aliases)
+    Aliasees.insert(KV.second.Aliasee);
+
+  auto Q = std::make_shared<AsynchronousSymbolQuery>(
+      Aliasees, std::move(OnResolve), std::move(OnReady));
+  auto Unresolved = V.lookup(Q, Aliasees);
+
+  if (!Unresolved.empty())
+    ES.failQuery(*Q, make_error<SymbolsNotFound>(std::move(Unresolved)));
+}
+
+void SymbolAliasesMaterializationUnit::discard(const VSO &V,
+                                               SymbolStringPtr Name) {
+  assert(Aliases.count(Name) &&
+         "Symbol not covered by this MaterializationUnit");
+  Aliases.erase(Name);
+}
+
+SymbolFlagsMap
+SymbolAliasesMaterializationUnit::extractFlags(const SymbolAliasMap &Aliases) {
+  SymbolFlagsMap SymbolFlags;
+  for (auto &KV : Aliases)
+    SymbolFlags[KV.first] = KV.second.AliasFlags;
+
+  return SymbolFlags;
 }
 
 Error VSO::defineMaterializing(const SymbolFlagsMap &SymbolFlags) {
@@ -457,6 +539,9 @@ void VSO::addDependencies(const SymbolFlagsMap &Dependants,
             DepsOnOtherVSO.insert(OtherSymbol);
           }
         }
+
+        if (DepsOnOtherVSO.empty())
+          MI.UnfinalizedDependencies.erase(&OtherVSO);
       }
     }
   });
@@ -480,8 +565,9 @@ void VSO::resolve(const SymbolMap &Resolved) {
              "Symbol should be materializing");
       assert(I->second.getAddress() == 0 && "Symbol has already been resolved");
 
-      assert(Sym.getFlags() ==
-                 JITSymbolFlags::stripTransientFlags(I->second.getFlags()) &&
+      assert((Sym.getFlags() & ~JITSymbolFlags::Weak) ==
+                 (JITSymbolFlags::stripTransientFlags(I->second.getFlags()) &
+                  ~JITSymbolFlags::Weak) &&
              "Resolved flags should match the declared flags");
 
       // Once resolved, symbols can never be weak.
@@ -639,6 +725,25 @@ void VSO::notifyFailed(const SymbolNameSet &FailedSymbols) {
     Q->handleFailed(make_error<FailedToMaterialize>(FailedSymbols));
 }
 
+void VSO::runOutstandingMUs() {
+  while (1) {
+    std::unique_ptr<MaterializationUnit> MU;
+
+    {
+      std::lock_guard<std::recursive_mutex> Lock(OutstandingMUsMutex);
+      if (!OutstandingMUs.empty()) {
+        MU = std::move(OutstandingMUs.back());
+        OutstandingMUs.pop_back();
+      }
+    }
+
+    if (MU)
+      ES.dispatchMaterialization(*this, std::move(MU));
+    else
+      break;
+  }
+}
+
 SymbolNameSet VSO::lookupFlags(SymbolFlagsMap &Flags,
                                const SymbolNameSet &Names) {
   return ES.runSessionLocked([&, this]() {
@@ -681,39 +786,60 @@ SymbolNameSet VSO::lookup(std::shared_ptr<AsynchronousSymbolQuery> Q,
                           SymbolNameSet Names) {
   assert(Q && "Query can not be null");
 
+  runOutstandingMUs();
+
+  LookupImplActionFlags ActionFlags = None;
   std::vector<std::unique_ptr<MaterializationUnit>> MUs;
 
   SymbolNameSet Unresolved = std::move(Names);
   ES.runSessionLocked([&, this]() {
-    lookupImpl(Q, MUs, Unresolved);
+    ActionFlags = lookupImpl(Q, MUs, Unresolved);
     if (FallbackDefinitionGenerator && !Unresolved.empty()) {
+      assert(ActionFlags == None &&
+             "ActionFlags set but unresolved symbols remain?");
       auto FallbackDefs = FallbackDefinitionGenerator(*this, Unresolved);
       if (!FallbackDefs.empty()) {
         for (auto &D : FallbackDefs)
           Unresolved.erase(D);
-        lookupImpl(Q, MUs, FallbackDefs);
+        ActionFlags = lookupImpl(Q, MUs, FallbackDefs);
         assert(FallbackDefs.empty() &&
                "All fallback defs should have been found by lookupImpl");
       }
     }
   });
 
-  if (Q->isFullyResolved())
+  assert((MUs.empty() || ActionFlags == None) &&
+         "If action flags are set, there should be no work to do (so no MUs)");
+
+  if (ActionFlags & NotifyFullyResolved)
     Q->handleFullyResolved();
 
-  if (Q->isFullyReady())
+  if (ActionFlags & NotifyFullyReady)
     Q->handleFullyReady();
 
+  // FIXME: Swap back to the old code below once RuntimeDyld works with
+  //        callbacks from asynchronous queries.
+  // Add MUs to the OutstandingMUs list.
+  {
+    std::lock_guard<std::recursive_mutex> Lock(OutstandingMUsMutex);
+    for (auto &MU : MUs)
+      OutstandingMUs.push_back(std::move(MU));
+  }
+  runOutstandingMUs();
+
   // Dispatch any required MaterializationUnits for materialization.
-  for (auto &MU : MUs)
-    ES.dispatchMaterialization(*this, std::move(MU));
+  // for (auto &MU : MUs)
+  //  ES.dispatchMaterialization(*this, std::move(MU));
 
   return Unresolved;
 }
 
-void VSO::lookupImpl(std::shared_ptr<AsynchronousSymbolQuery> &Q,
-                     std::vector<std::unique_ptr<MaterializationUnit>> &MUs,
-                     SymbolNameSet &Unresolved) {
+VSO::LookupImplActionFlags
+VSO::lookupImpl(std::shared_ptr<AsynchronousSymbolQuery> &Q,
+                std::vector<std::unique_ptr<MaterializationUnit>> &MUs,
+                SymbolNameSet &Unresolved) {
+  LookupImplActionFlags ActionFlags = None;
+
   for (auto I = Unresolved.begin(), E = Unresolved.end(); I != E;) {
     auto TmpI = I++;
     auto Name = *TmpI;
@@ -728,8 +854,11 @@ void VSO::lookupImpl(std::shared_ptr<AsynchronousSymbolQuery> &Q,
     Unresolved.erase(TmpI);
 
     // If the symbol has an address then resolve it.
-    if (SymI->second.getAddress() != 0)
+    if (SymI->second.getAddress() != 0) {
       Q->resolve(Name, SymI->second);
+      if (Q->isFullyResolved())
+        ActionFlags |= NotifyFullyResolved;
+    }
 
     // If the symbol is lazy, get the MaterialiaztionUnit for it.
     if (SymI->second.getFlags().isLazy()) {
@@ -760,6 +889,8 @@ void VSO::lookupImpl(std::shared_ptr<AsynchronousSymbolQuery> &Q,
       // The symbol is neither lazy nor materializing. Finalize it and
       // continue.
       Q->notifySymbolReady();
+      if (Q->isFullyReady())
+        ActionFlags |= NotifyFullyReady;
       continue;
     }
 
@@ -770,6 +901,8 @@ void VSO::lookupImpl(std::shared_ptr<AsynchronousSymbolQuery> &Q,
     MI.PendingQueries.push_back(Q);
     Q->addQueryDependence(*this, Name);
   }
+
+  return ActionFlags;
 }
 
 void VSO::dump(raw_ostream &OS) {
@@ -780,7 +913,8 @@ void VSO::dump(raw_ostream &OS) {
        << "Symbol table:\n";
 
     for (auto &KV : Symbols) {
-      OS << "    \"" << *KV.first << "\": " << KV.second.getAddress();
+      OS << "    \"" << *KV.first
+         << "\": " << format("0x%016x", KV.second.getAddress());
       if (KV.second.getFlags().isLazy() ||
           KV.second.getFlags().isMaterializing()) {
         OS << " (";
@@ -803,8 +937,11 @@ void VSO::dump(raw_ostream &OS) {
       OS << "    \"" << *KV.first << "\":\n"
          << "      IsFinalized = " << (KV.second.IsFinalized ? "true" : "false")
          << "\n"
-         << "      " << KV.second.PendingQueries.size() << " pending queries.\n"
-         << "      Dependants:\n";
+         << "      " << KV.second.PendingQueries.size()
+         << " pending queries: { ";
+      for (auto &Q : KV.second.PendingQueries)
+        OS << Q.get() << " ";
+      OS << "}\n      Dependants:\n";
       for (auto &KV2 : KV.second.Dependants)
         OS << "        " << KV2.first->getName() << ": " << KV2.second << "\n";
       OS << "      Unfinalized Dependencies:\n";
@@ -817,7 +954,13 @@ void VSO::dump(raw_ostream &OS) {
 Error VSO::defineImpl(MaterializationUnit &MU) {
   SymbolNameSet Duplicates;
   SymbolNameSet MUDefsOverridden;
-  std::vector<SymbolMap::iterator> ExistingDefsOverridden;
+
+  struct ExistingDefOverriddenEntry {
+    SymbolMap::iterator ExistingDefItr;
+    JITSymbolFlags NewFlags;
+  };
+  std::vector<ExistingDefOverriddenEntry> ExistingDefsOverridden;
+
   for (auto &KV : MU.getSymbols()) {
     assert(!KV.second.isLazy() && "Lazy flag should be managed internally.");
     assert(!KV.second.isMaterializing() &&
@@ -834,10 +977,11 @@ Error VSO::defineImpl(MaterializationUnit &MU) {
 
     if (!Added) {
       if (KV.second.isStrong()) {
-        if (EntryItr->second.getFlags().isStrong())
+        if (EntryItr->second.getFlags().isStrong() ||
+            (EntryItr->second.getFlags() & JITSymbolFlags::Materializing))
           Duplicates.insert(KV.first);
         else
-          ExistingDefsOverridden.push_back(EntryItr);
+          ExistingDefsOverridden.push_back({EntryItr, NewFlags});
       } else
         MUDefsOverridden.insert(KV.first);
     }
@@ -846,12 +990,12 @@ Error VSO::defineImpl(MaterializationUnit &MU) {
   if (!Duplicates.empty()) {
     // We need to remove the symbols we added.
     for (auto &KV : MU.getSymbols()) {
-      if (Duplicates.count(KV.first) || Duplicates.count(KV.first))
+      if (Duplicates.count(KV.first))
         continue;
 
       bool Found = false;
-      for (const auto &I : ExistingDefsOverridden)
-        if (I->first == KV.first)
+      for (const auto &EDO : ExistingDefsOverridden)
+        if (EDO.ExistingDefItr->first == KV.first)
           Found = true;
 
       if (!Found)
@@ -863,18 +1007,18 @@ Error VSO::defineImpl(MaterializationUnit &MU) {
   }
 
   // Update flags on existing defs and call discard on their materializers.
-  for (auto &ExistingDefItr : ExistingDefsOverridden) {
-    assert(ExistingDefItr->second.getFlags().isLazy() &&
-           !ExistingDefItr->second.getFlags().isMaterializing() &&
+  for (auto &EDO : ExistingDefsOverridden) {
+    assert(EDO.ExistingDefItr->second.getFlags().isLazy() &&
+           !EDO.ExistingDefItr->second.getFlags().isMaterializing() &&
            "Overridden existing def should be in the Lazy state");
 
-    ExistingDefItr->second.getFlags() &= ~JITSymbolFlags::Weak;
+    EDO.ExistingDefItr->second.setFlags(EDO.NewFlags);
 
-    auto UMII = UnmaterializedInfos.find(ExistingDefItr->first);
+    auto UMII = UnmaterializedInfos.find(EDO.ExistingDefItr->first);
     assert(UMII != UnmaterializedInfos.end() &&
            "Overridden existing def should have an UnmaterializedInfo");
 
-    UMII->second->MU->doDiscard(*this, ExistingDefItr->first);
+    UMII->second->MU->doDiscard(*this, EDO.ExistingDefItr->first);
   }
 
   // Discard overridden symbols povided by MU.
@@ -1064,7 +1208,7 @@ Expected<SymbolMap> blockingLookup(ExecutionSessionBase &ES,
 #endif
 }
 
-Expected<SymbolMap> lookup(const VSO::VSOList &VSOs, SymbolNameSet Names) {
+Expected<SymbolMap> lookup(const VSOList &VSOs, SymbolNameSet Names) {
 
   if (VSOs.empty())
     return SymbolMap();
@@ -1086,8 +1230,7 @@ Expected<SymbolMap> lookup(const VSO::VSOList &VSOs, SymbolNameSet Names) {
 }
 
 /// Look up a symbol by searching a list of VSOs.
-Expected<JITEvaluatedSymbol> lookup(const VSO::VSOList &VSOs,
-                                    SymbolStringPtr Name) {
+Expected<JITEvaluatedSymbol> lookup(const VSOList &VSOs, SymbolStringPtr Name) {
   SymbolNameSet Names({Name});
   if (auto ResultMap = lookup(VSOs, std::move(Names))) {
     assert(ResultMap->size() == 1 && "Unexpected number of results");
@@ -1095,6 +1238,19 @@ Expected<JITEvaluatedSymbol> lookup(const VSO::VSOList &VSOs,
     return std::move(ResultMap->begin()->second);
   } else
     return ResultMap.takeError();
+}
+
+MangleAndInterner::MangleAndInterner(ExecutionSessionBase &ES,
+                                     const DataLayout &DL)
+    : ES(ES), DL(DL) {}
+
+SymbolStringPtr MangleAndInterner::operator()(StringRef Name) {
+  std::string MangledName;
+  {
+    raw_string_ostream MangledNameStream(MangledName);
+    Mangler::getNameWithPrefix(MangledNameStream, Name, DL);
+  }
+  return ES.getSymbolStringPool().intern(MangledName);
 }
 
 } // End namespace orc.

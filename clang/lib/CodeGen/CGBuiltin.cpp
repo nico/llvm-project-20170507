@@ -4000,6 +4000,7 @@ static const NeonIntrinsicInfo ARMSIMDIntrinsicMap [] = {
   NEONMAP1(vcvta_s16_v, arm_neon_vcvtas, 0),
   NEONMAP1(vcvta_s32_v, arm_neon_vcvtas, 0),
   NEONMAP1(vcvta_s64_v, arm_neon_vcvtas, 0),
+  NEONMAP1(vcvta_u16_v, arm_neon_vcvtau, 0),
   NEONMAP1(vcvta_u32_v, arm_neon_vcvtau, 0),
   NEONMAP1(vcvta_u64_v, arm_neon_vcvtau, 0),
   NEONMAP1(vcvtaq_s16_v, arm_neon_vcvtas, 0),
@@ -4080,16 +4081,22 @@ static const NeonIntrinsicInfo ARMSIMDIntrinsicMap [] = {
   NEONMAP1(vld1q_x2_v, arm_neon_vld1x2, 0),
   NEONMAP1(vld1q_x3_v, arm_neon_vld1x3, 0),
   NEONMAP1(vld1q_x4_v, arm_neon_vld1x4, 0),
+  NEONMAP1(vld2_dup_v, arm_neon_vld2dup, 0),
   NEONMAP1(vld2_lane_v, arm_neon_vld2lane, 0),
   NEONMAP1(vld2_v, arm_neon_vld2, 0),
+  NEONMAP1(vld2q_dup_v, arm_neon_vld2dup, 0),
   NEONMAP1(vld2q_lane_v, arm_neon_vld2lane, 0),
   NEONMAP1(vld2q_v, arm_neon_vld2, 0),
+  NEONMAP1(vld3_dup_v, arm_neon_vld3dup, 0),
   NEONMAP1(vld3_lane_v, arm_neon_vld3lane, 0),
   NEONMAP1(vld3_v, arm_neon_vld3, 0),
+  NEONMAP1(vld3q_dup_v, arm_neon_vld3dup, 0),
   NEONMAP1(vld3q_lane_v, arm_neon_vld3lane, 0),
   NEONMAP1(vld3q_v, arm_neon_vld3, 0),
+  NEONMAP1(vld4_dup_v, arm_neon_vld4dup, 0),
   NEONMAP1(vld4_lane_v, arm_neon_vld4lane, 0),
   NEONMAP1(vld4_v, arm_neon_vld4, 0),
+  NEONMAP1(vld4q_dup_v, arm_neon_vld4dup, 0),
   NEONMAP1(vld4q_lane_v, arm_neon_vld4lane, 0),
   NEONMAP1(vld4q_v, arm_neon_vld4, 0),
   NEONMAP2(vmax_v, arm_neon_vmaxu, arm_neon_vmaxs, Add1ArgType | UnsignedAlts),
@@ -4884,6 +4891,7 @@ Value *CodeGenFunction::EmitCommonNeonBuiltinExpr(
   case NEON::BI__builtin_neon_vcvta_s16_v:
   case NEON::BI__builtin_neon_vcvta_s32_v:
   case NEON::BI__builtin_neon_vcvta_s64_v:
+  case NEON::BI__builtin_neon_vcvta_u16_v:
   case NEON::BI__builtin_neon_vcvta_u32_v:
   case NEON::BI__builtin_neon_vcvta_u64_v:
   case NEON::BI__builtin_neon_vcvtaq_s16_v:
@@ -4978,7 +4986,13 @@ Value *CodeGenFunction::EmitCommonNeonBuiltinExpr(
   case NEON::BI__builtin_neon_vld3_v:
   case NEON::BI__builtin_neon_vld3q_v:
   case NEON::BI__builtin_neon_vld4_v:
-  case NEON::BI__builtin_neon_vld4q_v: {
+  case NEON::BI__builtin_neon_vld4q_v:
+  case NEON::BI__builtin_neon_vld2_dup_v:
+  case NEON::BI__builtin_neon_vld2q_dup_v:
+  case NEON::BI__builtin_neon_vld3_dup_v:
+  case NEON::BI__builtin_neon_vld3q_dup_v:
+  case NEON::BI__builtin_neon_vld4_dup_v:
+  case NEON::BI__builtin_neon_vld4q_dup_v: {
     llvm::Type *Tys[] = {Ty, Int8PtrTy};
     Function *F = CGM.getIntrinsic(LLVMIntrinsic, Tys);
     Value *Align = getAlignmentValue32(PtrOp1);
@@ -5864,8 +5878,11 @@ Value *CodeGenFunction::EmitARMBuiltinExpr(unsigned BuiltinID,
       case NEON::BI__builtin_neon_vld4_lane_v:
       case NEON::BI__builtin_neon_vld4q_lane_v:
       case NEON::BI__builtin_neon_vld2_dup_v:
+      case NEON::BI__builtin_neon_vld2q_dup_v:
       case NEON::BI__builtin_neon_vld3_dup_v:
+      case NEON::BI__builtin_neon_vld3q_dup_v:
       case NEON::BI__builtin_neon_vld4_dup_v:
+      case NEON::BI__builtin_neon_vld4q_dup_v:
         // Get the alignment for the argument in addition to the value;
         // we'll use it later.
         PtrOp1 = EmitPointerWithAlignment(E->getArg(1));
@@ -6041,68 +6058,6 @@ Value *CodeGenFunction::EmitARMBuiltinExpr(unsigned BuiltinID,
     PtrOp0 = Builder.CreateElementBitCast(PtrOp0, VTy->getElementType());
     Value *Ld = Builder.CreateLoad(PtrOp0);
     return Builder.CreateInsertElement(Ops[1], Ld, Ops[2], "vld1_lane");
-  }
-  case NEON::BI__builtin_neon_vld2_dup_v:
-  case NEON::BI__builtin_neon_vld3_dup_v:
-  case NEON::BI__builtin_neon_vld4_dup_v: {
-    // Handle 64-bit elements as a special-case.  There is no "dup" needed.
-    if (VTy->getElementType()->getPrimitiveSizeInBits() == 64) {
-      switch (BuiltinID) {
-      case NEON::BI__builtin_neon_vld2_dup_v:
-        Int = Intrinsic::arm_neon_vld2;
-        break;
-      case NEON::BI__builtin_neon_vld3_dup_v:
-        Int = Intrinsic::arm_neon_vld3;
-        break;
-      case NEON::BI__builtin_neon_vld4_dup_v:
-        Int = Intrinsic::arm_neon_vld4;
-        break;
-      default: llvm_unreachable("unknown vld_dup intrinsic?");
-      }
-      llvm::Type *Tys[] = {Ty, Int8PtrTy};
-      Function *F = CGM.getIntrinsic(Int, Tys);
-      llvm::Value *Align = getAlignmentValue32(PtrOp1);
-      Ops[1] = Builder.CreateCall(F, {Ops[1], Align}, "vld_dup");
-      Ty = llvm::PointerType::getUnqual(Ops[1]->getType());
-      Ops[0] = Builder.CreateBitCast(Ops[0], Ty);
-      return Builder.CreateDefaultAlignedStore(Ops[1], Ops[0]);
-    }
-    switch (BuiltinID) {
-    case NEON::BI__builtin_neon_vld2_dup_v:
-      Int = Intrinsic::arm_neon_vld2lane;
-      break;
-    case NEON::BI__builtin_neon_vld3_dup_v:
-      Int = Intrinsic::arm_neon_vld3lane;
-      break;
-    case NEON::BI__builtin_neon_vld4_dup_v:
-      Int = Intrinsic::arm_neon_vld4lane;
-      break;
-    default: llvm_unreachable("unknown vld_dup intrinsic?");
-    }
-    llvm::Type *Tys[] = {Ty, Int8PtrTy};
-    Function *F = CGM.getIntrinsic(Int, Tys);
-    llvm::StructType *STy = cast<llvm::StructType>(F->getReturnType());
-
-    SmallVector<Value*, 6> Args;
-    Args.push_back(Ops[1]);
-    Args.append(STy->getNumElements(), UndefValue::get(Ty));
-
-    llvm::Constant *CI = ConstantInt::get(Int32Ty, 0);
-    Args.push_back(CI);
-    Args.push_back(getAlignmentValue32(PtrOp1));
-
-    Ops[1] = Builder.CreateCall(F, Args, "vld_dup");
-    // splat lane 0 to all elts in each vector of the result.
-    for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
-      Value *Val = Builder.CreateExtractValue(Ops[1], i);
-      Value *Elt = Builder.CreateBitCast(Val, Ty);
-      Elt = EmitNeonSplat(Elt, CI);
-      Elt = Builder.CreateBitCast(Elt, Val->getType());
-      Ops[1] = Builder.CreateInsertValue(Ops[1], Elt, i);
-    }
-    Ty = llvm::PointerType::getUnqual(Ops[1]->getType());
-    Ops[0] = Builder.CreateBitCast(Ops[0], Ty);
-    return Builder.CreateDefaultAlignedStore(Ops[1], Ops[0]);
   }
   case NEON::BI__builtin_neon_vqrshrn_n_v:
     Int =
@@ -7623,6 +7578,7 @@ Value *CodeGenFunction::EmitAArch64BuiltinExpr(unsigned BuiltinID,
     return Builder.CreateFPToSI(Ops[0], Ty);
   }
   case NEON::BI__builtin_neon_vcvta_s16_v:
+  case NEON::BI__builtin_neon_vcvta_u16_v:
   case NEON::BI__builtin_neon_vcvta_s32_v:
   case NEON::BI__builtin_neon_vcvtaq_s16_v:
   case NEON::BI__builtin_neon_vcvtaq_s32_v:
@@ -8704,17 +8660,13 @@ static Value *EmitX86FMAExpr(CodeGenFunction &CGF, ArrayRef<Value *> Ops,
     if (IsAddSub) {
       // Negate even elts in C using a mask.
       unsigned NumElts = Ty->getVectorNumElements();
-      SmallVector<Constant *, 16> NMask;
-      Constant *Zero = ConstantInt::get(CGF.Builder.getInt1Ty(), 0);
-      Constant *One = ConstantInt::get(CGF.Builder.getInt1Ty(), 1);
-      for (unsigned i = 0; i < NumElts; ++i) {
-        NMask.push_back(i % 2 == 0 ? One : Zero);
-      }
-      Value *NegMask = ConstantVector::get(NMask);
+      SmallVector<uint32_t, 16> Indices(NumElts);
+      for (unsigned i = 0; i != NumElts; ++i)
+        Indices[i] = i + (i % 2) * NumElts;
 
       Value *NegC = CGF.Builder.CreateFNeg(C);
       Value *FMSub = CGF.Builder.CreateCall(FMA, {A, B, NegC} );
-      Res = CGF.Builder.CreateSelect(NegMask, FMSub, Res);
+      Res = CGF.Builder.CreateShuffleVector(FMSub, Res, Indices);
     }
   }
 
@@ -9028,10 +8980,14 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_vec_ext_v32qi:
   case X86::BI__builtin_ia32_vec_ext_v16hi:
   case X86::BI__builtin_ia32_vec_ext_v8si:
-  case X86::BI__builtin_ia32_vec_ext_v4di:
+  case X86::BI__builtin_ia32_vec_ext_v4di: {
+    unsigned NumElts = Ops[0]->getType()->getVectorNumElements();
+    uint64_t Index = cast<ConstantInt>(Ops[1])->getZExtValue();
+    Index &= NumElts - 1;
     // These builtins exist so we can ensure the index is an ICE and in range.
     // Otherwise we could just do this in the header file.
-    return Builder.CreateExtractElement(Ops[0], Ops[1]);
+    return Builder.CreateExtractElement(Ops[0], Index);
+  }
   case X86::BI__builtin_ia32_vec_set_v16qi:
   case X86::BI__builtin_ia32_vec_set_v8hi:
   case X86::BI__builtin_ia32_vec_set_v4si:
@@ -9039,10 +8995,14 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_vec_set_v32qi:
   case X86::BI__builtin_ia32_vec_set_v16hi:
   case X86::BI__builtin_ia32_vec_set_v8si:
-  case X86::BI__builtin_ia32_vec_set_v4di:
+  case X86::BI__builtin_ia32_vec_set_v4di: {
+    unsigned NumElts = Ops[0]->getType()->getVectorNumElements();
+    unsigned Index = cast<ConstantInt>(Ops[2])->getZExtValue();
+    Index &= NumElts - 1;
     // These builtins exist so we can ensure the index is an ICE and in range.
     // Otherwise we could just do this in the header file.
-    return Builder.CreateInsertElement(Ops[0], Ops[1], Ops[2]);
+    return Builder.CreateInsertElement(Ops[0], Ops[1], Index);
+  }
   case X86::BI_mm_setcsr:
   case X86::BI__builtin_ia32_ldmxcsr: {
     Address Tmp = CreateMemTemp(E->getArg(0)->getType());
@@ -9173,6 +9133,16 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     Function *FMA = CGM.getIntrinsic(Intrinsic::fma, A->getType());
     Value *Res = Builder.CreateCall(FMA, {A, B, C} );
     return Builder.CreateInsertElement(Ops[0], Res, (uint64_t)0);
+  }
+  case X86::BI__builtin_ia32_vfmaddss:
+  case X86::BI__builtin_ia32_vfmaddsd: {
+    Value *A = Builder.CreateExtractElement(Ops[0], (uint64_t)0);
+    Value *B = Builder.CreateExtractElement(Ops[1], (uint64_t)0);
+    Value *C = Builder.CreateExtractElement(Ops[2], (uint64_t)0);
+    Function *FMA = CGM.getIntrinsic(Intrinsic::fma, A->getType());
+    Value *Res = Builder.CreateCall(FMA, {A, B, C} );
+    Value *Zero = Constant::getNullValue(Ops[0]->getType());
+    return Builder.CreateInsertElement(Zero, Res, (uint64_t)0);
   }
   case X86::BI__builtin_ia32_vfmaddps:
   case X86::BI__builtin_ia32_vfmaddpd:
@@ -9308,8 +9278,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
 
     // extract (0, 1)
     unsigned Index = BuiltinID == X86::BI__builtin_ia32_storelps ? 0 : 1;
-    llvm::Value *Idx = llvm::ConstantInt::get(SizeTy, Index);
-    Ops[1] = Builder.CreateExtractElement(Ops[1], Idx, "extract");
+    Ops[1] = Builder.CreateExtractElement(Ops[1], Index, "extract");
 
     // cast pointer to i64 & store
     Ops[0] = Builder.CreateBitCast(Ops[0], PtrTy);
@@ -9333,7 +9302,12 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_extracti64x2_512_mask: {
     llvm::Type *DstTy = ConvertType(E->getType());
     unsigned NumElts = DstTy->getVectorNumElements();
-    unsigned Index = cast<ConstantInt>(Ops[1])->getZExtValue() * NumElts;
+    unsigned SrcNumElts = Ops[0]->getType()->getVectorNumElements();
+    unsigned SubVectors = SrcNumElts / NumElts;
+    unsigned Index = cast<ConstantInt>(Ops[1])->getZExtValue();
+    assert(llvm::isPowerOf2_32(SubVectors) && "Expected power of 2 subvectors");
+    Index &= SubVectors - 1; // Remove any extra bits.
+    Index *= NumElts;
 
     uint32_t Indices[16];
     for (unsigned i = 0; i != NumElts; ++i)
@@ -9367,7 +9341,11 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_inserti64x2_512: {
     unsigned DstNumElts = Ops[0]->getType()->getVectorNumElements();
     unsigned SrcNumElts = Ops[1]->getType()->getVectorNumElements();
-    unsigned Index = cast<ConstantInt>(Ops[2])->getZExtValue() * SrcNumElts;
+    unsigned SubVectors = DstNumElts / SrcNumElts;
+    unsigned Index = cast<ConstantInt>(Ops[2])->getZExtValue();
+    assert(llvm::isPowerOf2_32(SubVectors) && "Expected power of 2 subvectors");
+    Index &= SubVectors - 1; // Remove any extra bits.
+    Index *= SrcNumElts;
 
     uint32_t Indices[16];
     for (unsigned i = 0; i != DstNumElts; ++i)
@@ -9568,7 +9546,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_palignr128:
   case X86::BI__builtin_ia32_palignr256:
   case X86::BI__builtin_ia32_palignr512: {
-    unsigned ShiftVal = cast<llvm::ConstantInt>(Ops[2])->getZExtValue();
+    unsigned ShiftVal = cast<llvm::ConstantInt>(Ops[2])->getZExtValue() & 0xff;
 
     unsigned NumElts = Ops[0]->getType()->getVectorNumElements();
     assert(NumElts % 16 == 0);
@@ -9608,7 +9586,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_alignq256:
   case X86::BI__builtin_ia32_alignq512: {
     unsigned NumElts = Ops[0]->getType()->getVectorNumElements();
-    unsigned ShiftVal = cast<llvm::ConstantInt>(Ops[2])->getZExtValue();
+    unsigned ShiftVal = cast<llvm::ConstantInt>(Ops[2])->getZExtValue() & 0xff;
 
     // Mask the shift amount to width of two vectors.
     ShiftVal &= (2 * NumElts) - 1;
@@ -9690,11 +9668,10 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
                                        "vperm");
   }
 
-  case X86::BI__builtin_ia32_pslldqi128:
-  case X86::BI__builtin_ia32_pslldqi256:
-  case X86::BI__builtin_ia32_pslldqi512: {
-    // Shift value is in bits so divide by 8.
-    unsigned ShiftVal = cast<llvm::ConstantInt>(Ops[1])->getZExtValue() >> 3;
+  case X86::BI__builtin_ia32_pslldqi128_byteshift:
+  case X86::BI__builtin_ia32_pslldqi256_byteshift:
+  case X86::BI__builtin_ia32_pslldqi512_byteshift: {
+    unsigned ShiftVal = cast<llvm::ConstantInt>(Ops[1])->getZExtValue() & 0xff;
     llvm::Type *ResultType = Ops[0]->getType();
     // Builtin type is vXi64 so multiply by 8 to get bytes.
     unsigned NumElts = ResultType->getVectorNumElements() * 8;
@@ -9721,11 +9698,10 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
                                             "pslldq");
     return Builder.CreateBitCast(SV, Ops[0]->getType(), "cast");
   }
-  case X86::BI__builtin_ia32_psrldqi128:
-  case X86::BI__builtin_ia32_psrldqi256:
-  case X86::BI__builtin_ia32_psrldqi512: {
-    // Shift value is in bits so divide by 8.
-    unsigned ShiftVal = cast<llvm::ConstantInt>(Ops[1])->getZExtValue() >> 3;
+  case X86::BI__builtin_ia32_psrldqi128_byteshift:
+  case X86::BI__builtin_ia32_psrldqi256_byteshift:
+  case X86::BI__builtin_ia32_psrldqi512_byteshift: {
+    unsigned ShiftVal = cast<llvm::ConstantInt>(Ops[1])->getZExtValue() & 0xff;
     llvm::Type *ResultType = Ops[0]->getType();
     // Builtin type is vXi64 so multiply by 8 to get bytes.
     unsigned NumElts = ResultType->getVectorNumElements() * 8;
@@ -9888,7 +9864,54 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     Function *F = CGM.getIntrinsic(Intrinsic::ctlz, Ops[0]->getType());
     return Builder.CreateCall(F, {Ops[0],Builder.getInt1(false)});
   }
-
+  case X86::BI__builtin_ia32_sqrtss:
+  case X86::BI__builtin_ia32_sqrtsd: {
+    Value *A = Builder.CreateExtractElement(Ops[0], (uint64_t)0);
+    Function *F = CGM.getIntrinsic(Intrinsic::sqrt, A->getType());
+    A = Builder.CreateCall(F, {A});
+    return Builder.CreateInsertElement(Ops[0], A, (uint64_t)0);    
+  }
+  case X86::BI__builtin_ia32_sqrtsd_round_mask:
+  case X86::BI__builtin_ia32_sqrtss_round_mask: {
+    unsigned CC = cast<llvm::ConstantInt>(Ops[4])->getZExtValue();
+    // Support only if the rounding mode is 4 (AKA CUR_DIRECTION),
+    // otherwise keep the intrinsic.
+    if (CC != 4) {
+      Intrinsic::ID IID = BuiltinID == X86::BI__builtin_ia32_sqrtsd_round_mask ?
+                          Intrinsic::x86_avx512_mask_sqrt_sd :
+                          Intrinsic::x86_avx512_mask_sqrt_ss;
+      return Builder.CreateCall(CGM.getIntrinsic(IID), Ops);
+    }
+    Value *A = Builder.CreateExtractElement(Ops[1], (uint64_t)0);
+    Function *F = CGM.getIntrinsic(Intrinsic::sqrt, A->getType());
+    Value *Src = Builder.CreateExtractElement(Ops[2], (uint64_t)0);
+    int MaskSize = Ops[3]->getType()->getScalarSizeInBits();
+    llvm::Type *MaskTy = llvm::VectorType::get(Builder.getInt1Ty(), MaskSize);
+    Value *Mask = Builder.CreateBitCast(Ops[3], MaskTy);
+    Mask = Builder.CreateExtractElement(Mask, (uint64_t)0);
+    A = Builder.CreateSelect(Mask, Builder.CreateCall(F, {A}), Src);
+    return Builder.CreateInsertElement(Ops[0], A, (uint64_t)0);
+  }
+  case X86::BI__builtin_ia32_sqrtpd256:
+  case X86::BI__builtin_ia32_sqrtpd:
+  case X86::BI__builtin_ia32_sqrtps256:
+  case X86::BI__builtin_ia32_sqrtps:
+  case X86::BI__builtin_ia32_sqrtps512:
+  case X86::BI__builtin_ia32_sqrtpd512: {
+    if (Ops.size() == 2) {
+      unsigned CC = cast<llvm::ConstantInt>(Ops[1])->getZExtValue();
+      // Support only if the rounding mode is 4 (AKA CUR_DIRECTION),
+      // otherwise keep the intrinsic.
+      if (CC != 4) {
+        Intrinsic::ID IID = BuiltinID == X86::BI__builtin_ia32_sqrtps512 ?
+                            Intrinsic::x86_avx512_sqrt_ps_512 :
+                            Intrinsic::x86_avx512_sqrt_pd_512;
+        return Builder.CreateCall(CGM.getIntrinsic(IID), Ops);
+      }
+    }
+    Function *F = CGM.getIntrinsic(Intrinsic::sqrt, Ops[0]->getType());
+    return Builder.CreateCall(F, Ops[0]);
+  }
   case X86::BI__builtin_ia32_pabsb128:
   case X86::BI__builtin_ia32_pabsw128:
   case X86::BI__builtin_ia32_pabsd128:
@@ -10054,44 +10077,44 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     return Builder.CreateExtractValue(Call, 1);
   }
 
-  case X86::BI__builtin_ia32_cmpps128_mask:
-  case X86::BI__builtin_ia32_cmpps256_mask:
-  case X86::BI__builtin_ia32_cmpps512_mask:
-  case X86::BI__builtin_ia32_cmppd128_mask:
-  case X86::BI__builtin_ia32_cmppd256_mask:
-  case X86::BI__builtin_ia32_cmppd512_mask: {
+  case X86::BI__builtin_ia32_fpclassps128_mask:
+  case X86::BI__builtin_ia32_fpclassps256_mask:
+  case X86::BI__builtin_ia32_fpclassps512_mask:
+  case X86::BI__builtin_ia32_fpclasspd128_mask:
+  case X86::BI__builtin_ia32_fpclasspd256_mask:
+  case X86::BI__builtin_ia32_fpclasspd512_mask: {
     unsigned NumElts = Ops[0]->getType()->getVectorNumElements();
-    Value *MaskIn = Ops[3];
-    Ops.erase(&Ops[3]);
+    Value *MaskIn = Ops[2];
+    Ops.erase(&Ops[2]);
 
     Intrinsic::ID ID;
     switch (BuiltinID) {
     default: llvm_unreachable("Unsupported intrinsic!");
-    case X86::BI__builtin_ia32_cmpps128_mask:
-      ID = Intrinsic::x86_avx512_mask_cmp_ps_128;
+    case X86::BI__builtin_ia32_fpclassps128_mask:
+      ID = Intrinsic::x86_avx512_fpclass_ps_128;
       break;
-    case X86::BI__builtin_ia32_cmpps256_mask:
-      ID = Intrinsic::x86_avx512_mask_cmp_ps_256;
+    case X86::BI__builtin_ia32_fpclassps256_mask:
+      ID = Intrinsic::x86_avx512_fpclass_ps_256;
       break;
-    case X86::BI__builtin_ia32_cmpps512_mask:
-      ID = Intrinsic::x86_avx512_mask_cmp_ps_512;
+    case X86::BI__builtin_ia32_fpclassps512_mask:
+      ID = Intrinsic::x86_avx512_fpclass_ps_512;
       break;
-    case X86::BI__builtin_ia32_cmppd128_mask:
-      ID = Intrinsic::x86_avx512_mask_cmp_pd_128;
+    case X86::BI__builtin_ia32_fpclasspd128_mask:
+      ID = Intrinsic::x86_avx512_fpclass_pd_128;
       break;
-    case X86::BI__builtin_ia32_cmppd256_mask:
-      ID = Intrinsic::x86_avx512_mask_cmp_pd_256;
+    case X86::BI__builtin_ia32_fpclasspd256_mask:
+      ID = Intrinsic::x86_avx512_fpclass_pd_256;
       break;
-    case X86::BI__builtin_ia32_cmppd512_mask:
-      ID = Intrinsic::x86_avx512_mask_cmp_pd_512;
+    case X86::BI__builtin_ia32_fpclasspd512_mask:
+      ID = Intrinsic::x86_avx512_fpclass_pd_512;
       break;
     }
 
-    Value *Cmp = Builder.CreateCall(CGM.getIntrinsic(ID), Ops);
-    return EmitX86MaskedCompareResult(*this, Cmp, NumElts, MaskIn);
+    Value *Fpclass = Builder.CreateCall(CGM.getIntrinsic(ID), Ops);
+    return EmitX86MaskedCompareResult(*this, Fpclass, NumElts, MaskIn);
   }
 
-  // SSE packed comparison intrinsics
+  // packed comparison intrinsics
   case X86::BI__builtin_ia32_cmpeqps:
   case X86::BI__builtin_ia32_cmpeqpd:
     return getVectorFCmpIR(CmpInst::FCMP_OEQ);
@@ -10119,64 +10142,79 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
   case X86::BI__builtin_ia32_cmpps:
   case X86::BI__builtin_ia32_cmpps256:
   case X86::BI__builtin_ia32_cmppd:
-  case X86::BI__builtin_ia32_cmppd256: {
-    unsigned CC = cast<llvm::ConstantInt>(Ops[2])->getZExtValue();
-    // If this one of the SSE immediates, we can use native IR.
-    if (CC < 8) {
-      FCmpInst::Predicate Pred;
-      switch (CC) {
-      case 0: Pred = FCmpInst::FCMP_OEQ; break;
-      case 1: Pred = FCmpInst::FCMP_OLT; break;
-      case 2: Pred = FCmpInst::FCMP_OLE; break;
-      case 3: Pred = FCmpInst::FCMP_UNO; break;
-      case 4: Pred = FCmpInst::FCMP_UNE; break;
-      case 5: Pred = FCmpInst::FCMP_UGE; break;
-      case 6: Pred = FCmpInst::FCMP_UGT; break;
-      case 7: Pred = FCmpInst::FCMP_ORD; break;
-      }
-      return getVectorFCmpIR(Pred);
+  case X86::BI__builtin_ia32_cmppd256:
+  case X86::BI__builtin_ia32_cmpps128_mask:
+  case X86::BI__builtin_ia32_cmpps256_mask:
+  case X86::BI__builtin_ia32_cmpps512_mask:
+  case X86::BI__builtin_ia32_cmppd128_mask:
+  case X86::BI__builtin_ia32_cmppd256_mask:
+  case X86::BI__builtin_ia32_cmppd512_mask: {
+    // Lowering vector comparisons to fcmp instructions, while
+    // ignoring signalling behaviour requested
+    // ignoring rounding mode requested
+    // This is is only possible as long as FENV_ACCESS is not implemented.
+    // See also: https://reviews.llvm.org/D45616
+
+    // The third argument is the comparison condition, and integer in the
+    // range [0, 31]
+    unsigned CC = cast<llvm::ConstantInt>(Ops[2])->getZExtValue() & 0x1f;
+
+    // Lowering to IR fcmp instruction.
+    // Ignoring requested signaling behaviour,
+    // e.g. both _CMP_GT_OS & _CMP_GT_OQ are translated to FCMP_OGT.
+    FCmpInst::Predicate Pred;
+    switch (CC) {
+    case 0x00: Pred = FCmpInst::FCMP_OEQ;   break;
+    case 0x01: Pred = FCmpInst::FCMP_OLT;   break;
+    case 0x02: Pred = FCmpInst::FCMP_OLE;   break;
+    case 0x03: Pred = FCmpInst::FCMP_UNO;   break;
+    case 0x04: Pred = FCmpInst::FCMP_UNE;   break;
+    case 0x05: Pred = FCmpInst::FCMP_UGE;   break;
+    case 0x06: Pred = FCmpInst::FCMP_UGT;   break;
+    case 0x07: Pred = FCmpInst::FCMP_ORD;   break;
+    case 0x08: Pred = FCmpInst::FCMP_UEQ;   break;
+    case 0x09: Pred = FCmpInst::FCMP_ULT;   break;
+    case 0x0a: Pred = FCmpInst::FCMP_ULE;   break;
+    case 0x0b: Pred = FCmpInst::FCMP_FALSE; break;
+    case 0x0c: Pred = FCmpInst::FCMP_ONE;   break;
+    case 0x0d: Pred = FCmpInst::FCMP_OGE;   break;
+    case 0x0e: Pred = FCmpInst::FCMP_OGT;   break;
+    case 0x0f: Pred = FCmpInst::FCMP_TRUE;  break;
+    case 0x10: Pred = FCmpInst::FCMP_OEQ;   break;
+    case 0x11: Pred = FCmpInst::FCMP_OLT;   break;
+    case 0x12: Pred = FCmpInst::FCMP_OLE;   break;
+    case 0x13: Pred = FCmpInst::FCMP_UNO;   break;
+    case 0x14: Pred = FCmpInst::FCMP_UNE;   break;
+    case 0x15: Pred = FCmpInst::FCMP_UGE;   break;
+    case 0x16: Pred = FCmpInst::FCMP_UGT;   break;
+    case 0x17: Pred = FCmpInst::FCMP_ORD;   break;
+    case 0x18: Pred = FCmpInst::FCMP_UEQ;   break;
+    case 0x19: Pred = FCmpInst::FCMP_ULT;   break;
+    case 0x1a: Pred = FCmpInst::FCMP_ULE;   break;
+    case 0x1b: Pred = FCmpInst::FCMP_FALSE; break;
+    case 0x1c: Pred = FCmpInst::FCMP_ONE;   break;
+    case 0x1d: Pred = FCmpInst::FCMP_OGE;   break;
+    case 0x1e: Pred = FCmpInst::FCMP_OGT;   break;
+    case 0x1f: Pred = FCmpInst::FCMP_TRUE;  break;
+    default: llvm_unreachable("Unhandled CC");
     }
 
-    // We can't handle 8-31 immediates with native IR, use the intrinsic.
-    // Except for predicates that create constants.
-    Intrinsic::ID ID;
+    // Builtins without the _mask suffix return a vector of integers
+    // of the same width as the input vectors
     switch (BuiltinID) {
-    default: llvm_unreachable("Unsupported intrinsic!");
-    case X86::BI__builtin_ia32_cmpps:
-      ID = Intrinsic::x86_sse_cmp_ps;
-      break;
-    case X86::BI__builtin_ia32_cmpps256:
-      // _CMP_TRUE_UQ, _CMP_TRUE_US produce -1,-1... vector
-      // on any input and _CMP_FALSE_OQ, _CMP_FALSE_OS produce 0, 0...
-      if (CC == 0xf || CC == 0xb || CC == 0x1b || CC == 0x1f) {
-         Value *Constant = (CC == 0xf || CC == 0x1f) ?
-                llvm::Constant::getAllOnesValue(Builder.getInt32Ty()) :
-                llvm::Constant::getNullValue(Builder.getInt32Ty());
-         Value *Vec = Builder.CreateVectorSplat(
-                        Ops[0]->getType()->getVectorNumElements(), Constant);
-         return Builder.CreateBitCast(Vec, Ops[0]->getType());
-      }
-      ID = Intrinsic::x86_avx_cmp_ps_256;
-      break;
-    case X86::BI__builtin_ia32_cmppd:
-      ID = Intrinsic::x86_sse2_cmp_pd;
-      break;
-    case X86::BI__builtin_ia32_cmppd256:
-      // _CMP_TRUE_UQ, _CMP_TRUE_US produce -1,-1... vector
-      // on any input and _CMP_FALSE_OQ, _CMP_FALSE_OS produce 0, 0...
-      if (CC == 0xf || CC == 0xb || CC == 0x1b || CC == 0x1f) {
-         Value *Constant = (CC == 0xf || CC == 0x1f) ?
-                llvm::Constant::getAllOnesValue(Builder.getInt64Ty()) :
-                llvm::Constant::getNullValue(Builder.getInt64Ty());
-         Value *Vec = Builder.CreateVectorSplat(
-                        Ops[0]->getType()->getVectorNumElements(), Constant);
-         return Builder.CreateBitCast(Vec, Ops[0]->getType());
-      }
-      ID = Intrinsic::x86_avx_cmp_pd_256;
-      break;
+    case X86::BI__builtin_ia32_cmpps512_mask:
+    case X86::BI__builtin_ia32_cmppd512_mask:
+    case X86::BI__builtin_ia32_cmpps128_mask:
+    case X86::BI__builtin_ia32_cmpps256_mask:
+    case X86::BI__builtin_ia32_cmppd128_mask:
+    case X86::BI__builtin_ia32_cmppd256_mask: {
+      unsigned NumElts = Ops[0]->getType()->getVectorNumElements();
+      Value *Cmp = Builder.CreateFCmp(Pred, Ops[0], Ops[1]);
+      return EmitX86MaskedCompareResult(*this, Cmp, NumElts, Ops[3]);
     }
-
-    return Builder.CreateCall(CGM.getIntrinsic(ID), Ops);
+    default:
+      return getVectorFCmpIR(Pred); 
+    }
   }
 
   // SSE scalar comparison intrinsics

@@ -493,10 +493,8 @@ static ShadowMapping getShadowMapping(Triple &TargetTriple, int LongSize,
   bool IsSystemZ = TargetTriple.getArch() == Triple::systemz;
   bool IsX86 = TargetTriple.getArch() == Triple::x86;
   bool IsX86_64 = TargetTriple.getArch() == Triple::x86_64;
-  bool IsMIPS32 = TargetTriple.getArch() == Triple::mips ||
-                  TargetTriple.getArch() == Triple::mipsel;
-  bool IsMIPS64 = TargetTriple.getArch() == Triple::mips64 ||
-                  TargetTriple.getArch() == Triple::mips64el;
+  bool IsMIPS32 = TargetTriple.isMIPS32();
+  bool IsMIPS64 = TargetTriple.isMIPS64();
   bool IsArmOrThumb = TargetTriple.isARM() || TargetTriple.isThumb();
   bool IsAArch64 = TargetTriple.getArch() == Triple::aarch64;
   bool IsWindows = TargetTriple.isOSWindows();
@@ -1655,44 +1653,20 @@ bool AddressSanitizerModule::ShouldInstrumentGlobal(GlobalVariable *G) {
   if (!Ty->isSized()) return false;
   if (!G->hasInitializer()) return false;
   if (GlobalWasGeneratedByCompiler(G)) return false; // Our own globals.
+  // Touch only those globals that will not be defined in other modules.
+  // Don't handle ODR linkage types and COMDATs since other modules may be built
+  // without ASan.
+  if (G->getLinkage() != GlobalVariable::ExternalLinkage &&
+      G->getLinkage() != GlobalVariable::PrivateLinkage &&
+      G->getLinkage() != GlobalVariable::InternalLinkage)
+    return false;
+  if (G->hasComdat()) return false;
   // Two problems with thread-locals:
   //   - The address of the main thread's copy can't be computed at link-time.
   //   - Need to poison all copies, not just the main thread's one.
   if (G->isThreadLocal()) return false;
   // For now, just ignore this Global if the alignment is large.
   if (G->getAlignment() > MinRedzoneSizeForGlobal()) return false;
-
-  // If we know this global is defined only in this module (external or static),
-  // we can instrument it.
-  if (G->getLinkage() != GlobalVariable::ExternalLinkage &&
-      G->getLinkage() != GlobalVariable::PrivateLinkage &&
-      G->getLinkage() != GlobalVariable::InternalLinkage) {
-    // For targets that support comdats, we can instrument ODR globals in
-    // comdats. We simply add our global metadata to the group and hope that an
-    // instrumented global is selected.
-    // FIXME: This should work on ELF, enable it there too.
-    if (!TargetTriple.isOSBinFormatCOFF())
-      return false;
-    if (G->getLinkage() != GlobalVariable::WeakODRLinkage &&
-        G->getLinkage() != GlobalVariable::LinkOnceODRLinkage)
-      return false;
-    if (!G->hasComdat())
-      return false;
-  }
-
-  // If a comdat is present, it must have a selection kind that implies ODR
-  // semantics: no duplicates, any, or exact match.
-  if (Comdat *C = G->getComdat()) {
-    switch (C->getSelectionKind()) {
-    case Comdat::Any:
-    case Comdat::ExactMatch:
-    case Comdat::NoDuplicates:
-      break;
-    case Comdat::Largest:
-    case Comdat::SameSize:
-      return false;
-    }
-  }
 
   if (G->hasSection()) {
     StringRef Section = G->getSection();
@@ -2147,7 +2121,6 @@ bool AddressSanitizerModule::InstrumentGlobals(IRBuilder<> &IRB, Module &M, bool
         new GlobalVariable(M, NewTy, G->isConstant(), Linkage, NewInitializer,
                            "", G, G->getThreadLocalMode());
     NewGlobal->copyAttributesFrom(G);
-    NewGlobal->setComdat(G->getComdat());
     NewGlobal->setAlignment(MinRZ);
 
     // Move null-terminated C strings to "__asan_cstring" section on Darwin.

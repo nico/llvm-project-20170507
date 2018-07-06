@@ -18,6 +18,7 @@
 #include "llvm/Support/Program.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
+#include "clang/Basic/Version.h"
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -58,6 +59,23 @@ static llvm::cl::opt<unsigned>
     WorkerThreadsCount("j",
                        llvm::cl::desc("Number of async workers used by clangd"),
                        llvm::cl::init(getDefaultAsyncThreadsCount()));
+
+// FIXME: also support "plain" style where signatures are always omitted.
+enum CompletionStyleFlag {
+  Detailed,
+  Bundled,
+};
+static llvm::cl::opt<CompletionStyleFlag> CompletionStyle(
+    "completion-style",
+    llvm::cl::desc("Granularity of code completion suggestions"),
+    llvm::cl::values(
+        clEnumValN(Detailed, "detailed",
+                   "One completion item for each semantically distinct "
+                   "completion, with full type information."),
+        clEnumValN(Bundled, "bundled",
+                   "Similar completion items (e.g. function overloads) are "
+                   "combined. Type information shown where possible.")),
+    llvm::cl::init(Detailed));
 
 // FIXME: Flags are the wrong mechanism for user preferences.
 // We should probably read a dotfile or similar.
@@ -125,6 +143,12 @@ static llvm::cl::opt<bool> EnableIndex(
                    "Clang uses an index built from symbols in opened files"),
     llvm::cl::init(true));
 
+static llvm::cl::opt<bool>
+    ShowOrigins("debug-origin",
+                llvm::cl::desc("Show origins of completion items"),
+                llvm::cl::init(clangd::CodeCompleteOptions().ShowOrigins),
+                llvm::cl::Hidden);
+
 static llvm::cl::opt<Path> YamlSymbolFile(
     "yaml-symbol-file",
     llvm::cl::desc(
@@ -136,7 +160,16 @@ static llvm::cl::opt<Path> YamlSymbolFile(
 
 int main(int argc, char *argv[]) {
   llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
-  llvm::cl::ParseCommandLineOptions(argc, argv, "clangd");
+  llvm::cl::SetVersionPrinter([](llvm::raw_ostream &OS) {
+    OS << clang::getClangToolFullVersion("clangd") << "\n";
+  });
+  llvm::cl::ParseCommandLineOptions(
+      argc, argv,
+      "clangd is a language server that provides IDE-like features to editors. "
+      "\n\nIt should be used via an editor plugin rather than invoked directly."
+      "For more information, see:"
+      "\n\thttps://clang.llvm.org/extra/clangd.html"
+      "\n\thttps://microsoft.github.io/language-server-protocol/");
   if (Test) {
     RunSynchronously = true;
     InputStyle = JSONStreamStyle::Delimited;
@@ -233,6 +266,8 @@ int main(int argc, char *argv[]) {
   clangd::CodeCompleteOptions CCOpts;
   CCOpts.IncludeIneligibleResults = IncludeIneligibleResults;
   CCOpts.Limit = LimitResults;
+  CCOpts.BundleOverloads = CompletionStyle != Detailed;
+  CCOpts.ShowOrigins = ShowOrigins;
 
   // Initialize and run ClangdLSPServer.
   ClangdLSPServer LSPServer(Out, CCOpts, CompileCommandsDirPath, Opts);

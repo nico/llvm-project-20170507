@@ -20,6 +20,8 @@ def HasV8_2a         : Predicate<"Subtarget->hasV8_2aOps()">,
                                  AssemblerPredicate<"HasV8_2aOps", "armv8.2a">;
 def HasV8_3a         : Predicate<"Subtarget->hasV8_3aOps()">,
                                  AssemblerPredicate<"HasV8_3aOps", "armv8.3a">;
+def HasV8_4a         : Predicate<"Subtarget->hasV8_4aOps()">,
+                                 AssemblerPredicate<"HasV8_4aOps", "armv8.4a">;
 def HasFPARMv8       : Predicate<"Subtarget->hasFPARMv8()">,
                                AssemblerPredicate<"FeatureFPARMv8", "fp-armv8">;
 def HasNEON          : Predicate<"Subtarget->hasNEON()">,
@@ -449,6 +451,12 @@ def DSB   : CRmSystemI<barrier_op, 0b100, "dsb",
 
 def ISB   : CRmSystemI<barrier_op, 0b110, "isb",
                        [(int_aarch64_isb (i32 imm32_0_15:$CRm))]>;
+
+def TSB   : CRmSystemI<barrier_op, 0b010, "tsb", []> {
+  let CRm        = 0b0010;
+  let Inst{12}   = 0;
+  let Predicates = [HasV8_4a];
+}
 }
 
 // ARMv8.2 Dot Product
@@ -549,6 +557,17 @@ let Predicates = [HasV8_3a] in {
 
 } // HasV8_3A
 
+// v8.4 Flag manipulation instructions
+let Predicates = [HasV8_4a] in {
+def CFINV : SimpleSystemI<0, (ins), "cfinv", "">, Sched<[WriteSys]> {
+  let Inst{20-5} = 0b0000001000000000;
+}
+def SETF8  : BaseFlagManipulation<0, 0, (ins GPR32:$Rn), "setf8", "{\t$Rn}">;
+def SETF16 : BaseFlagManipulation<0, 1, (ins GPR32:$Rn), "setf16", "{\t$Rn}">;
+def RMIF   : FlagRotate<(ins GPR64:$Rn, uimm6:$imm, imm0_15:$mask), "rmif",
+                        "{\t$Rn, $imm, $mask}">;
+} // HasV8_4a
+
 def : InstAlias<"clrex", (CLREX 0xf)>;
 def : InstAlias<"isb", (ISB 0xf)>;
 
@@ -565,6 +584,9 @@ def MOVbaseTLS : Pseudo<(outs GPR64:$dst), (ins),
 // The cycle counter PMC register is PMCCNTR_EL0.
 let Predicates = [HasPerfMon] in
 def : Pat<(readcyclecounter), (MRS 0xdce8)>;
+
+// FPCR register
+def : Pat<(i64 (int_aarch64_get_fpcr)), (MRS 0xda20)>;
 
 // Generic system instructions
 def SYSxt  : SystemXtI<0, "sys">;
@@ -4955,16 +4977,6 @@ def : Pat<(v1i64 (int_aarch64_neon_vcvtfp2fxs (v1f64 FPR64:$Rn),
 def : Pat<(v1i64 (int_aarch64_neon_vcvtfp2fxu (v1f64 FPR64:$Rn),
                                             vecshiftR64:$imm)),
           (FCVTZUd FPR64:$Rn, vecshiftR64:$imm)>;
-def : Pat<(f16 (int_aarch64_neon_vcvtfxs2fp (i64 FPR64:$Rn), vecshiftR16:$imm)),
-          (FCVTZSHDr (i64 FPR64:$Rn), vecshiftR32:$imm)>;
-def : Pat<(i32 (int_aarch64_neon_vcvtfp2fxu FPR16:$Rn, vecshiftR32:$imm)),
-          (FCVTZUSHr FPR16:$Rn, vecshiftR32:$imm)>;
-def : Pat<(i32 (int_aarch64_neon_vcvtfp2fxs FPR16:$Rn, vecshiftR32:$imm)),
-          (FCVTZSSHr FPR16:$Rn, vecshiftR32:$imm)>;
-def : Pat<(i64 (int_aarch64_neon_vcvtfp2fxs (f16 FPR16:$Rn), vecshiftR64:$imm)),
-          (FCVTZSDHr (f16 FPR16:$Rn), vecshiftR64:$imm)>;
-def : Pat<(f16 (int_aarch64_neon_vcvtfxu2fp FPR32:$Rn, vecshiftR16:$imm)),
-          (UCVTFHSr FPR32:$Rn, vecshiftR16:$imm)>;
 def : Pat<(int_aarch64_neon_vcvtfxu2fp FPR32:$Rn, vecshiftR32:$imm),
           (UCVTFs FPR32:$Rn, vecshiftR32:$imm)>;
 def : Pat<(f64 (int_aarch64_neon_vcvtfxu2fp (i64 FPR64:$Rn), vecshiftR64:$imm)),
@@ -4972,10 +4984,6 @@ def : Pat<(f64 (int_aarch64_neon_vcvtfxu2fp (i64 FPR64:$Rn), vecshiftR64:$imm)),
 def : Pat<(v1f64 (int_aarch64_neon_vcvtfxs2fp (v1i64 FPR64:$Rn),
                                             vecshiftR64:$imm)),
           (SCVTFd FPR64:$Rn, vecshiftR64:$imm)>;
-def : Pat<(f16 (int_aarch64_neon_vcvtfxs2fp (i32 FPR32:$Rn), vecshiftR16:$imm)),
-          (SCVTFHSr FPR32:$Rn, vecshiftR16:$imm)>;
-def : Pat<(f16 (int_aarch64_neon_vcvtfxs2fp FPR32:$Rn, vecshiftR16:$imm)),
-          (SCVTFHSr FPR32:$Rn, vecshiftR16:$imm)>;
 def : Pat<(f64 (int_aarch64_neon_vcvtfxs2fp (i64 FPR64:$Rn), vecshiftR64:$imm)),
           (SCVTFd FPR64:$Rn, vecshiftR64:$imm)>;
 def : Pat<(v1f64 (int_aarch64_neon_vcvtfxu2fp (v1i64 FPR64:$Rn),
@@ -4983,6 +4991,41 @@ def : Pat<(v1f64 (int_aarch64_neon_vcvtfxu2fp (v1i64 FPR64:$Rn),
           (UCVTFd FPR64:$Rn, vecshiftR64:$imm)>;
 def : Pat<(int_aarch64_neon_vcvtfxs2fp FPR32:$Rn, vecshiftR32:$imm),
           (SCVTFs FPR32:$Rn, vecshiftR32:$imm)>;
+
+// Patterns for FP16 Instrinsics - requires reg copy to/from as i16s not supported.
+
+def : Pat<(f16 (int_aarch64_neon_vcvtfxs2fp (i32 (sext_inreg FPR32:$Rn, i16)), vecshiftR16:$imm)),
+          (SCVTFh (EXTRACT_SUBREG FPR32:$Rn, hsub), vecshiftR16:$imm)>;
+def : Pat<(f16 (int_aarch64_neon_vcvtfxs2fp (i32 FPR32:$Rn), vecshiftR16:$imm)),
+          (SCVTFh (EXTRACT_SUBREG FPR32:$Rn, hsub), vecshiftR16:$imm)>;
+def : Pat<(f16 (int_aarch64_neon_vcvtfxu2fp
+            (and FPR32:$Rn, (i32 65535)),
+            vecshiftR16:$imm)),
+          (UCVTFh (EXTRACT_SUBREG FPR32:$Rn, hsub), vecshiftR16:$imm)>;
+def : Pat<(f16 (int_aarch64_neon_vcvtfxu2fp FPR32:$Rn, vecshiftR16:$imm)),
+          (UCVTFh (EXTRACT_SUBREG FPR32:$Rn, hsub), vecshiftR16:$imm)>;
+def : Pat<(f16 (int_aarch64_neon_vcvtfxu2fp (i64 FPR64:$Rn), vecshiftR16:$imm)),
+          (UCVTFh (EXTRACT_SUBREG FPR64:$Rn, hsub), vecshiftR16:$imm)>;
+def : Pat<(i32 (int_aarch64_neon_vcvtfp2fxs (f16 FPR16:$Rn), vecshiftR32:$imm)),
+          (i32 (INSERT_SUBREG
+            (i32 (IMPLICIT_DEF)),
+            (FCVTZSh FPR16:$Rn, vecshiftR32:$imm),
+            hsub))>;
+def : Pat<(i64 (int_aarch64_neon_vcvtfp2fxs (f16 FPR16:$Rn), vecshiftR64:$imm)),
+          (i64 (INSERT_SUBREG
+            (i64 (IMPLICIT_DEF)),
+            (FCVTZSh FPR16:$Rn, vecshiftR64:$imm),
+            hsub))>;
+def : Pat<(i32 (int_aarch64_neon_vcvtfp2fxu (f16 FPR16:$Rn), vecshiftR32:$imm)),
+          (i32 (INSERT_SUBREG
+            (i32 (IMPLICIT_DEF)),
+            (FCVTZUh FPR16:$Rn, vecshiftR32:$imm),
+            hsub))>;
+def : Pat<(i64 (int_aarch64_neon_vcvtfp2fxu (f16 FPR16:$Rn), vecshiftR64:$imm)),
+          (i64 (INSERT_SUBREG
+            (i64 (IMPLICIT_DEF)),
+            (FCVTZUh FPR16:$Rn, vecshiftR64:$imm),
+            hsub))>;
 
 defm SHL      : SIMDScalarLShiftD<   0, 0b01010, "shl", AArch64vshl>;
 defm SLI      : SIMDScalarLShiftDTied<1, 0b01010, "sli">;

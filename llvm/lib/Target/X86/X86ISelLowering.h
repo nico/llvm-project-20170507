@@ -345,7 +345,6 @@ namespace llvm {
       /// Vector comparison generating mask bits for fp and
       /// integer signed and unsigned data types.
       CMPM,
-      CMPMU,
       // Vector comparison with rounding mode for FP values
       CMPM_RND,
 
@@ -501,9 +500,6 @@ namespace llvm {
       FNMSUB_RND,
       FMADDSUB_RND,
       FMSUBADD_RND,
-
-      // FMA4 specific scalar intrinsics bits that zero the non-scalar bits.
-      FMADD4S, FNMADD4S, FMSUB4S, FNMSUB4S,
 
       // Scalar intrinsic FMA.
       FMADDS1, FMADDS3,
@@ -994,11 +990,10 @@ namespace llvm {
     /// be legal.
     bool isShuffleMaskLegal(ArrayRef<int> Mask, EVT VT) const override;
 
-    /// Similar to isShuffleMaskLegal. This is used by Targets can use this to
-    /// indicate if there is a suitable VECTOR_SHUFFLE that can be used to
-    /// replace a VAND with a constant pool entry.
-    bool isVectorClearMaskLegal(const SmallVectorImpl<int> &Mask,
-                                EVT VT) const override;
+    /// Similar to isShuffleMaskLegal. Targets can use this to indicate if there
+    /// is a suitable VECTOR_SHUFFLE that can be used to replace a VAND with a
+    /// constant pool entry.
+    bool isVectorClearMaskLegal(ArrayRef<int> Mask, EVT VT) const override;
 
     /// Returns true if lowering to a jump table is allowed.
     bool areJTsAllowed(const Function *Fn) const override;

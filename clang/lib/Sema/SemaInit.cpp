@@ -4224,9 +4224,11 @@ static OverloadingResult TryRefInitWithConversionFunction(
   OverloadCandidateSet &CandidateSet = Sequence.getFailedCandidateSet();
   CandidateSet.clear(OverloadCandidateSet::CSK_InitByUserDefinedConversion);
 
-  // Determine whether we are allowed to call explicit constructors or
-  // explicit conversion operators.
-  bool AllowExplicit = Kind.AllowExplicit();
+  // Determine whether we are allowed to call explicit conversion operators.
+  // Note that none of [over.match.copy], [over.match.conv], nor
+  // [over.match.ref] permit an explicit constructor to be chosen when
+  // initializing a reference, not even for direct-initialization.
+  bool AllowExplicitCtors = false;
   bool AllowExplicitConvs = Kind.allowExplicitConversionFunctionsInRefBinding();
 
   const RecordType *T1RecordType = nullptr;
@@ -4242,7 +4244,7 @@ static OverloadingResult TryRefInitWithConversionFunction(
         continue;
 
       if (!Info.Constructor->isInvalidDecl() &&
-          Info.Constructor->isConvertingConstructor(AllowExplicit)) {
+          Info.Constructor->isConvertingConstructor(AllowExplicitCtors)) {
         if (Info.ConstructorTmpl)
           S.AddTemplateOverloadCandidate(Info.ConstructorTmpl, Info.FoundDecl,
                                          /*ExplicitArgs*/ nullptr,
@@ -6446,13 +6448,7 @@ static void CheckMoveOnConstruction(Sema &S, const Expr *InitExpr,
 
   // Find the std::move call and get the argument.
   const CallExpr *CE = dyn_cast<CallExpr>(InitExpr->IgnoreParens());
-  if (!CE || CE->getNumArgs() != 1)
-    return;
-
-  const FunctionDecl *MoveFunction = CE->getDirectCallee();
-  if (!MoveFunction || !MoveFunction->isInStdNamespace() ||
-      !MoveFunction->getIdentifier() ||
-      !MoveFunction->getIdentifier()->isStr("move"))
+  if (!CE || !CE->isCallToStdMove())
     return;
 
   const Expr *Arg = CE->getArg(0)->IgnoreImplicit();
@@ -8331,6 +8327,11 @@ void InitializationSequence::dump() const {
   dump(llvm::errs());
 }
 
+static bool NarrowingErrs(const LangOptions &L) {
+  return L.CPlusPlus11 &&
+         (!L.MicrosoftExt || L.isCompatibleWithMSVC(LangOptions::MSVC2015));
+}
+
 static void DiagnoseNarrowingInInitList(Sema &S,
                                         const ImplicitConversionSequence &ICS,
                                         QualType PreNarrowingType,
@@ -8364,35 +8365,34 @@ static void DiagnoseNarrowingInInitList(Sema &S,
     // This was a floating-to-integer conversion, which is always considered a
     // narrowing conversion even if the value is a constant and can be
     // represented exactly as an integer.
-    S.Diag(PostInit->getLocStart(),
-           (S.getLangOpts().MicrosoftExt || !S.getLangOpts().CPlusPlus11)
-               ? diag::warn_init_list_type_narrowing
-               : diag::ext_init_list_type_narrowing)
-      << PostInit->getSourceRange()
-      << PreNarrowingType.getLocalUnqualifiedType()
-      << EntityType.getLocalUnqualifiedType();
+    S.Diag(PostInit->getLocStart(), NarrowingErrs(S.getLangOpts())
+                                        ? diag::ext_init_list_type_narrowing
+                                        : diag::warn_init_list_type_narrowing)
+        << PostInit->getSourceRange()
+        << PreNarrowingType.getLocalUnqualifiedType()
+        << EntityType.getLocalUnqualifiedType();
     break;
 
   case NK_Constant_Narrowing:
     // A constant value was narrowed.
     S.Diag(PostInit->getLocStart(),
-           (S.getLangOpts().MicrosoftExt || !S.getLangOpts().CPlusPlus11)
-               ? diag::warn_init_list_constant_narrowing
-               : diag::ext_init_list_constant_narrowing)
-      << PostInit->getSourceRange()
-      << ConstantValue.getAsString(S.getASTContext(), ConstantType)
-      << EntityType.getLocalUnqualifiedType();
+           NarrowingErrs(S.getLangOpts())
+               ? diag::ext_init_list_constant_narrowing
+               : diag::warn_init_list_constant_narrowing)
+        << PostInit->getSourceRange()
+        << ConstantValue.getAsString(S.getASTContext(), ConstantType)
+        << EntityType.getLocalUnqualifiedType();
     break;
 
   case NK_Variable_Narrowing:
     // A variable's value may have been narrowed.
     S.Diag(PostInit->getLocStart(),
-           (S.getLangOpts().MicrosoftExt || !S.getLangOpts().CPlusPlus11)
-               ? diag::warn_init_list_variable_narrowing
-               : diag::ext_init_list_variable_narrowing)
-      << PostInit->getSourceRange()
-      << PreNarrowingType.getLocalUnqualifiedType()
-      << EntityType.getLocalUnqualifiedType();
+           NarrowingErrs(S.getLangOpts())
+               ? diag::ext_init_list_variable_narrowing
+               : diag::warn_init_list_variable_narrowing)
+        << PostInit->getSourceRange()
+        << PreNarrowingType.getLocalUnqualifiedType()
+        << EntityType.getLocalUnqualifiedType();
     break;
   }
 

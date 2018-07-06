@@ -3,6 +3,7 @@ add_lldb_unittest(UtilityTests
   ArchSpecTest.cpp
   CleanUpTest.cpp
   ConstStringTest.cpp
+  CompletionRequestTest.cpp
   EnvironmentTest.cpp
   FileSpecTest.cpp
   JSONTest.cpp
@@ -15,6 +16,7 @@ add_lldb_unittest(UtilityTests
   TimeoutTest.cpp
   TimerTest.cpp
   UriParserTest.cpp
+  UUIDTest.cpp
   VASprintfTest.cpp
 
   LINK_LIBS

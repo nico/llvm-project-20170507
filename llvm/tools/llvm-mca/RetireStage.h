@@ -23,20 +23,20 @@
 
 namespace mca {
 
-class Backend;
-
 class RetireStage : public Stage {
   // Owner will go away when we move listeners/eventing to the stages.
-  Backend *Owner;
   RetireControlUnit &RCU;
   RegisterFile &PRF;
 
 public:
-  RetireStage(Backend *B, RetireControlUnit &R, RegisterFile &F)
-      : Stage(), Owner(B), RCU(R), PRF(F) {}
+  RetireStage(RetireControlUnit &R, RegisterFile &F)
+      : Stage(), RCU(R), PRF(F) {}
   RetireStage(const RetireStage &Other) = delete;
   RetireStage &operator=(const RetireStage &Other) = delete;
 
+  virtual bool hasWorkToComplete() const override final {
+    return !RCU.isEmpty();
+  }
   virtual void preExecute(const InstRef &IR) override final;
   virtual bool execute(InstRef &IR) override final { return true; }
   void notifyInstructionRetired(const InstRef &IR);

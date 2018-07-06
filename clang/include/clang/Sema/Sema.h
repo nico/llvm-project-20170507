@@ -21,6 +21,7 @@
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ExternalASTSource.h"
 #include "clang/AST/LocInfoType.h"
@@ -1830,13 +1831,19 @@ public:
 
   /// Determine whether it's plausible that E was intended to be a
   /// template-name.
-  bool mightBeIntendedToBeTemplateName(ExprResult E) {
+  bool mightBeIntendedToBeTemplateName(ExprResult E, bool &Dependent) {
     if (!getLangOpts().CPlusPlus || E.isInvalid())
       return false;
+    Dependent = false;
     if (auto *DRE = dyn_cast<DeclRefExpr>(E.get()))
       return !DRE->hasExplicitTemplateArgs();
     if (auto *ME = dyn_cast<MemberExpr>(E.get()))
       return !ME->hasExplicitTemplateArgs();
+    Dependent = true;
+    if (auto *DSDRE = dyn_cast<DependentScopeDeclRefExpr>(E.get()))
+      return !DSDRE->hasExplicitTemplateArgs();
+    if (auto *DSME = dyn_cast<CXXDependentScopeMemberExpr>(E.get()))
+      return !DSME->hasExplicitTemplateArgs();
     // Any additional cases recognized here should also be handled by
     // diagnoseExprIntendedAsTemplateName.
     return false;
@@ -4984,6 +4991,9 @@ public:
                                           SourceLocation NameLoc,
                                           IdentifierInfo &Name);
 
+  ParsedType getConstructorName(IdentifierInfo &II, SourceLocation NameLoc,
+                                Scope *S, CXXScopeSpec &SS,
+                                bool EnteringContext);
   ParsedType getDestructorName(SourceLocation TildeLoc,
                                IdentifierInfo &II, SourceLocation NameLoc,
                                Scope *S, CXXScopeSpec &SS,
@@ -5704,6 +5714,7 @@ public:
   //===--------------------------------------------------------------------===//
   // C++ Classes
   //
+  CXXRecordDecl *getCurrentClass(Scope *S, const CXXScopeSpec *SS);
   bool isCurrentClassName(const IdentifierInfo &II, Scope *S,
                           const CXXScopeSpec *SS = nullptr);
   bool isCurrentClassNameTypo(IdentifierInfo *&II, const CXXScopeSpec *SS);
@@ -9305,8 +9316,15 @@ public:
     /// A functional-style cast.
     CCK_FunctionalCast,
     /// A cast other than a C-style cast.
-    CCK_OtherCast
+    CCK_OtherCast,
+    /// A conversion for an operand of a builtin overloaded operator.
+    CCK_ForBuiltinOverloadedOp
   };
+
+  static bool isCast(CheckedConversionKind CCK) {
+    return CCK == CCK_CStyleCast || CCK == CCK_FunctionalCast ||
+           CCK == CCK_OtherCast;
+  }
 
   /// ImpCastExprToType - If Expr is not of type 'Type', insert an implicit
   /// cast.  If there is already an implicit cast, merge into the existing one.
@@ -10428,8 +10446,8 @@ private:
                                                     bool IsDelete);
   bool SemaBuiltinConstantArg(CallExpr *TheCall, int ArgNum,
                               llvm::APSInt &Result);
-  bool SemaBuiltinConstantArgRange(CallExpr *TheCall, int ArgNum,
-                                   int Low, int High);
+  bool SemaBuiltinConstantArgRange(CallExpr *TheCall, int ArgNum, int Low,
+                                   int High, bool RangeIsError = true);
   bool SemaBuiltinConstantArgMultiple(CallExpr *TheCall, int ArgNum,
                                       unsigned Multiple);
   bool SemaBuiltinARMSpecialReg(unsigned BuiltinID, CallExpr *TheCall,
