@@ -62,6 +62,7 @@ static_library("Support") {
     "InitLLVM.cpp",
     "IntEqClasses.cpp",
     "IntervalMap.cpp",
+    "JSON.cpp",
     "JamCRC.cpp",
     "KnownBits.cpp",
     "LEB128.cpp",

@@ -5,6 +5,7 @@ static_library("TableGen") {
   ]
   sources = [
     "Error.cpp",
+    "JSONBackend.cpp",
     "Main.cpp",
     "Record.cpp",
     "SetTheory.cpp",

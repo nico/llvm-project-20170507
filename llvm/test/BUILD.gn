@@ -200,6 +200,7 @@ group("test") {
     "//llvm/tools/llvm-split",
     "//llvm/tools/llvm-strings",
     "//llvm/tools/llvm-symbolizer",
+    "//llvm/tools/llvm-undname",
     "//llvm/tools/llvm-xray",
     "//llvm/tools/obj2yaml",
     "//llvm/tools/opt",

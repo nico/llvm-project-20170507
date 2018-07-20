@@ -12,11 +12,13 @@ executable("llvm-mca") {
   ]
   sources = [
     "CodeRegion.cpp",
+    "Context.cpp",
     "DispatchStage.cpp",
     "DispatchStatistics.cpp",
     "ExecuteStage.cpp",
     "FetchStage.cpp",
     "HWEventListener.cpp",
+    "HardwareUnit.cpp",
     "InstrBuilder.cpp",
     "Instruction.cpp",
     "InstructionInfoView.cpp",

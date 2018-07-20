@@ -12,6 +12,7 @@ static_library("Instrumentation") {
   sources = [
     "AddressSanitizer.cpp",
     "BoundsChecking.cpp",
+    "CGProfile.cpp",
     "DataFlowSanitizer.cpp",
     "EfficiencySanitizer.cpp",
     "GCOVProfiling.cpp",

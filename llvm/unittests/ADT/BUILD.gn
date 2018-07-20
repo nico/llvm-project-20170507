@@ -10,6 +10,7 @@ executable("ADTTests") {
     "APFloatTest.cpp",
     "APIntTest.cpp",
     "APSIntTest.cpp",
+    "AnyTest.cpp",
     "ArrayRefTest.cpp",
     "BitVectorTest.cpp",
     "BitmaskEnumTest.cpp",
