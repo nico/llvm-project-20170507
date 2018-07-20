@@ -29,7 +29,7 @@
 #define __AVX512DQINTRIN_H
 
 /* Define the default attributes for the functions in this file. */
-#define __DEFAULT_FN_ATTRS __attribute__((__always_inline__, __nodebug__, __target__("avx512dq")))
+#define __DEFAULT_FN_ATTRS __attribute__((__always_inline__, __nodebug__, __target__("avx512dq"), __min_vector_width__(512)))
 
 static __inline__ __m512i __DEFAULT_FN_ATTRS
 _mm512_mullo_epi64 (__m512i __A, __m512i __B) {
@@ -1105,7 +1105,7 @@ _mm512_maskz_broadcast_i64x2(__mmask8 __M, __m128i __A)
 #define _mm512_extractf32x8_ps(A, imm) \
   (__m256)__builtin_ia32_extractf32x8_mask((__v16sf)(__m512)(A), (int)(imm), \
                                            (__v8sf)_mm256_undefined_ps(), \
-                                           (__mmask8)-1);
+                                           (__mmask8)-1)
 
 #define _mm512_mask_extractf32x8_ps(W, U, A, imm) \
   (__m256)__builtin_ia32_extractf32x8_mask((__v16sf)(__m512)(A), (int)(imm), \

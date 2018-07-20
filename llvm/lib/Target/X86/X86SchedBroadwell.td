@@ -110,7 +110,6 @@ defm : BWWriteResPair<WriteALU,    [BWPort0156], 1>; // Simple integer ALU op.
 defm : BWWriteResPair<WriteADC,    [BWPort06], 1>; // Integer ALU + flags op.
 defm : BWWriteResPair<WriteIMul,   [BWPort1], 3>; // Integer multiplication.
 defm : BWWriteResPair<WriteIMul64, [BWPort1], 3>; // Integer 64-bit multiplication.
-
 defm : BWWriteResPair<WriteDiv8,   [BWPort0, BWDivider], 25, [1, 10]>;
 defm : BWWriteResPair<WriteDiv16,  [BWPort0, BWDivider], 25, [1, 10]>;
 defm : BWWriteResPair<WriteDiv32,  [BWPort0, BWDivider], 25, [1, 10]>;
@@ -119,6 +118,9 @@ defm : BWWriteResPair<WriteIDiv8,  [BWPort0, BWDivider], 25, [1, 10]>;
 defm : BWWriteResPair<WriteIDiv16, [BWPort0, BWDivider], 25, [1, 10]>;
 defm : BWWriteResPair<WriteIDiv32, [BWPort0, BWDivider], 25, [1, 10]>;
 defm : BWWriteResPair<WriteIDiv64, [BWPort0, BWDivider], 25, [1, 10]>;
+
+defm : BWWriteResPair<WriteBSWAP32,[BWPort15], 1>; //
+defm : BWWriteResPair<WriteBSWAP64,[BWPort06, BWPort15], 2, [1, 1], 2>; //
 
 defm : BWWriteResPair<WriteCRC32, [BWPort1],   3>;
 def : WriteRes<WriteIMulH, []> { let Latency = 3; } // Integer multiplication, high part.
@@ -137,13 +139,17 @@ def  : WriteRes<WriteSETCCStore, [BWPort06,BWPort4,BWPort237]> {
 def  : WriteRes<WriteLAHFSAHF, [BWPort06]>;
 
 // Bit counts.
-defm : BWWriteResPair<WriteBitScan, [BWPort1], 3>;
-defm : BWWriteResPair<WriteLZCNT,   [BWPort1], 3>;
-defm : BWWriteResPair<WriteTZCNT,   [BWPort1], 3>;
-defm : BWWriteResPair<WritePOPCNT,  [BWPort1], 3>;
+defm : BWWriteResPair<WriteBSF, [BWPort1], 3>;
+defm : BWWriteResPair<WriteBSR, [BWPort1], 3>;
+defm : BWWriteResPair<WriteLZCNT,          [BWPort1], 3>;
+defm : BWWriteResPair<WriteTZCNT,          [BWPort1], 3>;
+defm : BWWriteResPair<WritePOPCNT,         [BWPort1], 3>;
 
 // Integer shifts and rotates.
 defm : BWWriteResPair<WriteShift, [BWPort06],  1>;
+
+// Double shift instructions.
+defm : BWWriteResPair<WriteShiftDouble, [BWPort06],  1>;
 
 // BMI1 BEXTR, BMI2 BZHI
 defm : BWWriteResPair<WriteBEXTR, [BWPort06,BWPort15], 2, [1,1], 2>;
@@ -694,20 +700,6 @@ def BWWriteResGroup18 : SchedWriteRes<[BWPort237,BWPort0156]> {
   let ResourceCycles = [1,1];
 }
 def: InstRW<[BWWriteResGroup18], (instrs SFENCE)>;
-
-def BWWriteResGroup19 : SchedWriteRes<[BWPort06,BWPort15]> {
-  let Latency = 2;
-  let NumMicroOps = 2;
-  let ResourceCycles = [1,1];
-}
-def: InstRW<[BWWriteResGroup19], (instrs BSWAP64r)>;
-
-def BWWriteResGroup19_1 : SchedWriteRes<[BWPort15]> {
-  let Latency = 1;
-  let NumMicroOps = 1;
-  let ResourceCycles = [1];
-}
-def: InstRW<[BWWriteResGroup19_1], (instrs BSWAP32r)>;
 
 def BWWriteResGroup20 : SchedWriteRes<[BWPort06,BWPort0156]> {
   let Latency = 2;

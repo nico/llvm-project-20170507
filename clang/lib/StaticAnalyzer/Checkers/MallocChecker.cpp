@@ -47,7 +47,7 @@ enum AllocationFamily {
   AF_CXXNewArray,
   AF_IfNameIndex,
   AF_Alloca,
-  AF_InternalBuffer
+  AF_InnerBuffer
 };
 
 class RefState {
@@ -480,8 +480,13 @@ private:
     inline bool isReleased(const RefState *S, const RefState *SPrev,
                            const Stmt *Stmt) {
       // Did not track -> released. Other state (allocated) -> released.
-      return (Stmt && (isa<CallExpr>(Stmt) || isa<CXXDeleteExpr>(Stmt)) &&
-              (S && S->isReleased()) && (!SPrev || !SPrev->isReleased()));
+      // The statement associated with the release might be missing.
+      bool IsReleased = (S && S->isReleased()) &&
+                        (!SPrev || !SPrev->isReleased());
+      assert(!IsReleased ||
+             (Stmt && (isa<CallExpr>(Stmt) || isa<CXXDeleteExpr>(Stmt))) ||
+             (!Stmt && S->getAllocationFamily() == AF_InnerBuffer));
+      return IsReleased;
     }
 
     inline bool isRelinquished(const RefState *S, const RefState *SPrev,
@@ -1468,7 +1473,7 @@ void MallocChecker::printExpectedAllocName(raw_ostream &os, CheckerContext &C,
     case AF_CXXNew: os << "'new'"; return;
     case AF_CXXNewArray: os << "'new[]'"; return;
     case AF_IfNameIndex: os << "'if_nameindex()'"; return;
-    case AF_InternalBuffer: os << "container-specific allocator"; return;
+    case AF_InnerBuffer: os << "container-specific allocator"; return;
     case AF_Alloca:
     case AF_None: llvm_unreachable("not a deallocation expression");
   }
@@ -1481,7 +1486,7 @@ void MallocChecker::printExpectedDeallocName(raw_ostream &os,
     case AF_CXXNew: os << "'delete'"; return;
     case AF_CXXNewArray: os << "'delete[]'"; return;
     case AF_IfNameIndex: os << "'if_freenameindex()'"; return;
-    case AF_InternalBuffer: os << "container-specific deallocator"; return;
+    case AF_InnerBuffer: os << "container-specific deallocator"; return;
     case AF_Alloca:
     case AF_None: llvm_unreachable("suspicious argument");
   }
@@ -1657,8 +1662,8 @@ MallocChecker::getCheckIfTracked(AllocationFamily Family,
   }
   case AF_CXXNew:
   case AF_CXXNewArray:
-  // FIXME: Add new CheckKind for AF_InternalBuffer.
-  case AF_InternalBuffer: {
+  // FIXME: Add new CheckKind for AF_InnerBuffer.
+  case AF_InnerBuffer: {
     if (IsALeakCheck) {
       if (ChecksEnabled[CK_NewDeleteLeaksChecker])
         return CK_NewDeleteLeaksChecker;
@@ -1988,6 +1993,11 @@ void MallocChecker::ReportUseAfterFree(CheckerContext &C, SourceRange Range,
     R->markInteresting(Sym);
     R->addRange(Range);
     R->addVisitor(llvm::make_unique<MallocBugVisitor>(Sym));
+
+    const RefState *RS = C.getState()->get<RegionState>(Sym);
+    if (RS->getAllocationFamily() == AF_InnerBuffer)
+      R->addVisitor(allocation_state::getInnerPointerBRVisitor(Sym));
+
     C.emitReport(std::move(R));
   }
 }
@@ -2850,8 +2860,17 @@ static bool isReferenceCountingPointerDestructor(const CXXDestructorDecl *DD) {
 std::shared_ptr<PathDiagnosticPiece> MallocChecker::MallocBugVisitor::VisitNode(
     const ExplodedNode *N, const ExplodedNode *PrevN, BugReporterContext &BRC,
     BugReport &BR) {
+
+  ProgramStateRef state = N->getState();
+  ProgramStateRef statePrev = PrevN->getState();
+
+  const RefState *RS = state->get<RegionState>(Sym);
+  const RefState *RSPrev = statePrev->get<RegionState>(Sym);
+
   const Stmt *S = PathDiagnosticLocation::getStmt(N);
-  if (!S)
+  // When dealing with containers, we sometimes want to give a note
+  // even if the statement is missing.
+  if (!S && (!RS || RS->getAllocationFamily() != AF_InnerBuffer))
     return nullptr;
 
   const LocationContext *CurrentLC = N->getLocationContext();
@@ -2876,27 +2895,50 @@ std::shared_ptr<PathDiagnosticPiece> MallocChecker::MallocBugVisitor::VisitNode(
     }
   }
 
-  ProgramStateRef state = N->getState();
-  ProgramStateRef statePrev = PrevN->getState();
-
-  const RefState *RS = state->get<RegionState>(Sym);
-  const RefState *RSPrev = statePrev->get<RegionState>(Sym);
-  if (!RS)
-    return nullptr;
-
   // FIXME: We will eventually need to handle non-statement-based events
   // (__attribute__((cleanup))).
 
   // Find out if this is an interesting point and what is the kind.
-  const char *Msg = nullptr;
+  StringRef Msg;
   StackHintGeneratorForSymbol *StackHint = nullptr;
+  SmallString<256> Buf;
+  llvm::raw_svector_ostream OS(Buf);
+
   if (Mode == Normal) {
     if (isAllocated(RS, RSPrev, S)) {
       Msg = "Memory is allocated";
       StackHint = new StackHintGeneratorForSymbol(Sym,
                                                   "Returned allocated memory");
     } else if (isReleased(RS, RSPrev, S)) {
-      Msg = "Memory is released";
+      const auto Family = RS->getAllocationFamily();
+      switch (Family) {
+        case AF_Alloca:
+        case AF_Malloc:
+        case AF_CXXNew:
+        case AF_CXXNewArray:
+        case AF_IfNameIndex:
+          Msg = "Memory is released";
+          break;
+        case AF_InnerBuffer: {
+          OS << "Inner pointer invalidated by call to ";
+          if (N->getLocation().getKind() == ProgramPoint::PostImplicitCallKind) {
+            OS << "destructor";
+          } else {
+            OS << "'";
+            const Stmt *S = RS->getStmt();
+            if (const auto *MemCallE = dyn_cast<CXXMemberCallExpr>(S)) {
+              OS << MemCallE->getMethodDecl()->getNameAsString();
+            } else if (const auto *OpCallE = dyn_cast<CXXOperatorCallExpr>(S)) {
+              OS << OpCallE->getDirectCallee()->getNameAsString();
+            }
+            OS << "'";
+          }
+          Msg = OS.str();
+          break;
+        }
+        case AF_None:
+          llvm_unreachable("Unhandled allocation family!");
+      }
       StackHint = new StackHintGeneratorForSymbol(Sym,
                                              "Returning; memory was released");
 
@@ -2962,13 +3004,24 @@ std::shared_ptr<PathDiagnosticPiece> MallocChecker::MallocBugVisitor::VisitNode(
     }
   }
 
-  if (!Msg)
+  if (Msg.empty())
     return nullptr;
   assert(StackHint);
 
   // Generate the extra diagnostic.
-  PathDiagnosticLocation Pos(S, BRC.getSourceManager(),
-                             N->getLocationContext());
+  PathDiagnosticLocation Pos;
+  if (!S) {
+    assert(RS->getAllocationFamily() == AF_InnerBuffer);
+    auto PostImplCall = N->getLocation().getAs<PostImplicitCall>();
+    if (!PostImplCall)
+      return nullptr;
+    Pos = PathDiagnosticLocation(PostImplCall->getLocation(),
+                                 BRC.getSourceManager());
+  } else {
+    Pos = PathDiagnosticLocation(S, BRC.getSourceManager(),
+                                 N->getLocationContext());
+  }
+
   return std::make_shared<PathDiagnosticEventPiece>(Pos, Msg, true, StackHint);
 }
 
@@ -3002,7 +3055,7 @@ namespace allocation_state {
 
 ProgramStateRef
 markReleased(ProgramStateRef State, SymbolRef Sym, const Expr *Origin) {
-  AllocationFamily Family = AF_InternalBuffer;
+  AllocationFamily Family = AF_InnerBuffer;
   return State->set<RegionState>(Sym, RefState::getReleased(Family, Origin));
 }
 

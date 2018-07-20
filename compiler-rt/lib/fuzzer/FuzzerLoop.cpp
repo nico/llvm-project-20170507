@@ -43,6 +43,8 @@ thread_local bool Fuzzer::IsMyThread;
 
 SharedMemoryRegion SMR;
 
+bool RunningUserCallback = false;
+
 // Only one Fuzzer per process.
 static Fuzzer *F;
 
@@ -179,6 +181,7 @@ void Fuzzer::StaticDeathCallback() {
 void Fuzzer::DumpCurrentUnit(const char *Prefix) {
   if (!CurrentUnitData)
     return; // Happens when running individual inputs.
+  ScopedDisableMsanInterceptorChecks S;
   MD.PrintMutationSequence();
   Printf("; base unit: %s\n", Sha1ToString(BaseSha1).c_str());
   size_t UnitSize = CurrentUnitSize;
@@ -242,7 +245,7 @@ void Fuzzer::CrashCallback() {
 }
 
 void Fuzzer::ExitCallback() {
-  if (!RunningCB)
+  if (!RunningUserCallback)
     return; // This exit did not come from the user callback
   if (EF->__sanitizer_acquire_crash_state &&
       !EF->__sanitizer_acquire_crash_state())
@@ -276,7 +279,7 @@ void Fuzzer::AlarmCallback() {
   if (!InFuzzingThread())
     return;
 #endif
-  if (!RunningCB)
+  if (!RunningUserCallback)
     return; // We have not started running units yet.
   size_t Seconds =
       duration_cast<seconds>(system_clock::now() - UnitStartTime).count();
@@ -351,10 +354,13 @@ void Fuzzer::PrintStats(const char *Where, const char *End, size_t Units) {
 void Fuzzer::PrintFinalStats() {
   if (Options.PrintCoverage)
     TPC.PrintCoverage();
+  if (Options.PrintUnstableStats)
+    TPC.PrintUnstableStats();
   if (Options.DumpCoverage)
     TPC.DumpCoverage();
   if (Options.PrintCorpusStats)
     Corpus.PrintStats();
+  if (Options.PrintMutationStats) MD.PrintMutationStats();
   if (!Options.PrintFinalStats)
     return;
   size_t ExecPerSec = execPerSec();
@@ -443,6 +449,29 @@ void Fuzzer::PrintPulseAndReportSlowInput(const uint8_t *Data, size_t Size) {
   }
 }
 
+void Fuzzer::CheckForUnstableCounters(const uint8_t *Data, size_t Size) {
+  auto CBSetupAndRun = [&]() {
+    ScopedEnableMsanInterceptorChecks S;
+    UnitStartTime = system_clock::now();
+    TPC.ResetMaps();
+    RunningUserCallback = true;
+    CB(Data, Size);
+    RunningUserCallback = false;
+    UnitStopTime = system_clock::now();
+  };
+
+  // Copy original run counters into our unstable counters
+  TPC.InitializeUnstableCounters();
+
+  // First Rerun
+  CBSetupAndRun();
+  TPC.UpdateUnstableCounters();
+
+  // Second Rerun
+  CBSetupAndRun();
+  TPC.UpdateUnstableCounters();
+}
+
 bool Fuzzer::RunOne(const uint8_t *Data, size_t Size, bool MayDeleteFile,
                     InputInfo *II, bool *FoundUniqFeatures) {
   if (!Size)
@@ -465,11 +494,16 @@ bool Fuzzer::RunOne(const uint8_t *Data, size_t Size, bool MayDeleteFile,
     *FoundUniqFeatures = FoundUniqFeaturesOfII;
   PrintPulseAndReportSlowInput(Data, Size);
   size_t NumNewFeatures = Corpus.NumFeatureUpdates() - NumUpdatesBefore;
+
+  // If print_unstable_stats, execute the same input two more times to detect
+  // unstable edges.
+  if (NumNewFeatures && Options.PrintUnstableStats)
+    CheckForUnstableCounters(Data, Size);
+
   if (NumNewFeatures) {
     TPC.UpdateObservedPCs();
     Corpus.AddToCorpus({Data, Data + Size}, NumNewFeatures, MayDeleteFile,
-                       TPC.ObservedFocusFunction(),
-                       UniqFeatureSetTmp, DFT);
+                       TPC.ObservedFocusFunction(), UniqFeatureSetTmp, DFT, II);
     return true;
   }
   if (II && FoundUniqFeaturesOfII &&
@@ -516,19 +550,24 @@ void Fuzzer::ExecuteCallback(const uint8_t *Data, size_t Size) {
   // so that we reliably find buffer overflows in it.
   uint8_t *DataCopy = new uint8_t[Size];
   memcpy(DataCopy, Data, Size);
+  if (EF->__msan_unpoison)
+    EF->__msan_unpoison(DataCopy, Size);
   if (CurrentUnitData && CurrentUnitData != Data)
     memcpy(CurrentUnitData, Data, Size);
   CurrentUnitSize = Size;
-  AllocTracer.Start(Options.TraceMalloc);
-  UnitStartTime = system_clock::now();
-  TPC.ResetMaps();
-  RunningCB = true;
-  int Res = CB(DataCopy, Size);
-  RunningCB = false;
-  UnitStopTime = system_clock::now();
-  (void)Res;
-  assert(Res == 0);
-  HasMoreMallocsThanFrees = AllocTracer.Stop();
+  {
+    ScopedEnableMsanInterceptorChecks S;
+    AllocTracer.Start(Options.TraceMalloc);
+    UnitStartTime = system_clock::now();
+    TPC.ResetMaps();
+    RunningUserCallback = true;
+    int Res = CB(DataCopy, Size);
+    RunningUserCallback = false;
+    UnitStopTime = system_clock::now();
+    (void)Res;
+    assert(Res == 0);
+    HasMoreMallocsThanFrees = AllocTracer.Stop();
+  }
   if (!LooseMemeq(DataCopy, Data, Size))
     CrashOnOverwrittenData();
   CurrentUnitSize = 0;
@@ -647,7 +686,12 @@ void Fuzzer::MutateAndTestOne() {
       break;
     MaybeExitGracefully();
     size_t NewSize = 0;
-    NewSize = MD.Mutate(CurrentUnitData, Size, CurrentMaxMutationLen);
+    if (II.HasFocusFunction && !II.DataFlowTraceForFocusFunction.empty() &&
+        Size <= CurrentMaxMutationLen)
+      NewSize = MD.MutateWithMask(CurrentUnitData, Size, Size,
+                                  II.DataFlowTraceForFocusFunction);
+    else
+      NewSize = MD.Mutate(CurrentUnitData, Size, CurrentMaxMutationLen);
     assert(NewSize > 0 && "Mutator returned empty unit");
     assert(NewSize <= CurrentMaxMutationLen && "Mutator return oversized unit");
     Size = NewSize;

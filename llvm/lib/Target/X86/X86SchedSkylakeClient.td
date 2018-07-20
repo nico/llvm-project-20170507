@@ -110,6 +110,9 @@ defm : SKLWriteResPair<WriteADC,    [SKLPort06],   1>; // Integer ALU + flags op
 defm : SKLWriteResPair<WriteIMul,   [SKLPort1],    3>; // Integer multiplication.
 defm : SKLWriteResPair<WriteIMul64, [SKLPort1],    3>; // Integer 64-bit multiplication.
 
+defm : SKLWriteResPair<WriteBSWAP32,[SKLPort15],   1>; //
+defm : SKLWriteResPair<WriteBSWAP64,[SKLPort06, SKLPort15], 2, [1,1], 2>; //
+
 defm : SKLWriteResPair<WriteDiv8,   [SKLPort0, SKLDivider], 25, [1,10], 1, 4>;
 defm : SKLWriteResPair<WriteDiv16,  [SKLPort0, SKLDivider], 25, [1,10], 1, 4>;
 defm : SKLWriteResPair<WriteDiv32,  [SKLPort0, SKLDivider], 25, [1,10], 1, 4>;
@@ -135,13 +138,17 @@ def  : WriteRes<WriteSETCCStore, [SKLPort06,SKLPort4,SKLPort237]> {
 def  : WriteRes<WriteLAHFSAHF, [SKLPort06]>;
 
 // Bit counts.
-defm : SKLWriteResPair<WriteBitScan, [SKLPort1], 3>;
-defm : SKLWriteResPair<WriteLZCNT,   [SKLPort1], 3>;
-defm : SKLWriteResPair<WriteTZCNT,   [SKLPort1], 3>;
-defm : SKLWriteResPair<WritePOPCNT,  [SKLPort1], 3>;
+defm : SKLWriteResPair<WriteBSF, [SKLPort1], 3>;
+defm : SKLWriteResPair<WriteBSR, [SKLPort1], 3>;
+defm : SKLWriteResPair<WriteLZCNT,          [SKLPort1], 3>;
+defm : SKLWriteResPair<WriteTZCNT,          [SKLPort1], 3>;
+defm : SKLWriteResPair<WritePOPCNT,         [SKLPort1], 3>;
 
 // Integer shifts and rotates.
 defm : SKLWriteResPair<WriteShift, [SKLPort06],  1>;
+
+// Double shift instructions.
+defm : SKLWriteResPair<WriteShiftDouble, [SKLPort06],  1>;
 
 // BMI1 BEXTR, BMI2 BZHI
 defm : SKLWriteResPair<WriteBEXTR, [SKLPort06,SKLPort15], 2, [1,1], 2>;
@@ -693,20 +700,6 @@ def SKLWriteResGroup21 : SchedWriteRes<[SKLPort237,SKLPort0156]> {
   let ResourceCycles = [1,1];
 }
 def: InstRW<[SKLWriteResGroup21], (instrs SFENCE)>;
-
-def SKLWriteResGroup22 : SchedWriteRes<[SKLPort06,SKLPort15]> {
-  let Latency = 2;
-  let NumMicroOps = 2;
-  let ResourceCycles = [1,1];
-}
-def: InstRW<[SKLWriteResGroup22], (instrs BSWAP64r)>;
-
-def SKLWriteResGroup22_1 : SchedWriteRes<[SKLPort15]> {
-  let Latency = 1;
-  let NumMicroOps = 1;
-  let ResourceCycles = [1];
-}
-def: InstRW<[SKLWriteResGroup22_1], (instrs BSWAP32r)>;
 
 def SKLWriteResGroup23 : SchedWriteRes<[SKLPort06,SKLPort0156]> {
   let Latency = 2;

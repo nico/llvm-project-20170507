@@ -524,6 +524,10 @@ static bool useFramePointerForTargetByDefault(const ArgList &Args,
     break;
   }
 
+  if (Triple.getOS() == llvm::Triple::NetBSD) {
+    return !areOptimizationsEnabled(Args);
+  }
+
   if (Triple.isOSLinux() || Triple.getOS() == llvm::Triple::CloudABI) {
     switch (Triple.getArch()) {
     // Don't use a frame pointer on linux if optimizing for certain targets.
@@ -597,6 +601,18 @@ static void addDebugCompDirArg(const ArgList &Args, ArgStringList &CmdArgs) {
   if (!llvm::sys::fs::current_path(cwd)) {
     CmdArgs.push_back("-fdebug-compilation-dir");
     CmdArgs.push_back(Args.MakeArgString(cwd));
+  }
+}
+
+/// Add a CC1 and CC1AS option to specify the debug file path prefix map.
+static void addDebugPrefixMapArg(const Driver &D, const ArgList &Args, ArgStringList &CmdArgs) {
+  for (const Arg *A : Args.filtered(options::OPT_fdebug_prefix_map_EQ)) {
+    StringRef Map = A->getValue();
+    if (Map.find('=') == StringRef::npos)
+      D.Diag(diag::err_drv_invalid_argument_to_fdebug_prefix_map) << Map;
+    else
+      CmdArgs.push_back(Args.MakeArgString("-fdebug-prefix-map=" + Map));
+    A->claim();
   }
 }
 
@@ -3332,6 +3348,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                    options::OPT_fno_merge_all_constants, false))
     CmdArgs.push_back("-fmerge-all-constants");
 
+  if (Args.hasFlag(options::OPT_fno_delete_null_pointer_checks,
+                   options::OPT_fdelete_null_pointer_checks, false))
+    CmdArgs.push_back("-fno-delete-null-pointer-checks");
+
   // LLVM Code Generator Options.
 
   if (Args.hasArg(options::OPT_frewrite_map_file) ||
@@ -3800,14 +3820,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // Add in -fdebug-compilation-dir if necessary.
   addDebugCompDirArg(Args, CmdArgs);
 
-  for (const Arg *A : Args.filtered(options::OPT_fdebug_prefix_map_EQ)) {
-    StringRef Map = A->getValue();
-    if (Map.find('=') == StringRef::npos)
-      D.Diag(diag::err_drv_invalid_argument_to_fdebug_prefix_map) << Map;
-    else
-      CmdArgs.push_back(Args.MakeArgString("-fdebug-prefix-map=" + Map));
-    A->claim();
-  }
+  addDebugPrefixMapArg(D, Args, CmdArgs);
 
   if (Arg *A = Args.getLastArg(options::OPT_ftemplate_depth_,
                                options::OPT_ftemplate_depth_EQ)) {
@@ -3920,6 +3933,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // Forward -f (flag) options which we can pass directly.
   Args.AddLastArg(CmdArgs, options::OPT_femit_all_decls);
   Args.AddLastArg(CmdArgs, options::OPT_fheinous_gnu_extensions);
+  Args.AddLastArg(CmdArgs, options::OPT_fdigraphs, options::OPT_fno_digraphs);
   Args.AddLastArg(CmdArgs, options::OPT_fno_operator_names);
   Args.AddLastArg(CmdArgs, options::OPT_femulated_tls,
                   options::OPT_fno_emulated_tls);
@@ -4757,16 +4771,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       if (Triple.getArch() != llvm::Triple::aarch64) {
         D.Diag(diag::warn_drv_moutline_unsupported_opt) << Triple.getArchName();
       } else {
-        CmdArgs.push_back("-mllvm");
-        CmdArgs.push_back("-enable-machine-outliner");
-
-        // The outliner shouldn't compete with linkers that dedupe linkonceodr
-        // functions in LTO. Enable that behaviour by default when compiling with
-        // LTO.
-        if (getToolChain().getDriver().isUsingLTO()) {
           CmdArgs.push_back("-mllvm");
-          CmdArgs.push_back("-enable-linkonceodr-outlining");
-        }
+          CmdArgs.push_back("-enable-machine-outliner");
       }
     } else {
       // Disable all outlining behaviour.
@@ -4774,6 +4780,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-enable-machine-outliner=never");
     }
   }
+
+  if (Args.hasFlag(options::OPT_faddrsig, options::OPT_fno_addrsig,
+                   getToolChain().getTriple().isOSBinFormatELF() &&
+                       getToolChain().useIntegratedAs()))
+    CmdArgs.push_back("-faddrsig");
 
   // Finally add the compile command to the compilation.
   if (Args.hasArg(options::OPT__SLASH_fallback) &&
@@ -5359,6 +5370,8 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
                                : codegenoptions::NoDebugInfo);
     // Add the -fdebug-compilation-dir flag if needed.
     addDebugCompDirArg(Args, CmdArgs);
+
+    addDebugPrefixMapArg(getToolChain().getDriver(), Args, CmdArgs);
 
     // Set the AT_producer to the clang version when using the integrated
     // assembler on assembly source files.

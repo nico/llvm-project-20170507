@@ -179,7 +179,12 @@ defm : ZnWriteResPair<WriteALU,   [ZnALU], 1>;
 defm : ZnWriteResPair<WriteADC,   [ZnALU], 1>;
 defm : ZnWriteResPair<WriteIMul,   [ZnALU1, ZnMultiplier], 4>;
 defm : ZnWriteResPair<WriteIMul64, [ZnALU1, ZnMultiplier], 4, [1,1], 2>;
+
+defm : ZnWriteResPair<WriteBSWAP32,[ZnALU], 1, [4]>;
+defm : ZnWriteResPair<WriteBSWAP64,[ZnALU], 1, [4]>;
+
 defm : ZnWriteResPair<WriteShift, [ZnALU], 1>;
+defm : ZnWriteResPair<WriteShiftDouble, [ZnALU], 1>;
 defm : ZnWriteResPair<WriteJump,  [ZnALU], 1>;
 defm : ZnWriteResFpuPair<WriteCRC32, [ZnFPU0], 3>;
 
@@ -190,10 +195,11 @@ def  : WriteRes<WriteSETCCStore,  [ZnALU, ZnAGU]>;
 defm : X86WriteRes<WriteLAHFSAHF, [ZnALU], 2, [1], 2>;
 
 // Bit counts.
-defm : ZnWriteResPair<WriteBitScan, [ZnALU], 3>;
-defm : ZnWriteResPair<WriteLZCNT,   [ZnALU], 2>;
-defm : ZnWriteResPair<WriteTZCNT,   [ZnALU], 2>;
-defm : ZnWriteResPair<WritePOPCNT,  [ZnALU], 1>;
+defm : ZnWriteResPair<WriteBSF, [ZnALU], 3>;
+defm : ZnWriteResPair<WriteBSR, [ZnALU], 3>;
+defm : ZnWriteResPair<WriteLZCNT,          [ZnALU], 2>;
+defm : ZnWriteResPair<WriteTZCNT,          [ZnALU], 2>;
+defm : ZnWriteResPair<WritePOPCNT,         [ZnALU], 1>;
 
 // Treat misc copies as a move.
 def : InstRW<[WriteMove], (instrs COPY)>;
@@ -534,12 +540,6 @@ def : InstRW<[ZnWritePushA], (instregex "PUSHA(16|32)")>;
 
 //LAHF
 def : InstRW<[WriteMicrocoded], (instrs LAHF)>;
-
-// BSWAP.
-def ZnWriteBSwap : SchedWriteRes<[ZnALU]> {
-  let ResourceCycles = [4];
-}
-def : InstRW<[ZnWriteBSwap], (instregex "BSWAP")>;
 
 // MOVBE.
 // r,m.

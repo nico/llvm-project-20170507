@@ -111,6 +111,9 @@ defm : SBWriteResPair<WriteADC,    [SBPort05,SBPort015], 2, [1,1], 2>;
 defm : SBWriteResPair<WriteIMul,   [SBPort1],   3>;
 defm : SBWriteResPair<WriteIMul64, [SBPort1],   3>;
 
+defm : SBWriteResPair<WriteBSWAP32,[SBPort1], 1>;
+defm : SBWriteResPair<WriteBSWAP64,[SBPort1,SBPort05], 2, [1,1], 2>;
+
 defm : SBWriteResPair<WriteDiv8,   [SBPort0, SBDivider], 25, [1, 10]>;
 defm : SBWriteResPair<WriteDiv16,  [SBPort0, SBDivider], 25, [1, 10]>;
 defm : SBWriteResPair<WriteDiv32,  [SBPort0, SBDivider], 25, [1, 10]>;
@@ -123,6 +126,7 @@ defm : SBWriteResPair<WriteIDiv64, [SBPort0, SBDivider], 25, [1, 10]>;
 def  : WriteRes<WriteIMulH, []> { let Latency = 3; }
 
 defm : SBWriteResPair<WriteShift, [SBPort05],  1>;
+defm : SBWriteResPair<WriteShiftDouble, [SBPort05],  1>;
 defm : SBWriteResPair<WriteJump,  [SBPort5],   1>;
 defm : SBWriteResPair<WriteCRC32, [SBPort1],   3, [1], 1, 5>;
 
@@ -142,10 +146,11 @@ def  : WriteRes<WriteLAHFSAHF, [SBPort05]>;
 def : WriteRes<WriteLEA, [SBPort01]>;
 
 // Bit counts.
-defm : SBWriteResPair<WriteBitScan, [SBPort1], 3, [1], 1, 5>;
-defm : SBWriteResPair<WriteLZCNT,   [SBPort1], 3, [1], 1, 5>;
-defm : SBWriteResPair<WriteTZCNT,   [SBPort1], 3, [1], 1, 5>;
-defm : SBWriteResPair<WritePOPCNT,  [SBPort1], 3, [1], 1, 6>;
+defm : SBWriteResPair<WriteBSF, [SBPort1], 3, [1], 1, 5>;
+defm : SBWriteResPair<WriteBSR, [SBPort1], 3, [1], 1, 5>;
+defm : SBWriteResPair<WriteLZCNT,          [SBPort1], 3, [1], 1, 5>;
+defm : SBWriteResPair<WriteTZCNT,          [SBPort1], 3, [1], 1, 5>;
+defm : SBWriteResPair<WritePOPCNT,         [SBPort1], 3, [1], 1, 6>;
 
 // BMI1 BEXTR, BMI2 BZHI
 // NOTE: These don't exist on Sandy Bridge. Ports are guesses.
@@ -616,20 +621,6 @@ def SBWriteResGroup15 : SchedWriteRes<[SBPort0,SBPort015]> {
 }
 def: InstRW<[SBWriteResGroup15], (instrs CWD,
                                          FNSTSW16r)>;
-
-def SBWriteResGroup16 : SchedWriteRes<[SBPort1,SBPort05]> {
-  let Latency = 2;
-  let NumMicroOps = 2;
-  let ResourceCycles = [1,1];
-}
-def: InstRW<[SBWriteResGroup16], (instrs BSWAP64r)>;
-
-def SBWriteResGroup16_1 : SchedWriteRes<[SBPort1]> {
-  let Latency = 1;
-  let NumMicroOps = 1;
-  let ResourceCycles = [1];
-}
-def: InstRW<[SBWriteResGroup16_1], (instrs BSWAP32r)>;
 
 def SBWriteResGroup18 : SchedWriteRes<[SBPort5,SBPort015]> {
   let Latency = 2;

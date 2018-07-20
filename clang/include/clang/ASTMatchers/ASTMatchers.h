@@ -966,6 +966,19 @@ AST_MATCHER_P(TemplateArgument, equalsIntegralValue,
   return Node.getAsIntegral().toString(10) == Value;
 }
 
+/// Matches an Objective-C autorelease pool statement.
+///
+/// Given
+/// \code
+///   @autoreleasepool {
+///     int x = 0;
+///   }
+/// \endcode
+/// autoreleasePoolStmt(stmt()) matches the declaration of "x"
+/// inside the autorelease pool.
+extern const internal::VariadicDynCastAllOfMatcher<Stmt,
+       ObjCAutoreleasePoolStmt> autoreleasePoolStmt;
+
 /// Matches any value declaration.
 ///
 /// Example matches A, B, C and F
@@ -2723,6 +2736,41 @@ AST_MATCHER_P(ObjCMessageExpr, hasReceiverType, internal::Matcher<QualType>,
   return InnerMatcher.matches(TypeDecl, Finder, Builder);
 }
 
+/// Returns true when the Objective-C message is sent to an instance.
+///
+/// Example
+/// matcher = objcMessagaeExpr(isInstanceMessage())
+/// matches
+/// \code
+///   NSString *x = @"hello";
+///   [x containsString:@"h"];
+/// \endcode
+/// but not
+/// \code
+///   [NSString stringWithFormat:@"format"];
+/// \endcode
+AST_MATCHER(ObjCMessageExpr, isInstanceMessage) {
+  return Node.isInstanceMessage();
+}
+
+/// Matches if the Objective-C message is sent to an instance,
+/// and the inner matcher matches on that instance.
+///
+/// For example the method call in
+/// \code
+///   NSString *x = @"hello";
+///   [x containsString:@"h"];
+/// \endcode
+/// is matched by
+/// objcMessageExpr(hasReceiver(declRefExpr(to(varDecl(hasName("x"))))))
+AST_MATCHER_P(ObjCMessageExpr, hasReceiver, internal::Matcher<Expr>,
+              InnerMatcher) {
+  const Expr *ReceiverNode = Node.getInstanceReceiver();
+  return (ReceiverNode != nullptr &&
+          InnerMatcher.matches(*ReceiverNode->IgnoreParenImpCasts(), Finder,
+                               Builder));
+}
+
 /// Matches when BaseName == Selector.getAsString()
 ///
 ///  matcher = objCMessageExpr(hasSelector("loadHTMLString:baseURL:"));
@@ -2967,7 +3015,7 @@ AST_MATCHER_P_OVERLOAD(QualType, pointsTo, internal::Matcher<Decl>,
 ///   class A {};
 ///   using B = A;
 /// \endcode
-/// The matcher type(hasUnqualifeidDesugaredType(recordType())) matches
+/// The matcher type(hasUnqualifiedDesugaredType(recordType())) matches
 /// both B and A.
 AST_MATCHER_P(Type, hasUnqualifiedDesugaredType, internal::Matcher<Type>,
               InnerMatcher) {
