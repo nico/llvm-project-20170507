@@ -74,7 +74,7 @@ static void setConfigs(opt::InputArgList &Args);
 
 bool elf::link(ArrayRef<const char *> Args, bool CanExitEarly,
                raw_ostream &Error) {
-  errorHandler().LogName = Args[0];
+  errorHandler().LogName = sys::path::filename(Args[0]);
   errorHandler().ErrorLimitExceededMsg =
       "too many errors emitted, stopping now (use "
       "-error-limit=0 to see all errors)";
@@ -302,6 +302,14 @@ static void checkOptions(opt::InputArgList &Args) {
     if (Config->Pie)
       error("-r and -pie may not be used together");
   }
+
+  if (Config->ExecuteOnly) {
+    if (Config->EMachine != EM_AARCH64)
+      error("-execute-only is only supported on AArch64 targets");
+
+    if (Config->SingleRoRx && !Script->HasSectionsCommand)
+      error("-execute-only and -no-rosegment cannot be used together");
+  }
 }
 
 static const char *getReproduceOption(opt::InputArgList &Args) {
@@ -489,12 +497,11 @@ static Target2Policy getTarget2(opt::InputArgList &Args) {
 }
 
 static bool isOutputFormatBinary(opt::InputArgList &Args) {
-  if (auto *Arg = Args.getLastArg(OPT_oformat)) {
-    StringRef S = Arg->getValue();
-    if (S == "binary")
-      return true;
+  StringRef S = Args.getLastArgValue(OPT_oformat, "elf");
+  if (S == "binary")
+    return true;
+  if (!S.startswith("elf"))
     error("unknown --oformat value: " + S);
-  }
   return false;
 }
 
@@ -747,6 +754,8 @@ void LinkerDriver::readConfigs(opt::InputArgList &Args) {
   Config->EnableNewDtags =
       Args.hasFlag(OPT_enable_new_dtags, OPT_disable_new_dtags, true);
   Config->Entry = Args.getLastArgValue(OPT_entry);
+  Config->ExecuteOnly =
+      Args.hasFlag(OPT_execute_only, OPT_no_execute_only, false);
   Config->ExportDynamic =
       Args.hasFlag(OPT_export_dynamic, OPT_no_export_dynamic, false);
   Config->FilterList = args::getStrings(Args, OPT_filter);
@@ -939,8 +948,12 @@ void LinkerDriver::readConfigs(opt::InputArgList &Args) {
     Config->Undefined.push_back(Arg->getValue());
 
   for (auto *Arg : Args.filtered(OPT_version_script))
-    if (Optional<MemoryBufferRef> Buffer = readFile(Arg->getValue()))
-      readVersionScript(*Buffer);
+    if (Optional<std::string> Path = searchScript(Arg->getValue())) {
+      if (Optional<MemoryBufferRef> Buffer = readFile(*Path))
+        readVersionScript(*Buffer);
+    } else {
+      error(Twine("cannot find version script ") + Arg->getValue());
+    }
 }
 
 // Some Config members do not directly correspond to any particular
@@ -1022,7 +1035,7 @@ void LinkerDriver::createFiles(opt::InputArgList &Args) {
       break;
     }
     case OPT_script:
-      if (Optional<std::string> Path = searchLinkerScript(Arg->getValue())) {
+      if (Optional<std::string> Path = searchScript(Arg->getValue())) {
         if (Optional<MemoryBufferRef> MB = readFile(*Path))
           readLinkerScript(*MB);
         break;
@@ -1235,14 +1248,15 @@ template <class ELFT> static void demoteSymbols() {
   }
 }
 
-static bool keepUnique(Symbol *S) {
-  if (auto *D = dyn_cast_or_null<Defined>(S)) {
-    if (D->Section) {
-      D->Section->KeepUnique = true;
-      return true;
-    }
-  }
-  return false;
+// The section referred to by S is considered address-significant. Set the
+// KeepUnique flag on the section if appropriate.
+static void markAddrsig(Symbol *S) {
+  if (auto *D = dyn_cast_or_null<Defined>(S))
+    if (D->Section)
+      // We don't need to keep text sections unique under --icf=all even if they
+      // are address-significant.
+      if (Config->ICF == ICFLevel::Safe || !(D->Section->Flags & SHF_EXECINSTR))
+        D->Section->KeepUnique = true;
 }
 
 // Record sections that define symbols mentioned in --keep-unique <symbol>
@@ -1252,44 +1266,57 @@ template <class ELFT>
 static void findKeepUniqueSections(opt::InputArgList &Args) {
   for (auto *Arg : Args.filtered(OPT_keep_unique)) {
     StringRef Name = Arg->getValue();
-    if (!keepUnique(Symtab->find(Name)))
+    auto *D = dyn_cast_or_null<Defined>(Symtab->find(Name));
+    if (!D || !D->Section) {
       warn("could not find symbol " + Name + " to keep unique");
+      continue;
+    }
+    D->Section->KeepUnique = true;
   }
 
-  if (Config->ICF == ICFLevel::Safe) {
-    // Symbols in the dynsym could be address-significant in other executables
-    // or DSOs, so we conservatively mark them as address-significant.
-    for (Symbol *S : Symtab->getSymbols())
-      if (S->includeInDynsym())
-        keepUnique(S);
+  // --icf=all --ignore-data-address-equality means that we can ignore
+  // the dynsym and address-significance tables entirely.
+  if (Config->ICF == ICFLevel::All && Config->IgnoreDataAddressEquality)
+    return;
 
-    // Visit the address-significance table in each object file and mark each
-    // referenced symbol as address-significant.
-    for (InputFile *F : ObjectFiles) {
-      auto *Obj = cast<ObjFile<ELFT>>(F);
-      ArrayRef<Symbol *> Syms = Obj->getSymbols();
-      if (Obj->AddrsigSec) {
-        ArrayRef<uint8_t> Contents =
-            check(Obj->getObj().getSectionContents(Obj->AddrsigSec));
-        const uint8_t *Cur = Contents.begin();
-        while (Cur != Contents.end()) {
-          unsigned Size;
-          const char *Err;
-          uint64_t SymIndex = decodeULEB128(Cur, &Size, Contents.end(), &Err);
-          if (Err)
-            fatal(toString(F) + ": could not decode addrsig section: " + Err);
-          keepUnique(Syms[SymIndex]);
-          Cur += Size;
-        }
-      } else {
-        // If an object file does not have an address-significance table,
-        // conservatively mark all of its symbols as address-significant.
-        for (Symbol *S : Syms)
-          keepUnique(S);
+  // Symbols in the dynsym could be address-significant in other executables
+  // or DSOs, so we conservatively mark them as address-significant.
+  for (Symbol *S : Symtab->getSymbols())
+    if (S->includeInDynsym())
+      markAddrsig(S);
+
+  // Visit the address-significance table in each object file and mark each
+  // referenced symbol as address-significant.
+  for (InputFile *F : ObjectFiles) {
+    auto *Obj = cast<ObjFile<ELFT>>(F);
+    ArrayRef<Symbol *> Syms = Obj->getSymbols();
+    if (Obj->AddrsigSec) {
+      ArrayRef<uint8_t> Contents =
+          check(Obj->getObj().getSectionContents(Obj->AddrsigSec));
+      const uint8_t *Cur = Contents.begin();
+      while (Cur != Contents.end()) {
+        unsigned Size;
+        const char *Err;
+        uint64_t SymIndex = decodeULEB128(Cur, &Size, Contents.end(), &Err);
+        if (Err)
+          fatal(toString(F) + ": could not decode addrsig section: " + Err);
+        markAddrsig(Syms[SymIndex]);
+        Cur += Size;
       }
+    } else {
+      // If an object file does not have an address-significance table,
+      // conservatively mark all of its symbols as address-significant.
+      for (Symbol *S : Syms)
+        markAddrsig(S);
     }
   }
 }
+
+static const char *LibcallRoutineNames[] = {
+#define HANDLE_LIBCALL(code, name) name,
+#include "llvm/IR/RuntimeLibcalls.def"
+#undef HANDLE_LIBCALL
+};
 
 // Do actual linking. Note that when this function is called,
 // all linker scripts have already been parsed.
@@ -1357,10 +1384,20 @@ template <class ELFT> void LinkerDriver::link(opt::InputArgList &Args) {
   for (StringRef S : Config->Undefined)
     handleUndefined<ELFT>(S);
 
-  // If an entry symbol is in a static archive, pull out that file now
-  // to complete the symbol table. After this, no new names except a
-  // few linker-synthesized ones will be added to the symbol table.
+  // If an entry symbol is in a static archive, pull out that file now.
   handleUndefined<ELFT>(Config->Entry);
+
+  // If any of our inputs are bitcode files, the LTO code generator may create
+  // references to certain library functions that might not be explicit in the
+  // bitcode file's symbol table. If any of those library functions are defined
+  // in a bitcode file in an archive member, we need to arrange to use LTO to
+  // compile those archive members by adding them to the link beforehand.
+  //
+  // With this the symbol table should be complete. After this, no new names
+  // except a few linker-synthesized ones will be added to the symbol table.
+  if (!BitcodeFiles.empty())
+    for (const char *S : LibcallRoutineNames)
+      handleUndefined<ELFT>(S);
 
   // Return if there were name resolution errors.
   if (errorCount())

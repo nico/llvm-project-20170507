@@ -1137,25 +1137,10 @@ static Value *simplifyMinnumMaxnum(const IntrinsicInst &II) {
   Value *Arg0 = II.getArgOperand(0);
   Value *Arg1 = II.getArgOperand(1);
 
-  // fmin(x, x) -> x
-  if (Arg0 == Arg1)
-    return Arg0;
-
   const auto *C1 = dyn_cast<ConstantFP>(Arg1);
 
   // fmin(x, nan) -> x
   if (C1 && C1->isNaN())
-    return Arg0;
-
-  // This is the value because if undef were NaN, we would return the other
-  // value and cannot return a NaN unless both operands are.
-  //
-  // fmin(undef, x) -> x
-  if (isa<UndefValue>(Arg0))
-    return Arg1;
-
-  // fmin(x, undef) -> x
-  if (isa<UndefValue>(Arg1))
     return Arg0;
 
   Value *X = nullptr;
@@ -2098,8 +2083,8 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     }
 
     // fma fabs(x), fabs(x), z -> fma x, x, z
-    if (match(Src0, m_Intrinsic<Intrinsic::fabs>(m_Value(X))) &&
-        match(Src1, m_Intrinsic<Intrinsic::fabs>(m_Specific(X)))) {
+    if (match(Src0, m_FAbs(m_Value(X))) &&
+        match(Src1, m_FAbs(m_Specific(X)))) {
       II->setArgOperand(0, X);
       II->setArgOperand(1, X);
       return II;
@@ -2146,7 +2131,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     Value *SrcSrc;
     Value *Src = II->getArgOperand(0);
     if (match(Src, m_FNeg(m_Value(SrcSrc))) ||
-        match(Src, m_Intrinsic<Intrinsic::fabs>(m_Value(SrcSrc)))) {
+        match(Src, m_FAbs(m_Value(SrcSrc)))) {
       // cos(-x) -> cos(x)
       // cos(fabs(x)) -> cos(x)
       II->setArgOperand(0, SrcSrc);

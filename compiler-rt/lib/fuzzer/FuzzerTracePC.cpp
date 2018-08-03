@@ -75,17 +75,29 @@ void TracePC::IterateInline8bitCounters(CallBack CB) const {
 // counters.
 void TracePC::InitializeUnstableCounters() {
   IterateInline8bitCounters([&](int i, int j, int UnstableIdx) {
-    if (UnstableCounters[UnstableIdx] != kUnstableCounter)
-      UnstableCounters[UnstableIdx] = ModuleCounters[i].Start[j];
+    UnstableCounters[UnstableIdx].Counter = ModuleCounters[i].Start[j];
   });
 }
 
 // Compares the current counters with counters from previous runs
 // and records differences as unstable edges.
-void TracePC::UpdateUnstableCounters() {
+void TracePC::UpdateUnstableCounters(int UnstableMode) {
   IterateInline8bitCounters([&](int i, int j, int UnstableIdx) {
-    if (ModuleCounters[i].Start[j] != UnstableCounters[UnstableIdx])
-      UnstableCounters[UnstableIdx] = kUnstableCounter;
+    if (ModuleCounters[i].Start[j] != UnstableCounters[UnstableIdx].Counter) {
+      UnstableCounters[UnstableIdx].IsUnstable = true;
+      if (UnstableMode == ZeroUnstable)
+        UnstableCounters[UnstableIdx].Counter = 0;
+      else if (UnstableMode == MinUnstable)
+        UnstableCounters[UnstableIdx].Counter = std::min(
+            ModuleCounters[i].Start[j], UnstableCounters[UnstableIdx].Counter);
+    }
+  });
+}
+
+// Moves the minimum hit counts to ModuleCounters.
+void TracePC::ApplyUnstableCounters() {
+  IterateInline8bitCounters([&](int i, int j, int UnstableIdx) {
+    ModuleCounters[i].Start[j] = UnstableCounters[UnstableIdx].Counter;
   });
 }
 
@@ -340,7 +352,7 @@ void TracePC::DumpCoverage() {
 void TracePC::PrintUnstableStats() {
   size_t count = 0;
   for (size_t i = 0; i < NumInline8bitCounters; i++)
-    if (UnstableCounters[i] == kUnstableCounter)
+    if (UnstableCounters[i].IsUnstable)
       count++;
   Printf("stat::stability_rate: %.2f\n",
          100 - static_cast<float>(count * 100) / NumInline8bitCounters);
@@ -389,20 +401,15 @@ ATTRIBUTE_TARGET_POPCNT ALWAYS_INLINE
 ATTRIBUTE_NO_SANITIZE_ALL
 void TracePC::HandleCmp(uintptr_t PC, T Arg1, T Arg2) {
   uint64_t ArgXor = Arg1 ^ Arg2;
-  uint64_t ArgDistance = __builtin_popcountll(ArgXor) + 1; // [1,65]
-  uintptr_t Idx = ((PC & 4095) + 1) * ArgDistance;
   if (sizeof(T) == 4)
       TORC4.Insert(ArgXor, Arg1, Arg2);
   else if (sizeof(T) == 8)
       TORC8.Insert(ArgXor, Arg1, Arg2);
-  // TODO: remove these flags and instead use all metrics at once.
-  if (UseValueProfileMask & 1)
-    ValueProfileMap.AddValue(Idx);
-  if (UseValueProfileMask & 2)
-    ValueProfileMap.AddValue(
-        PC * 64 + (Arg1 == Arg2 ? 0 : __builtin_clzll(Arg1 - Arg2) + 1));
-  if (UseValueProfileMask & 4)  // alternative way to use the hamming distance
-    ValueProfileMap.AddValue(PC * 64 + ArgDistance);
+  uint64_t HammingDistance = __builtin_popcountll(ArgXor); // [0,64]
+  uint64_t AbsoluteDistance =
+      (Arg1 == Arg2 ? 0 : __builtin_clzll(Arg1 - Arg2) + 1);
+  ValueProfileMap.AddValue(PC * 128 + HammingDistance);
+  ValueProfileMap.AddValue(PC * 128 + 64 + AbsoluteDistance);
 }
 
 static size_t InternalStrnlen(const char *S, size_t MaxLen) {

@@ -12,6 +12,7 @@
 #include "lldb/Core/Address.h"
 #include "lldb/Core/AddressRange.h" // for AddressRange
 #include "lldb/Core/Debugger.h"
+#include "lldb/Core/DumpRegisterValue.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/RegisterValue.h" // for RegisterValue
 #include "lldb/Core/ValueObject.h"
@@ -621,7 +622,7 @@ static bool DumpRegister(Stream &s, StackFrame *frame, RegisterKind reg_kind,
         if (reg_info) {
           RegisterValue reg_value;
           if (reg_ctx->ReadRegister(reg_info, reg_value)) {
-            reg_value.Dump(&s, reg_info, false, false, format);
+            DumpRegisterValue(reg_value, &s, reg_info, false, false, format);
             return true;
           }
         }
@@ -1018,7 +1019,7 @@ static bool DumpRegister(Stream &s, StackFrame *frame, const char *reg_name,
       if (reg_info) {
         RegisterValue reg_value;
         if (reg_ctx->ReadRegister(reg_info, reg_value)) {
-          reg_value.Dump(&s, reg_info, false, false, format);
+          DumpRegisterValue(reg_value, &s, reg_info, false, false, format);
           return true;
         }
       }
@@ -2349,7 +2350,6 @@ size_t FormatEntity::AutoComplete(CompletionRequest &request) {
 
   request.SetWordComplete(false);
   str = str.drop_front(request.GetMatchStartPoint());
-  request.GetMatches().Clear();
 
   const size_t dollar_pos = str.rfind('$');
   if (dollar_pos == llvm::StringRef::npos)
@@ -2359,7 +2359,7 @@ size_t FormatEntity::AutoComplete(CompletionRequest &request) {
   if (dollar_pos == str.size() - 1) {
     std::string match = str.str();
     match.append("{");
-    request.GetMatches().AppendString(match);
+    request.AddCompletion(match);
     return 1;
   }
 
@@ -2377,8 +2377,10 @@ size_t FormatEntity::AutoComplete(CompletionRequest &request) {
   llvm::StringRef partial_variable(str.substr(dollar_pos + 2));
   if (partial_variable.empty()) {
     // Suggest all top level entites as we are just past "${"
-    AddMatches(&g_root, str, llvm::StringRef(), request.GetMatches());
-    return request.GetMatches().GetSize();
+    StringList new_matches;
+    AddMatches(&g_root, str, llvm::StringRef(), new_matches);
+    request.AddCompletions(new_matches);
+    return request.GetNumberOfMatches();
   }
 
   // We have a partially specified variable, find it
@@ -2394,19 +2396,23 @@ size_t FormatEntity::AutoComplete(CompletionRequest &request) {
     // Exact match
     if (n > 0) {
       // "${thread.info" <TAB>
-      request.GetMatches().AppendString(MakeMatch(str, "."));
+      request.AddCompletion(MakeMatch(str, "."));
     } else {
       // "${thread.id" <TAB>
-      request.GetMatches().AppendString(MakeMatch(str, "}"));
+      request.AddCompletion(MakeMatch(str, "}"));
       request.SetWordComplete(true);
     }
   } else if (remainder.equals(".")) {
     // "${thread." <TAB>
-    AddMatches(entry_def, str, llvm::StringRef(), request.GetMatches());
+    StringList new_matches;
+    AddMatches(entry_def, str, llvm::StringRef(), new_matches);
+    request.AddCompletions(new_matches);
   } else {
     // We have a partial match
     // "${thre" <TAB>
-    AddMatches(entry_def, str, remainder, request.GetMatches());
+    StringList new_matches;
+    AddMatches(entry_def, str, remainder, new_matches);
+    request.AddCompletions(new_matches);
   }
-  return request.GetMatches().GetSize();
+  return request.GetNumberOfMatches();
 }

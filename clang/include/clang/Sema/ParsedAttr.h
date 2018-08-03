@@ -179,7 +179,7 @@ private:
   /// The location of the 'unavailable' keyword in an
   /// availability attribute.
   SourceLocation UnavailableLoc;
-  
+
   const Expr *MessageExpr;
 
   /// Arguments, if any, are stored immediately following the object.
@@ -265,7 +265,7 @@ private:
     Args[2] = Parm3;
     AttrKind = getKind(getName(), getScopeName(), syntaxUsed);
   }
-  
+
   /// Constructor for type_tag_for_datatype attribute.
   ParsedAttr(IdentifierInfo *attrName, SourceRange attrRange,
              IdentifierInfo *scopeName, SourceLocation scopeLoc,
@@ -352,7 +352,7 @@ public:
 
   void operator delete(void *) = delete;
 
-  enum Kind {           
+  enum Kind {
     #define PARSED_ATTR(NAME) AT_##NAME,
     #include "clang/Sema/AttrParsedAttrList.inc"
     #undef PARSED_ATTR
@@ -363,11 +363,11 @@ public:
   IdentifierInfo *getName() const { return AttrName; }
   SourceLocation getLoc() const { return AttrRange.getBegin(); }
   SourceRange getRange() const { return AttrRange; }
-  
+
   bool hasScope() const { return ScopeName; }
   IdentifierInfo *getScopeName() const { return ScopeName; }
   SourceLocation getScopeLoc() const { return ScopeLoc; }
-  
+
   bool hasParsedType() const { return HasParsedType; }
 
   /// Is this the Microsoft __declspec(property) attribute?
@@ -473,7 +473,7 @@ public:
     assert(getKind() == AT_Availability && "Not an availability attribute");
     return UnavailableLoc;
   }
-  
+
   const Expr * getMessageExpr() const {
     assert(getKind() == AT_Availability && "Not an availability attribute");
     return MessageExpr;
@@ -728,10 +728,6 @@ public:
   ParsedAttr &operator[](SizeType pos) { return *AttrList[pos]; }
   const ParsedAttr &operator[](SizeType pos) const { return *AttrList[pos]; }
 
-  void addAtStart(ParsedAttr *newAttr) {
-    assert(newAttr);
-    AttrList.insert(AttrList.begin(), newAttr);
-  }
   void addAtEnd(ParsedAttr *newAttr) {
     assert(newAttr);
     AttrList.push_back(newAttr);
@@ -785,6 +781,23 @@ public:
   iterator end() { return iterator(AttrList.end()); }
   const_iterator end() const { return const_iterator(AttrList.end()); }
 
+  ParsedAttr &front() {
+    assert(!empty());
+    return *AttrList.front();
+  }
+  const ParsedAttr &front() const {
+    assert(!empty());
+    return *AttrList.front();
+  }
+  ParsedAttr &back() {
+    assert(!empty());
+    return *AttrList.back();
+  }
+  const ParsedAttr &back() const {
+    assert(!empty());
+    return *AttrList.back();
+  }
+
   bool hasAttribute(ParsedAttr::Kind K) const {
     return llvm::any_of(
         AttrList, [K](const ParsedAttr *AL) { return AL->getKind() == K; });
@@ -826,7 +839,7 @@ public:
                      SourceLocation ellipsisLoc = SourceLocation()) {
     ParsedAttr *attr = pool.create(attrName, attrRange, scopeName, scopeLoc,
                                    args, numArgs, syntax, ellipsisLoc);
-    addAtStart(attr);
+    addAtEnd(attr);
     return attr;
   }
 
@@ -842,7 +855,7 @@ public:
     ParsedAttr *attr = pool.create(
         attrName, attrRange, scopeName, scopeLoc, Param, introduced, deprecated,
         obsoleted, unavailable, MessageExpr, syntax, strict, ReplacementExpr);
-    addAtStart(attr);
+    addAtEnd(attr);
     return attr;
   }
 
@@ -853,7 +866,7 @@ public:
                      IdentifierLoc *Param3, ParsedAttr::Syntax syntax) {
     ParsedAttr *attr = pool.create(attrName, attrRange, scopeName, scopeLoc,
                                    Param1, Param2, Param3, syntax);
-    addAtStart(attr);
+    addAtEnd(attr);
     return attr;
   }
 
@@ -867,7 +880,7 @@ public:
     ParsedAttr *attr = pool.createTypeTagForDatatype(
         attrName, attrRange, scopeName, scopeLoc, argumentKind, matchingCType,
         layoutCompatible, mustBeNull, syntax);
-    addAtStart(attr);
+    addAtEnd(attr);
     return attr;
   }
 
@@ -878,7 +891,7 @@ public:
                              ParsedAttr::Syntax syntaxUsed) {
     ParsedAttr *attr = pool.createTypeAttribute(attrName, attrRange, scopeName,
                                                 scopeLoc, typeArg, syntaxUsed);
-    addAtStart(attr);
+    addAtEnd(attr);
     return attr;
   }
 
@@ -891,7 +904,7 @@ public:
     ParsedAttr *attr =
         pool.createPropertyAttribute(attrName, attrRange, scopeName, scopeLoc,
                                      getterId, setterId, syntaxUsed);
-    addAtStart(attr);
+    addAtEnd(attr);
     return attr;
   }
 

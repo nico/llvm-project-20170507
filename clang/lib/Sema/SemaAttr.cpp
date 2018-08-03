@@ -268,7 +268,7 @@ void Sema::DiagnoseUnterminatedPragmaPack() {
   }
 }
 
-void Sema::ActOnPragmaMSStruct(PragmaMSStructKind Kind) { 
+void Sema::ActOnPragmaMSStruct(PragmaMSStructKind Kind) {
   MSStructPragmaOn = (Kind == PMSST_ON);
 }
 
@@ -661,7 +661,7 @@ void Sema::AddPragmaAttributes(Scope *S, Decl *D) {
     Entry.IsUsed = true;
     PragmaAttributeCurrentTargetDecl = D;
     ParsedAttributesView Attrs;
-    Attrs.addAtStart(Attribute);
+    Attrs.addAtEnd(Attribute);
     ProcessDeclAttributeList(S, D, Attrs);
     PragmaAttributeCurrentTargetDecl = nullptr;
   }
@@ -693,7 +693,7 @@ void Sema::AddRangeBasedOptnone(FunctionDecl *FD) {
     AddOptnoneAttributeIfNoConflicts(FD, OptimizeOffPragmaLocation);
 }
 
-void Sema::AddOptnoneAttributeIfNoConflicts(FunctionDecl *FD, 
+void Sema::AddOptnoneAttributeIfNoConflicts(FunctionDecl *FD,
                                             SourceLocation Loc) {
   // Don't add a conflicting attribute. No diagnostic is needed.
   if (FD->hasAttr<MinSizeAttr>() || FD->hasAttr<AlwaysInlineAttr>())

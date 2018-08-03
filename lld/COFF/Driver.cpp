@@ -56,7 +56,7 @@ Configuration *Config;
 LinkerDriver *Driver;
 
 bool link(ArrayRef<const char *> Args, bool CanExitEarly, raw_ostream &Diag) {
-  errorHandler().LogName = Args[0];
+  errorHandler().LogName = sys::path::filename(Args[0]);
   errorHandler().ErrorOS = &Diag;
   errorHandler().ColorDiagnostics = Diag.has_colors();
   errorHandler().ErrorLimitExceededMsg =
@@ -64,7 +64,6 @@ bool link(ArrayRef<const char *> Args, bool CanExitEarly, raw_ostream &Diag) {
       " (use /errorlimit:0 to see all errors)";
   errorHandler().ExitEarly = CanExitEarly;
   Config = make<Configuration>();
-  Config->Argv = {Args.begin(), Args.end()};
 
   Symtab = make<SymbolTable>();
 
@@ -76,6 +75,9 @@ bool link(ArrayRef<const char *> Args, bool CanExitEarly, raw_ostream &Diag) {
     exitLld(errorCount() ? 1 : 0);
 
   freeArena();
+  ObjFile::Instances.clear();
+  ImportFile::Instances.clear();
+  BitcodeFile::Instances.clear();
   return !errorCount();
 }
 
@@ -112,6 +114,19 @@ static std::future<MBErrPair> createFutureForFile(std::string Path) {
       return MBErrPair{nullptr, MBOrErr.getError()};
     return MBErrPair{std::move(*MBOrErr), std::error_code()};
   });
+}
+
+// Symbol names are mangled by prepending "_" on x86.
+static StringRef mangle(StringRef Sym) {
+  assert(Config->Machine != IMAGE_FILE_MACHINE_UNKNOWN);
+  if (Config->Machine == I386)
+    return Saver.save("_" + Sym);
+  return Sym;
+}
+
+static bool findUnderscoreMangle(StringRef Sym) {
+  StringRef Entry = Symtab->findMangle(mangle(Sym));
+  return !Entry.empty() && !isa<Undefined>(Symtab->find(Entry));
 }
 
 MemoryBufferRef LinkerDriver::takeBuffer(std::unique_ptr<MemoryBuffer> MB) {
@@ -405,14 +420,6 @@ Symbol *LinkerDriver::addUndefined(StringRef Name) {
   return B;
 }
 
-// Symbol names are mangled by appending "_" prefix on x86.
-StringRef LinkerDriver::mangle(StringRef Sym) {
-  assert(Config->Machine != IMAGE_FILE_MACHINE_UNKNOWN);
-  if (Config->Machine == I386)
-    return Saver.save("_" + Sym);
-  return Sym;
-}
-
 // Windows specific -- find default entry point name.
 //
 // There are four different entry point functions for Windows executables,
@@ -425,8 +432,7 @@ StringRef LinkerDriver::findDefaultEntry() {
   if (Config->NoDefaultLibAll) {
     for (StringRef S : {"mainCRTStartup", "wmainCRTStartup",
                         "WinMainCRTStartup", "wWinMainCRTStartup"}) {
-      StringRef Entry = Symtab->findMangle(S);
-      if (!Entry.empty() && !isa<Undefined>(Symtab->find(Entry)))
+      if (findUnderscoreMangle(S))
         return mangle(S);
     }
     return "";
@@ -440,8 +446,7 @@ StringRef LinkerDriver::findDefaultEntry() {
       {"wWinMain", "wWinMainCRTStartup"},
   };
   for (auto E : Entries) {
-    StringRef Entry = Symtab->findMangle(mangle(E[0]));
-    if (!Entry.empty() && !isa<Undefined>(Symtab->find(Entry)))
+    if (findUnderscoreMangle(E[0]))
       return mangle(E[1]);
   }
   return "";
@@ -450,9 +455,9 @@ StringRef LinkerDriver::findDefaultEntry() {
 WindowsSubsystem LinkerDriver::inferSubsystem() {
   if (Config->DLL)
     return IMAGE_SUBSYSTEM_WINDOWS_GUI;
-  if (Symtab->findUnderscore("main") || Symtab->findUnderscore("wmain"))
+  if (findUnderscoreMangle("main") || findUnderscoreMangle("wmain"))
     return IMAGE_SUBSYSTEM_WINDOWS_CUI;
-  if (Symtab->findUnderscore("WinMain") || Symtab->findUnderscore("wWinMain"))
+  if (findUnderscoreMangle("WinMain") || findUnderscoreMangle("wWinMain"))
     return IMAGE_SUBSYSTEM_WINDOWS_GUI;
   return IMAGE_SUBSYSTEM_UNKNOWN;
 }
@@ -677,131 +682,6 @@ static void parseModuleDefs(StringRef Path) {
   }
 }
 
-// A helper function for filterBitcodeFiles.
-static bool needsRebuilding(MemoryBufferRef MB) {
-  // The MSVC linker doesn't support thin archives, so if it's a thin
-  // archive, we always need to rebuild it.
-  std::unique_ptr<Archive> File =
-      CHECK(Archive::create(MB), "Failed to read " + MB.getBufferIdentifier());
-  if (File->isThin())
-    return true;
-
-  // Returns true if the archive contains at least one bitcode file.
-  for (MemoryBufferRef Member : getArchiveMembers(File.get()))
-    if (identify_magic(Member.getBuffer()) == file_magic::bitcode)
-      return true;
-  return false;
-}
-
-// Opens a given path as an archive file and removes bitcode files
-// from them if exists. This function is to appease the MSVC linker as
-// their linker doesn't like archive files containing non-native
-// object files.
-//
-// If a given archive doesn't contain bitcode files, the archive path
-// is returned as-is. Otherwise, a new temporary file is created and
-// its path is returned.
-static Optional<std::string>
-filterBitcodeFiles(StringRef Path, std::vector<std::string> &TemporaryFiles) {
-  std::unique_ptr<MemoryBuffer> MB = CHECK(
-      MemoryBuffer::getFile(Path, -1, false, true), "could not open " + Path);
-  MemoryBufferRef MBRef = MB->getMemBufferRef();
-  file_magic Magic = identify_magic(MBRef.getBuffer());
-
-  if (Magic == file_magic::bitcode)
-    return None;
-  if (Magic != file_magic::archive)
-    return Path.str();
-  if (!needsRebuilding(MBRef))
-    return Path.str();
-
-  std::unique_ptr<Archive> File =
-      CHECK(Archive::create(MBRef),
-            MBRef.getBufferIdentifier() + ": failed to parse archive");
-
-  std::vector<NewArchiveMember> New;
-  for (MemoryBufferRef Member : getArchiveMembers(File.get()))
-    if (identify_magic(Member.getBuffer()) != file_magic::bitcode)
-      New.emplace_back(Member);
-
-  if (New.empty())
-    return None;
-
-  log("Creating a temporary archive for " + Path + " to remove bitcode files");
-
-  SmallString<128> S;
-  if (std::error_code EC = sys::fs::createTemporaryFile(
-          "lld-" + sys::path::stem(Path), ".lib", S))
-    fatal("cannot create a temporary file: " + EC.message());
-  std::string Temp = S.str();
-  TemporaryFiles.push_back(Temp);
-
-  Error E =
-      llvm::writeArchive(Temp, New, /*WriteSymtab=*/true, Archive::Kind::K_GNU,
-                         /*Deterministics=*/true,
-                         /*Thin=*/false);
-  handleAllErrors(std::move(E), [&](const ErrorInfoBase &EI) {
-    error("failed to create a new archive " + S.str() + ": " + EI.message());
-  });
-  return Temp;
-}
-
-// Create response file contents and invoke the MSVC linker.
-void LinkerDriver::invokeMSVC(opt::InputArgList &Args) {
-  std::string Rsp = "/nologo\n";
-  std::vector<std::string> Temps;
-
-  // Write out archive members that we used in symbol resolution and pass these
-  // to MSVC before any archives, so that MSVC uses the same objects to satisfy
-  // references.
-  for (ObjFile *Obj : ObjFile::Instances) {
-    if (Obj->ParentName.empty())
-      continue;
-    SmallString<128> S;
-    int Fd;
-    if (auto EC = sys::fs::createTemporaryFile(
-            "lld-" + sys::path::filename(Obj->ParentName), ".obj", Fd, S))
-      fatal("cannot create a temporary file: " + EC.message());
-    raw_fd_ostream OS(Fd, /*shouldClose*/ true);
-    OS << Obj->MB.getBuffer();
-    Temps.push_back(S.str());
-    Rsp += quote(S) + "\n";
-  }
-
-  for (auto *Arg : Args) {
-    switch (Arg->getOption().getID()) {
-    case OPT_linkrepro:
-    case OPT_lldmap:
-    case OPT_lldmap_file:
-    case OPT_lldsavetemps:
-    case OPT_msvclto:
-      // LLD-specific options are stripped.
-      break;
-    case OPT_opt:
-      if (!StringRef(Arg->getValue()).startswith("lld"))
-        Rsp += toString(*Arg) + " ";
-      break;
-    case OPT_INPUT: {
-      if (Optional<StringRef> Path = doFindFile(Arg->getValue())) {
-        if (Optional<std::string> S = filterBitcodeFiles(*Path, Temps))
-          Rsp += quote(*S) + "\n";
-        continue;
-      }
-      Rsp += quote(Arg->getValue()) + "\n";
-      break;
-    }
-    default:
-      Rsp += toString(*Arg) + "\n";
-    }
-  }
-
-  std::vector<StringRef> ObjFiles = Symtab->compileBitcodeFiles();
-  runMSVCLinker(Rsp, ObjFiles);
-
-  for (StringRef Path : Temps)
-    sys::fs::remove(Path);
-}
-
 void LinkerDriver::enqueueTask(std::function<void()> Task) {
   TaskQueue.push_back(std::move(Task));
 }
@@ -875,7 +755,7 @@ void LinkerDriver::link(ArrayRef<const char *> ArgsArr) {
 
   // Parse command line options.
   ArgParser Parser;
-  opt::InputArgList Args = Parser.parseLINK(ArgsArr.slice(1));
+  opt::InputArgList Args = Parser.parseLINK(ArgsArr);
 
   // Parse and evaluate -mllvm options.
   std::vector<const char *> V;
@@ -1471,13 +1351,6 @@ void LinkerDriver::link(ArrayRef<const char *> ArgsArr) {
 
   if (errorCount())
     return;
-
-  // If /msvclto is given, we use the MSVC linker to link LTO output files.
-  // This is useful because MSVC link.exe can generate complete PDBs.
-  if (Args.hasArg(OPT_msvclto)) {
-    invokeMSVC(Args);
-    return;
-  }
 
   // Do LTO by compiling bitcode input files to a set of native COFF files then
   // link those files.

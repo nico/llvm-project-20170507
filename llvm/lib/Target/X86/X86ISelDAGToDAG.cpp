@@ -881,6 +881,14 @@ void X86DAGToDAGISel::PostprocessISelDAG() {
         In.getMachineOpcode() <= TargetOpcode::GENERIC_OP_END)
       continue;
 
+    // Make sure the instruction has a VEX, XOP, or EVEX prefix. This covers
+    // the SHA instructions which use a legacy encoding.
+    uint64_t TSFlags = getInstrInfo()->get(In.getMachineOpcode()).TSFlags;
+    if ((TSFlags & X86II::EncodingMask) != X86II::VEX &&
+        (TSFlags & X86II::EncodingMask) != X86II::EVEX &&
+        (TSFlags & X86II::EncodingMask) != X86II::XOP)
+      continue;
+
     // Producing instruction is another vector instruction. We can drop the
     // move.
     CurDAG->UpdateNodeOperands(N, N->getOperand(0), In, N->getOperand(2));
@@ -991,11 +999,13 @@ bool X86DAGToDAGISel::matchWrapper(SDValue N, X86ISelAddressMode &AM) {
 
   bool IsRIPRel = N.getOpcode() == X86ISD::WrapperRIP;
 
-  // Only do this address mode folding for 64-bit if we're in the small code
-  // model.
-  // FIXME: But we can do GOTPCREL addressing in the medium code model.
+  // We can't use an addressing mode in the 64-bit large code model. In the
+  // medium code model, we use can use an mode when RIP wrappers are present.
+  // That signifies access to globals that are known to be "near", such as the
+  // GOT itself.
   CodeModel::Model M = TM.getCodeModel();
-  if (Subtarget->is64Bit() && M != CodeModel::Small && M != CodeModel::Kernel)
+  if (Subtarget->is64Bit() &&
+      (M == CodeModel::Large || (M == CodeModel::Medium && !IsRIPRel)))
     return true;
 
   // Base and index reg must be 0 in order to use %rip as base.
@@ -2792,6 +2802,16 @@ void X86DAGToDAGISel::Select(SDNode *Node) {
   case X86ISD::GlobalBaseReg:
     ReplaceNode(Node, getGlobalBaseReg());
     return;
+
+  case ISD::BITCAST:
+    // Just drop all 128/256/512-bit bitcasts.
+    if (NVT.is512BitVector() || NVT.is256BitVector() || NVT.is128BitVector() ||
+        NVT == MVT::f128) {
+      ReplaceUses(SDValue(Node, 0), Node->getOperand(0));
+      CurDAG->RemoveDeadNode(Node);
+      return;
+    }
+    break;
 
   case X86ISD::SELECT:
   case X86ISD::SHRUNKBLEND: {

@@ -704,7 +704,7 @@ public:
           CurrentArg, S, *Allocator, CCTUInfo, true);
       assert(CCS && "Expected the CodeCompletionString to be non-null");
       // FIXME: for headers, we need to get a comment from the index.
-      SigHelp.signatures.push_back(ProcessOverloadCandidate(
+      SigHelp.signatures.push_back(processOverloadCandidate(
           Candidate, *CCS,
           getParameterDocComment(S.getASTContext(), Candidate, CurrentArg,
                                  /*CommentsFromHeaders=*/false)));
@@ -719,7 +719,7 @@ private:
   // FIXME(ioeric): consider moving CodeCompletionString logic here to
   // CompletionString.h.
   SignatureInformation
-  ProcessOverloadCandidate(const OverloadCandidate &Candidate,
+  processOverloadCandidate(const OverloadCandidate &Candidate,
                            const CodeCompletionString &CCS,
                            llvm::StringRef DocComment) const {
     SignatureInformation Result;
@@ -1062,6 +1062,7 @@ private:
       Output.Completions.back().Score = C.second;
     }
     Output.HasMore = Incomplete;
+    Output.Context = Recorder->CCContext.getKind();
     return Output;
   }
 
@@ -1156,6 +1157,7 @@ private:
                     CompletionCandidate::Bundle Bundle) {
     SymbolQualitySignals Quality;
     SymbolRelevanceSignals Relevance;
+    Relevance.Context = Recorder->CCContext.getKind();
     Relevance.Query = SymbolRelevanceSignals::CodeComplete;
     Relevance.FileProximityMatch = FileProximity.getPointer();
     auto &First = Bundle.front();
@@ -1290,6 +1292,7 @@ raw_ostream &operator<<(raw_ostream &OS, const CodeCompletion &C) {
 
 raw_ostream &operator<<(raw_ostream &OS, const CodeCompleteResult &R) {
   OS << "CodeCompleteResult: " << R.Completions.size() << (R.HasMore ? "+" : "")
+     << " (" << getCompletionKindString(R.Context) << ")"
      << " items:\n";
   for (const auto &C : R.Completions)
     OS << C << "\n";

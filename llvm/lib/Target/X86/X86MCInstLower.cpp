@@ -601,24 +601,32 @@ ReSimplify:
   case X86::RELEASE_MOV64mi32: OutMI.setOpcode(X86::MOV64mi32); goto ReSimplify;
   case X86::RELEASE_ADD8mi:    OutMI.setOpcode(X86::ADD8mi);    goto ReSimplify;
   case X86::RELEASE_ADD8mr:    OutMI.setOpcode(X86::ADD8mr);    goto ReSimplify;
+  case X86::RELEASE_ADD16mi:   OutMI.setOpcode(X86::ADD16mi);   goto ReSimplify;
+  case X86::RELEASE_ADD16mr:   OutMI.setOpcode(X86::ADD16mr);   goto ReSimplify;
   case X86::RELEASE_ADD32mi:   OutMI.setOpcode(X86::ADD32mi);   goto ReSimplify;
   case X86::RELEASE_ADD32mr:   OutMI.setOpcode(X86::ADD32mr);   goto ReSimplify;
   case X86::RELEASE_ADD64mi32: OutMI.setOpcode(X86::ADD64mi32); goto ReSimplify;
   case X86::RELEASE_ADD64mr:   OutMI.setOpcode(X86::ADD64mr);   goto ReSimplify;
   case X86::RELEASE_AND8mi:    OutMI.setOpcode(X86::AND8mi);    goto ReSimplify;
   case X86::RELEASE_AND8mr:    OutMI.setOpcode(X86::AND8mr);    goto ReSimplify;
+  case X86::RELEASE_AND16mi:   OutMI.setOpcode(X86::AND16mi);   goto ReSimplify;
+  case X86::RELEASE_AND16mr:   OutMI.setOpcode(X86::AND16mr);   goto ReSimplify;
   case X86::RELEASE_AND32mi:   OutMI.setOpcode(X86::AND32mi);   goto ReSimplify;
   case X86::RELEASE_AND32mr:   OutMI.setOpcode(X86::AND32mr);   goto ReSimplify;
   case X86::RELEASE_AND64mi32: OutMI.setOpcode(X86::AND64mi32); goto ReSimplify;
   case X86::RELEASE_AND64mr:   OutMI.setOpcode(X86::AND64mr);   goto ReSimplify;
   case X86::RELEASE_OR8mi:     OutMI.setOpcode(X86::OR8mi);     goto ReSimplify;
   case X86::RELEASE_OR8mr:     OutMI.setOpcode(X86::OR8mr);     goto ReSimplify;
+  case X86::RELEASE_OR16mi:    OutMI.setOpcode(X86::OR16mi);    goto ReSimplify;
+  case X86::RELEASE_OR16mr:    OutMI.setOpcode(X86::OR16mr);    goto ReSimplify;
   case X86::RELEASE_OR32mi:    OutMI.setOpcode(X86::OR32mi);    goto ReSimplify;
   case X86::RELEASE_OR32mr:    OutMI.setOpcode(X86::OR32mr);    goto ReSimplify;
   case X86::RELEASE_OR64mi32:  OutMI.setOpcode(X86::OR64mi32);  goto ReSimplify;
   case X86::RELEASE_OR64mr:    OutMI.setOpcode(X86::OR64mr);    goto ReSimplify;
   case X86::RELEASE_XOR8mi:    OutMI.setOpcode(X86::XOR8mi);    goto ReSimplify;
   case X86::RELEASE_XOR8mr:    OutMI.setOpcode(X86::XOR8mr);    goto ReSimplify;
+  case X86::RELEASE_XOR16mi:   OutMI.setOpcode(X86::XOR16mi);   goto ReSimplify;
+  case X86::RELEASE_XOR16mr:   OutMI.setOpcode(X86::XOR16mr);   goto ReSimplify;
   case X86::RELEASE_XOR32mi:   OutMI.setOpcode(X86::XOR32mi);   goto ReSimplify;
   case X86::RELEASE_XOR32mr:   OutMI.setOpcode(X86::XOR32mr);   goto ReSimplify;
   case X86::RELEASE_XOR64mi32: OutMI.setOpcode(X86::XOR64mi32); goto ReSimplify;
@@ -631,6 +639,14 @@ ReSimplify:
   case X86::RELEASE_DEC16m:    OutMI.setOpcode(X86::DEC16m);    goto ReSimplify;
   case X86::RELEASE_DEC32m:    OutMI.setOpcode(X86::DEC32m);    goto ReSimplify;
   case X86::RELEASE_DEC64m:    OutMI.setOpcode(X86::DEC64m);    goto ReSimplify;
+  case X86::RELEASE_NOT8m:     OutMI.setOpcode(X86::NOT8m);     goto ReSimplify;
+  case X86::RELEASE_NOT16m:    OutMI.setOpcode(X86::NOT16m);    goto ReSimplify;
+  case X86::RELEASE_NOT32m:    OutMI.setOpcode(X86::NOT32m);    goto ReSimplify;
+  case X86::RELEASE_NOT64m:    OutMI.setOpcode(X86::NOT64m);    goto ReSimplify;
+  case X86::RELEASE_NEG8m:     OutMI.setOpcode(X86::NEG8m);     goto ReSimplify;
+  case X86::RELEASE_NEG16m:    OutMI.setOpcode(X86::NEG16m);    goto ReSimplify;
+  case X86::RELEASE_NEG32m:    OutMI.setOpcode(X86::NEG32m);    goto ReSimplify;
+  case X86::RELEASE_NEG64m:    OutMI.setOpcode(X86::NEG64m);    goto ReSimplify;
 
   // We don't currently select the correct instruction form for instructions
   // which have a short %eax, etc. form. Handle this by custom lowering, for
@@ -1717,6 +1733,41 @@ void X86AsmPrinter::EmitInstruction(const MachineInstr *MI) {
     if (HasActiveDwarfFrame && !hasFP) {
       OutStreamer->EmitCFIAdjustCfaOffset(stackGrowth);
     }
+    return;
+  }
+
+  case X86::MOVGOT64r: {
+    // Materializes the GOT for the 64-bit large code model.
+    MCSymbol *DotSym = OutContext.createTempSymbol();
+    OutStreamer->EmitLabel(DotSym);
+
+    unsigned DstReg = MI->getOperand(0).getReg();
+    unsigned ScratchReg = MI->getOperand(1).getReg();
+    MCSymbol *GOTSym = MCInstLowering.GetSymbolFromOperand(MI->getOperand(2));
+
+    // .LtmpN: leaq .LtmpN(%rip), %dst
+    const MCExpr *DotExpr = MCSymbolRefExpr::create(DotSym, OutContext);
+    EmitAndCountInstruction(MCInstBuilder(X86::LEA64r)
+                                .addReg(DstReg)   // dest
+                                .addReg(X86::RIP) // base
+                                .addImm(1)        // scale
+                                .addReg(0)        // index
+                                .addExpr(DotExpr) // disp
+                                .addReg(0));      // seg
+
+    // movq $_GLOBAL_OFFSET_TABLE_ - .LtmpN, %scratch
+    const MCExpr *GOTSymExpr = MCSymbolRefExpr::create(GOTSym, OutContext);
+    const MCExpr *GOTDiffExpr =
+        MCBinaryExpr::createSub(GOTSymExpr, DotExpr, OutContext);
+    EmitAndCountInstruction(MCInstBuilder(X86::MOV64ri)
+                                .addReg(ScratchReg)     // dest
+                                .addExpr(GOTDiffExpr)); // disp
+
+    // addq %scratch, %dst
+    EmitAndCountInstruction(MCInstBuilder(X86::ADD64rr)
+                                .addReg(DstReg)       // dest
+                                .addReg(DstReg)       // dest
+                                .addReg(ScratchReg)); // src
     return;
   }
 

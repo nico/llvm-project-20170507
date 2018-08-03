@@ -179,8 +179,11 @@ public:
   /// threads, or different kinds of materialization processes.
   MaterializationResponsibility delegate(const SymbolNameSet &Symbols);
 
-  /// Add dependencies for the symbols in this dylib.
-  void addDependencies(const SymbolDependenceMap &Dependencies);
+  void addDependencies(const SymbolStringPtr &Name,
+                       const SymbolDependenceMap &Dependencies);
+
+  /// Add dependencies that apply to all symbols covered by this instance.
+  void addDependenciesForAll(const SymbolDependenceMap &Dependencies);
 
 private:
   /// Create a MaterializationResponsibility for the given VSO and
@@ -340,6 +343,17 @@ reexports(VSO &SourceV, SymbolAliasMap Aliases) {
 /// symbols from another VSO with the same linkage/flags.
 Expected<SymbolAliasMap>
 buildSimpleReexportsAliasMap(VSO &SourceV, const SymbolNameSet &Symbols);
+
+class ReexportsFallbackDefinitionGenerator {
+public:
+  using SymbolPredicate = std::function<bool(SymbolStringPtr)>;
+  ReexportsFallbackDefinitionGenerator(VSO &BackingVSO, SymbolPredicate Allow);
+  SymbolNameSet operator()(VSO &V, const SymbolNameSet &Names);
+
+private:
+  VSO &BackingVSO;
+  SymbolPredicate Allow;
+};
 
 /// Base utilities for ExecutionSession.
 class ExecutionSessionBase {

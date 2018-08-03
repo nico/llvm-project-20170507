@@ -18,12 +18,14 @@ add_lldb_library(lldbCore
   Debugger.cpp
   Disassembler.cpp
   DumpDataExtractor.cpp
+  DumpRegisterValue.cpp
   DynamicLoader.cpp
   EmulateInstruction.cpp
   Event.cpp
   FileLineResolver.cpp
   FileSpecList.cpp
   FormatEntity.cpp
+  Highlighter.cpp
   IOHandler.cpp
   Listener.cpp
   Mangled.cpp

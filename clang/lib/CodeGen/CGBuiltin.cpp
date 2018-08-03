@@ -3703,6 +3703,16 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
       // we need to do a bit cast.
       llvm::Type *PTy = FTy->getParamType(i);
       if (PTy != ArgValue->getType()) {
+        // XXX - vector of pointers?
+        if (auto *PtrTy = dyn_cast<llvm::PointerType>(PTy)) {
+          if (PtrTy->getAddressSpace() !=
+              ArgValue->getType()->getPointerAddressSpace()) {
+            ArgValue = Builder.CreateAddrSpaceCast(
+              ArgValue,
+              ArgValue->getType()->getPointerTo(PtrTy->getAddressSpace()));
+          }
+        }
+
         assert(PTy->canLosslesslyBitCastTo(FTy->getParamType(i)) &&
                "Must be able to losslessly bit cast to param");
         ArgValue = Builder.CreateBitCast(ArgValue, PTy);
@@ -3719,6 +3729,14 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
       RetTy = ConvertType(BuiltinRetType);
 
     if (RetTy != V->getType()) {
+      // XXX - vector of pointers?
+      if (auto *PtrTy = dyn_cast<llvm::PointerType>(RetTy)) {
+        if (PtrTy->getAddressSpace() != V->getType()->getPointerAddressSpace()) {
+          V = Builder.CreateAddrSpaceCast(
+            V, V->getType()->getPointerTo(PtrTy->getAddressSpace()));
+        }
+      }
+
       assert(V->getType()->canLosslesslyBitCastTo(RetTy) &&
              "Must be able to losslessly bit cast result type");
       V = Builder.CreateBitCast(V, RetTy);
@@ -4158,6 +4176,8 @@ static const NeonIntrinsicInfo ARMSIMDIntrinsicMap [] = {
   NEONMAP1(vrnd_v, arm_neon_vrintz, Add1ArgType),
   NEONMAP1(vrnda_v, arm_neon_vrinta, Add1ArgType),
   NEONMAP1(vrndaq_v, arm_neon_vrinta, Add1ArgType),
+  NEONMAP0(vrndi_v),
+  NEONMAP0(vrndiq_v),
   NEONMAP1(vrndm_v, arm_neon_vrintm, Add1ArgType),
   NEONMAP1(vrndmq_v, arm_neon_vrintm, Add1ArgType),
   NEONMAP1(vrndn_v, arm_neon_vrintn, Add1ArgType),
@@ -4334,6 +4354,8 @@ static const NeonIntrinsicInfo AArch64SIMDIntrinsicMap[] = {
   NEONMAP1(vrecpsq_v, aarch64_neon_frecps, Add1ArgType),
   NEONMAP2(vrhadd_v, aarch64_neon_urhadd, aarch64_neon_srhadd, Add1ArgType | UnsignedAlts),
   NEONMAP2(vrhaddq_v, aarch64_neon_urhadd, aarch64_neon_srhadd, Add1ArgType | UnsignedAlts),
+  NEONMAP0(vrndi_v),
+  NEONMAP0(vrndiq_v),
   NEONMAP2(vrshl_v, aarch64_neon_urshl, aarch64_neon_srshl, Add1ArgType | UnsignedAlts),
   NEONMAP2(vrshlq_v, aarch64_neon_urshl, aarch64_neon_srshl, Add1ArgType | UnsignedAlts),
   NEONMAP2(vrshr_n_v, aarch64_neon_urshl, aarch64_neon_srshl, UnsignedAlts),
@@ -5094,7 +5116,10 @@ Value *CodeGenFunction::EmitCommonNeonBuiltinExpr(
   case NEON::BI__builtin_neon_vrsqrteq_v:
     Int = Ty->isFPOrFPVectorTy() ? LLVMIntrinsic : AltLLVMIntrinsic;
     return EmitNeonCall(CGM.getIntrinsic(Int, Ty), Ops, NameHint);
-
+  case NEON::BI__builtin_neon_vrndi_v:
+  case NEON::BI__builtin_neon_vrndiq_v:
+    Int = Intrinsic::nearbyint;
+    return EmitNeonCall(CGM.getIntrinsic(Int, Ty), Ops, NameHint);
   case NEON::BI__builtin_neon_vrshr_n_v:
   case NEON::BI__builtin_neon_vrshrq_n_v:
     return EmitNeonCall(CGM.getIntrinsic(Int, Ty), Ops, "vrshr_n",
@@ -7486,11 +7511,6 @@ Value *CodeGenFunction::EmitAArch64BuiltinExpr(unsigned BuiltinID,
     Int = Intrinsic::nearbyint;
     return EmitNeonCall(CGM.getIntrinsic(Int, HalfTy), Ops, "vrndi");
   }
-  case NEON::BI__builtin_neon_vrndi_v:
-  case NEON::BI__builtin_neon_vrndiq_v: {
-    Int = Intrinsic::nearbyint;
-    return EmitNeonCall(CGM.getIntrinsic(Int, Ty), Ops, "vrndi");
-  }
   case NEON::BI__builtin_neon_vrndmh_f16: {
     Ops.push_back(EmitScalarExpr(E->getArg(0)));
     Int = Intrinsic::floor;
@@ -7510,6 +7530,11 @@ Value *CodeGenFunction::EmitAArch64BuiltinExpr(unsigned BuiltinID,
   case NEON::BI__builtin_neon_vrndnq_v: {
     Int = Intrinsic::aarch64_neon_frintn;
     return EmitNeonCall(CGM.getIntrinsic(Int, Ty), Ops, "vrndn");
+  }
+  case NEON::BI__builtin_neon_vrndns_f32: {
+    Ops.push_back(EmitScalarExpr(E->getArg(0)));
+    Int = Intrinsic::aarch64_neon_frintn;
+    return EmitNeonCall(CGM.getIntrinsic(Int, FloatTy), Ops, "vrndn");
   }
   case NEON::BI__builtin_neon_vrndph_f16: {
     Ops.push_back(EmitScalarExpr(E->getArg(0)));
@@ -8841,7 +8866,7 @@ static Value *EmitX86Ternlog(CodeGenFunction &CGF, bool ZeroMask,
   return EmitX86Select(CGF, Ops[4], Ternlog, PassThru);
 }
 
-static Value *EmitX86SExtMask(CodeGenFunction &CGF, Value *Op, 
+static Value *EmitX86SExtMask(CodeGenFunction &CGF, Value *Op,
                               llvm::Type *DstTy) {
   unsigned NumberOfElements = DstTy->getVectorNumElements();
   Value *Mask = getMaskVecValue(CGF, Op, NumberOfElements);
@@ -9963,7 +9988,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     Value *A = Builder.CreateExtractElement(Ops[0], (uint64_t)0);
     Function *F = CGM.getIntrinsic(Intrinsic::sqrt, A->getType());
     A = Builder.CreateCall(F, {A});
-    return Builder.CreateInsertElement(Ops[0], A, (uint64_t)0);    
+    return Builder.CreateInsertElement(Ops[0], A, (uint64_t)0);
   }
   case X86::BI__builtin_ia32_sqrtsd_round_mask:
   case X86::BI__builtin_ia32_sqrtss_round_mask: {
@@ -10275,7 +10300,7 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
       return EmitX86MaskedCompareResult(*this, Cmp, NumElts, Ops[3]);
     }
     default:
-      return getVectorFCmpIR(Pred); 
+      return getVectorFCmpIR(Pred);
     }
   }
 
@@ -11032,50 +11057,6 @@ Value *CodeGenFunction::EmitAMDGPUBuiltinExpr(unsigned BuiltinID,
     CI->setConvergent();
     return CI;
   }
-  case AMDGPU::BI__builtin_amdgcn_ds_faddf:
-  case AMDGPU::BI__builtin_amdgcn_ds_fminf:
-  case AMDGPU::BI__builtin_amdgcn_ds_fmaxf: {
-    llvm::SmallVector<llvm::Value *, 5> Args;
-    for (unsigned I = 0; I != 5; ++I)
-      Args.push_back(EmitScalarExpr(E->getArg(I)));
-    const llvm::Type *PtrTy = Args[0]->getType();
-    // check pointer parameter
-    if (!PtrTy->isPointerTy() ||
-        E->getArg(0)
-                ->getType()
-                ->getPointeeType()
-                .getQualifiers()
-                .getAddressSpace() != LangAS::opencl_local ||
-        !PtrTy->getPointerElementType()->isFloatTy()) {
-       CGM.Error(E->getArg(0)->getLocStart(),
-                "parameter should have type \"local float*\"");
-      return nullptr;
-    }
-    // check float parameter
-    if (!Args[1]->getType()->isFloatTy()) {
-      CGM.Error(E->getArg(1)->getLocStart(),
-                "parameter should have type \"float\"");
-      return nullptr;
-    }
-
-    Intrinsic::ID ID;
-    switch (BuiltinID) {
-    case AMDGPU::BI__builtin_amdgcn_ds_faddf:
-      ID = Intrinsic::amdgcn_ds_fadd;
-      break;
-    case AMDGPU::BI__builtin_amdgcn_ds_fminf:
-      ID = Intrinsic::amdgcn_ds_fmin;
-      break;
-    case AMDGPU::BI__builtin_amdgcn_ds_fmaxf:
-      ID = Intrinsic::amdgcn_ds_fmax;
-      break;
-    default:
-      llvm_unreachable("Unknown BuiltinID");
-    }
-    Value *F = CGM.getIntrinsic(ID);
-    return Builder.CreateCall(F, Args);
-  }
-
   // amdgcn workitem
   case AMDGPU::BI__builtin_amdgcn_workitem_id_x:
     return emitRangedBuiltin(*this, Intrinsic::amdgcn_workitem_id_x, 0, 1024);
@@ -12073,6 +12054,26 @@ Value *CodeGenFunction::EmitWebAssemblyBuiltinExpr(unsigned BuiltinID,
   case WebAssembly::BI__builtin_wasm_rethrow: {
     Value *Callee = CGM.getIntrinsic(Intrinsic::wasm_rethrow);
     return Builder.CreateCall(Callee);
+  }
+  case WebAssembly::BI__builtin_wasm_atomic_wait_i32: {
+    Value *Addr = EmitScalarExpr(E->getArg(0));
+    Value *Expected = EmitScalarExpr(E->getArg(1));
+    Value *Timeout = EmitScalarExpr(E->getArg(2));
+    Value *Callee = CGM.getIntrinsic(Intrinsic::wasm_atomic_wait_i32);
+    return Builder.CreateCall(Callee, {Addr, Expected, Timeout});
+  }
+  case WebAssembly::BI__builtin_wasm_atomic_wait_i64: {
+    Value *Addr = EmitScalarExpr(E->getArg(0));
+    Value *Expected = EmitScalarExpr(E->getArg(1));
+    Value *Timeout = EmitScalarExpr(E->getArg(2));
+    Value *Callee = CGM.getIntrinsic(Intrinsic::wasm_atomic_wait_i64);
+    return Builder.CreateCall(Callee, {Addr, Expected, Timeout});
+  }
+  case WebAssembly::BI__builtin_wasm_atomic_notify: {
+    Value *Addr = EmitScalarExpr(E->getArg(0));
+    Value *Count = EmitScalarExpr(E->getArg(1));
+    Value *Callee = CGM.getIntrinsic(Intrinsic::wasm_atomic_notify);
+    return Builder.CreateCall(Callee, {Addr, Count});
   }
 
   default:

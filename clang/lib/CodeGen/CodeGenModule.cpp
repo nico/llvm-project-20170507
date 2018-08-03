@@ -526,7 +526,7 @@ void CodeGenModule::Release() {
     // floating point values to 0.  (This corresponds to its "__CUDA_FTZ"
     // property.)
     getModule().addModuleFlag(llvm::Module::Override, "nvvm-reflect-ftz",
-                              LangOpts.CUDADeviceFlushDenormalsToZero ? 1 : 0);
+                              CodeGenOpts.FlushDenorm ? 1 : 0);
   }
 
   // Emit OpenCL specific module metadata: OpenCL/SPIR version.
@@ -1431,7 +1431,7 @@ void CodeGenModule::setNonAliasAttributes(GlobalDecl GD,
         F->addAttributes(llvm::AttributeList::FunctionIndex, Attrs);
       }
     }
-    
+
     if (const auto *CSA = D->getAttr<CodeSegAttr>())
       GO->setSection(CSA->getName());
     else if (const auto *SA = D->getAttr<SectionAttr>())
@@ -3176,6 +3176,10 @@ LangAS CodeGenModule::GetGlobalVarAddressSpace(const VarDecl *D) {
       return LangAS::cuda_constant;
     else if (D && D->hasAttr<CUDASharedAttr>())
       return LangAS::cuda_shared;
+    else if (D && D->hasAttr<CUDADeviceAttr>())
+      return LangAS::cuda_device;
+    else if (D && D->getType().isConstQualified())
+      return LangAS::cuda_constant;
     else
       return LangAS::cuda_device;
   }
