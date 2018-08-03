@@ -24,6 +24,7 @@ executable("SupportTests") {
     "CrashRecoveryTest.cpp",
     "DJBTest.cpp",
     "DataExtractorTest.cpp",
+    "DebugCounterTest.cpp",
     "DebugTest.cpp",
     "EndianStreamTest.cpp",
     "EndianTest.cpp",

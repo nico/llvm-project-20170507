@@ -13,6 +13,7 @@ executable("LLVMExegesisTests") {
   include_dirs = [ "../../../tools/llvm-exegesis/lib" ]
   sources = [
     "BenchmarkResultTest.cpp",
+    "BenchmarkRunnerTest.cpp",
     "ClusteringTest.cpp",
     "PerfHelperTest.cpp",
   ]

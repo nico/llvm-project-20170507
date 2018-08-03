@@ -4,10 +4,12 @@ executable("XRayTests") {
   deps = [
     "//llvm/include/llvm/IR:tablegen",
     "//llvm/lib/Support",
+    "//llvm/lib/XRay",
     "//llvm/utils/unittest/UnitTestMain",
   ]
   sources = [
     "GraphTest.cpp",
+    "ProfileTest.cpp",
   ]
   testonly = true
 }

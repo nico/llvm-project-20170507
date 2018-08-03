@@ -67,6 +67,7 @@ static_library("Driver") {
     "ToolChains/NetBSD.cpp",
     "ToolChains/OpenBSD.cpp",
     "ToolChains/PS4CPU.cpp",
+    "ToolChains/RISCV.cpp",
     "ToolChains/Solaris.cpp",
     "ToolChains/TCE.cpp",
     "ToolChains/WebAssembly.cpp",

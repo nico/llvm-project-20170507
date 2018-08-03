@@ -49,6 +49,7 @@ static_library("Core") {
     "RangeConstraintManager.cpp",
     "RangedConstraintManager.cpp",
     "RegionStore.cpp",
+    "SMTConstraintManager.cpp",
     "SValBuilder.cpp",
     "SVals.cpp",
     "SimpleConstraintManager.cpp",

@@ -290,6 +290,7 @@ action("llvm-config") {
     "LLVM_NATIVE_TARGETMC=1",
     "LLVM_USE_INTEL_JITEVENTS=",
     "LLVM_USE_OPROFILE=",
+    "LLVM_USE_PERF=",
     "LLVM_VERSION_MAJOR=$llvm_version_major",
     "LLVM_VERSION_MINOR=$llvm_version_minor",
     "LLVM_VERSION_PATCH=$llvm_version_patch",
