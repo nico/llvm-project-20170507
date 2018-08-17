@@ -125,10 +125,6 @@ std::string InputFile::getSrcMsg(const Symbol &Sym, InputSectionBase &Sec,
 
 template <class ELFT> void ObjFile<ELFT>::initializeDwarf() {
   Dwarf = llvm::make_unique<DWARFContext>(make_unique<LLDDwarfObj<ELFT>>(this));
-  const DWARFObject &Obj = Dwarf->getDWARFObj();
-  DWARFDataExtractor LineData(Obj, Obj.getLineSection(), Config->IsLE,
-                              Config->Wordsize);
-
   for (std::unique_ptr<DWARFUnit> &CU : Dwarf->compile_units()) {
     auto Report = [](Error Err) {
       handleAllErrors(std::move(Err),
@@ -442,6 +438,10 @@ void ObjFile<ELFT>::initializeSections(
       bool IsNew = ComdatGroups.insert(CachedHashStringRef(Signature)).second;
       this->Sections[I] = &InputSection::Discarded;
 
+      // We only support GRP_COMDAT type of group. Get the all entries of the
+      // section here to let getShtGroupEntries to check the type early for us.
+      ArrayRef<Elf_Word> Entries = getShtGroupEntries(Sec);
+
       // If it is a new section group, we want to keep group members.
       // Group leader sections, which contain indices of group members, are
       // discarded because they are useless beyond this point. The only
@@ -454,7 +454,7 @@ void ObjFile<ELFT>::initializeSections(
       }
 
       // Otherwise, discard group members.
-      for (uint32_t SecIndex : getShtGroupEntries(Sec)) {
+      for (uint32_t SecIndex : Entries) {
         if (SecIndex >= Size)
           fatal(toString(this) +
                 ": invalid section index in group: " + Twine(SecIndex));

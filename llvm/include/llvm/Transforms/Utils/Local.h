@@ -44,7 +44,7 @@ class AssumptionCache;
 class BasicBlock;
 class BranchInst;
 class CallInst;
-class DbgInfoIntrinsic;
+class DbgVariableIntrinsic;
 class DbgValueInst;
 class DIBuilder;
 class Function;
@@ -52,6 +52,7 @@ class Instruction;
 class LazyValueInfo;
 class LoadInst;
 class MDNode;
+class MemorySSAUpdater;
 class PHINode;
 class StoreInst;
 class TargetLibraryInfo;
@@ -141,8 +142,9 @@ bool wouldInstructionBeTriviallyDead(Instruction *I,
 /// If the specified value is a trivially dead instruction, delete it.
 /// If that makes any of its operands trivially dead, delete them too,
 /// recursively. Return true if any instructions were deleted.
-bool RecursivelyDeleteTriviallyDeadInstructions(Value *V,
-                                        const TargetLibraryInfo *TLI = nullptr);
+bool RecursivelyDeleteTriviallyDeadInstructions(
+    Value *V, const TargetLibraryInfo *TLI = nullptr,
+    MemorySSAUpdater *MSSAU = nullptr);
 
 /// Delete all of the instructions in `DeadInsts`, and all other instructions
 /// that deleting these in turn causes to be trivially dead.
@@ -154,7 +156,7 @@ bool RecursivelyDeleteTriviallyDeadInstructions(Value *V,
 /// empty afterward.
 void RecursivelyDeleteTriviallyDeadInstructions(
     SmallVectorImpl<Instruction *> &DeadInsts,
-    const TargetLibraryInfo *TLI = nullptr);
+    const TargetLibraryInfo *TLI = nullptr, MemorySSAUpdater *MSSAU = nullptr);
 
 /// If the specified value is an effectively dead PHI node, due to being a
 /// def-use chain of single-use nodes that either forms a cycle or is terminated
@@ -270,17 +272,17 @@ inline unsigned getKnownAlignment(Value *V, const DataLayout &DL,
 
 /// Inserts a llvm.dbg.value intrinsic before a store to an alloca'd value
 /// that has an associated llvm.dbg.declare or llvm.dbg.addr intrinsic.
-void ConvertDebugDeclareToDebugValue(DbgInfoIntrinsic *DII,
+void ConvertDebugDeclareToDebugValue(DbgVariableIntrinsic *DII,
                                      StoreInst *SI, DIBuilder &Builder);
 
 /// Inserts a llvm.dbg.value intrinsic before a load of an alloca'd value
 /// that has an associated llvm.dbg.declare or llvm.dbg.addr intrinsic.
-void ConvertDebugDeclareToDebugValue(DbgInfoIntrinsic *DII,
+void ConvertDebugDeclareToDebugValue(DbgVariableIntrinsic *DII,
                                      LoadInst *LI, DIBuilder &Builder);
 
 /// Inserts a llvm.dbg.value intrinsic after a phi that has an associated
 /// llvm.dbg.declare or llvm.dbg.addr intrinsic.
-void ConvertDebugDeclareToDebugValue(DbgInfoIntrinsic *DII,
+void ConvertDebugDeclareToDebugValue(DbgVariableIntrinsic *DII,
                                      PHINode *LI, DIBuilder &Builder);
 
 /// Lowers llvm.dbg.declare intrinsics into appropriate set of
@@ -294,13 +296,13 @@ void insertDebugValuesForPHIs(BasicBlock *BB,
 /// Finds all intrinsics declaring local variables as living in the memory that
 /// 'V' points to. This may include a mix of dbg.declare and
 /// dbg.addr intrinsics.
-TinyPtrVector<DbgInfoIntrinsic *> FindDbgAddrUses(Value *V);
+TinyPtrVector<DbgVariableIntrinsic *> FindDbgAddrUses(Value *V);
 
 /// Finds the llvm.dbg.value intrinsics describing a value.
 void findDbgValues(SmallVectorImpl<DbgValueInst *> &DbgValues, Value *V);
 
 /// Finds the debug info intrinsics describing a value.
-void findDbgUsers(SmallVectorImpl<DbgInfoIntrinsic *> &DbgInsts, Value *V);
+void findDbgUsers(SmallVectorImpl<DbgVariableIntrinsic *> &DbgInsts, Value *V);
 
 /// Replaces llvm.dbg.declare instruction when the address it
 /// describes is replaced with a new value. If Deref is true, an
@@ -380,18 +382,27 @@ void removeUnwindEdge(BasicBlock *BB, DomTreeUpdater *DTU = nullptr);
 ///
 /// Returns true if any basic block was removed.
 bool removeUnreachableBlocks(Function &F, LazyValueInfo *LVI = nullptr,
-                             DomTreeUpdater *DTU = nullptr);
+                             DomTreeUpdater *DTU = nullptr,
+                             MemorySSAUpdater *MSSAU = nullptr);
 
-/// Combine the metadata of two instructions so that K can replace J
+/// Combine the metadata of two instructions so that K can replace J. Some
+/// metadata kinds can only be kept if K does not move, meaning it dominated
+/// J in the original IR.
 ///
 /// Metadata not listed as known via KnownIDs is removed
-void combineMetadata(Instruction *K, const Instruction *J, ArrayRef<unsigned> KnownIDs);
+void combineMetadata(Instruction *K, const Instruction *J,
+                     ArrayRef<unsigned> KnownIDs, bool DoesKMove = true);
 
 /// Combine the metadata of two instructions so that K can replace J. This
 /// specifically handles the case of CSE-like transformations.
 ///
 /// Unknown metadata is removed.
 void combineMetadataForCSE(Instruction *K, const Instruction *J);
+
+/// Patch the replacement so that it is not more restrictive than the value
+/// being replaced. It assumes that the replacement does not get moved from
+/// its original position.
+void patchReplacementInstruction(Instruction *I, Value *Repl);
 
 // Replace each use of 'From' with 'To', if that use does not belong to basic
 // block where 'From' is defined. Returns the number of replacements made.

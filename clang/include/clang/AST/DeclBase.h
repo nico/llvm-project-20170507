@@ -406,11 +406,19 @@ public:
     return SourceRange(getLocation(), getLocation());
   }
 
-  SourceLocation getLocStart() const LLVM_READONLY {
+  LLVM_ATTRIBUTE_DEPRECATED(SourceLocation getLocStart() const LLVM_READONLY,
+                            "Use getBeginLoc instead") {
+    return getBeginLoc();
+  }
+  SourceLocation getBeginLoc() const LLVM_READONLY {
     return getSourceRange().getBegin();
   }
 
-  SourceLocation getLocEnd() const LLVM_READONLY {
+  LLVM_ATTRIBUTE_DEPRECATED(SourceLocation getLocEnd() const LLVM_READONLY,
+                            "Use getEndLoc instead") {
+    return getEndLoc();
+  }
+  SourceLocation getEndLoc() const LLVM_READONLY {
     return getSourceRange().getEnd();
   }
 
@@ -1554,8 +1562,6 @@ class DeclContext {
   /// methods in ObjCMethodDecl should be updated appropriately.
   class ObjCMethodDeclBitfields {
     friend class ObjCMethodDecl;
-    /// For the bits in DeclContextBitfields.
-    uint64_t : NumDeclContextBits;
 
     /// This is needed for the bitwidth of Family below but
     /// is defined in Basic/IdentifierTable.h which we do not include.
@@ -1563,6 +1569,9 @@ class DeclContext {
     /// a static_assert in the ctor of ObjCMethodDecl which checks
     /// that these two ObjCMethodFamilyBitWidth are equal.
     enum { ObjCMethodFamilyBitWidth = 4 };
+
+    /// For the bits in DeclContextBitfields.
+    uint64_t : NumDeclContextBits;
 
     /// The conventional meaning of this method; an ObjCMethodFamily.
     /// This is not serialized; instead, it is computed on demand and

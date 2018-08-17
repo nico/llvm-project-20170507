@@ -461,7 +461,7 @@ CodeGenFunction::emitBuiltinObjectSize(const Expr *E, unsigned Type,
       assert(DIter != LocalDeclMap.end());
 
       return EmitLoadOfScalar(DIter->second, /*volatile=*/false,
-                              getContext().getSizeType(), E->getLocStart());
+                              getContext().getSizeType(), E->getBeginLoc());
     }
   }
 
@@ -1537,6 +1537,26 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     return RValue::get(ComplexVal.second);
   }
 
+  case Builtin::BI__builtin_clrsb:
+  case Builtin::BI__builtin_clrsbl:
+  case Builtin::BI__builtin_clrsbll: {
+    // clrsb(x) -> clz(x < 0 ? ~x : x) - 1 or
+    Value *ArgValue = EmitScalarExpr(E->getArg(0));
+
+    llvm::Type *ArgType = ArgValue->getType();
+    Value *F = CGM.getIntrinsic(Intrinsic::ctlz, ArgType);
+
+    llvm::Type *ResultType = ConvertType(E->getType());
+    Value *Zero = llvm::Constant::getNullValue(ArgType);
+    Value *IsNeg = Builder.CreateICmpSLT(ArgValue, Zero, "isneg");
+    Value *Inverse = Builder.CreateNot(ArgValue, "not");
+    Value *Tmp = Builder.CreateSelect(IsNeg, Inverse, ArgValue);
+    Value *Ctlz = Builder.CreateCall(F, {Tmp, Builder.getFalse()});
+    Value *Result = Builder.CreateSub(Ctlz, llvm::ConstantInt::get(ArgType, 1));
+    Result = Builder.CreateIntCast(Result, ResultType, /*isSigned*/true,
+                                   "cast");
+    return RValue::get(Result);
+  }
   case Builtin::BI__builtin_ctzs:
   case Builtin::BI__builtin_ctz:
   case Builtin::BI__builtin_ctzl:
@@ -3337,24 +3357,31 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
 
     // Create a temporary array to hold the sizes of local pointer arguments
     // for the block. \p First is the position of the first size argument.
-    auto CreateArrayForSizeVar = [=](unsigned First) {
-      auto *AT = llvm::ArrayType::get(SizeTy, NumArgs - First);
-      auto *Arr = Builder.CreateAlloca(AT);
-      llvm::Value *Ptr;
+    auto CreateArrayForSizeVar = [=](unsigned First)
+        -> std::tuple<llvm::Value *, llvm::Value *, llvm::Value *> {
+      llvm::APInt ArraySize(32, NumArgs - First);
+      QualType SizeArrayTy = getContext().getConstantArrayType(
+          getContext().getSizeType(), ArraySize, ArrayType::Normal,
+          /*IndexTypeQuals=*/0);
+      auto Tmp = CreateMemTemp(SizeArrayTy, "block_sizes");
+      llvm::Value *TmpPtr = Tmp.getPointer();
+      llvm::Value *TmpSize = EmitLifetimeStart(
+          CGM.getDataLayout().getTypeAllocSize(Tmp.getElementType()), TmpPtr);
+      llvm::Value *ElemPtr;
       // Each of the following arguments specifies the size of the corresponding
       // argument passed to the enqueued block.
       auto *Zero = llvm::ConstantInt::get(IntTy, 0);
       for (unsigned I = First; I < NumArgs; ++I) {
         auto *Index = llvm::ConstantInt::get(IntTy, I - First);
-        auto *GEP = Builder.CreateGEP(Arr, {Zero, Index});
+        auto *GEP = Builder.CreateGEP(TmpPtr, {Zero, Index});
         if (I == First)
-          Ptr = GEP;
+          ElemPtr = GEP;
         auto *V =
             Builder.CreateZExtOrTrunc(EmitScalarExpr(E->getArg(I)), SizeTy);
         Builder.CreateAlignedStore(
             V, GEP, CGM.getDataLayout().getPrefTypeAlignment(SizeTy));
       }
-      return Ptr;
+      return std::tie(ElemPtr, TmpSize, TmpPtr);
     };
 
     // Could have events and/or varargs.
@@ -3366,24 +3393,27 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
       llvm::Value *Kernel =
           Builder.CreatePointerCast(Info.Kernel, GenericVoidPtrTy);
       auto *Block = Builder.CreatePointerCast(Info.BlockArg, GenericVoidPtrTy);
-      auto *PtrToSizeArray = CreateArrayForSizeVar(4);
+      llvm::Value *ElemPtr, *TmpSize, *TmpPtr;
+      std::tie(ElemPtr, TmpSize, TmpPtr) = CreateArrayForSizeVar(4);
 
       // Create a vector of the arguments, as well as a constant value to
       // express to the runtime the number of variadic arguments.
       std::vector<llvm::Value *> Args = {
           Queue,  Flags, Range,
           Kernel, Block, ConstantInt::get(IntTy, NumArgs - 4),
-          PtrToSizeArray};
+          ElemPtr};
       std::vector<llvm::Type *> ArgTys = {
-          QueueTy,          IntTy,            RangeTy,
-          GenericVoidPtrTy, GenericVoidPtrTy, IntTy,
-          PtrToSizeArray->getType()};
+          QueueTy,          IntTy, RangeTy,           GenericVoidPtrTy,
+          GenericVoidPtrTy, IntTy, ElemPtr->getType()};
 
       llvm::FunctionType *FTy = llvm::FunctionType::get(
           Int32Ty, llvm::ArrayRef<llvm::Type *>(ArgTys), false);
-      return RValue::get(
-          Builder.CreateCall(CGM.CreateRuntimeFunction(FTy, Name),
-                             llvm::ArrayRef<llvm::Value *>(Args)));
+      auto Call =
+          RValue::get(Builder.CreateCall(CGM.CreateRuntimeFunction(FTy, Name),
+                                         llvm::ArrayRef<llvm::Value *>(Args)));
+      if (TmpSize)
+        EmitLifetimeEnd(TmpSize, TmpPtr);
+      return Call;
     }
     // Any calls now have event arguments passed.
     if (NumArgs >= 7) {
@@ -3430,15 +3460,19 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
       ArgTys.push_back(Int32Ty);
       Name = "__enqueue_kernel_events_varargs";
 
-      auto *PtrToSizeArray = CreateArrayForSizeVar(7);
-      Args.push_back(PtrToSizeArray);
-      ArgTys.push_back(PtrToSizeArray->getType());
+      llvm::Value *ElemPtr, *TmpSize, *TmpPtr;
+      std::tie(ElemPtr, TmpSize, TmpPtr) = CreateArrayForSizeVar(7);
+      Args.push_back(ElemPtr);
+      ArgTys.push_back(ElemPtr->getType());
 
       llvm::FunctionType *FTy = llvm::FunctionType::get(
           Int32Ty, llvm::ArrayRef<llvm::Type *>(ArgTys), false);
-      return RValue::get(
-          Builder.CreateCall(CGM.CreateRuntimeFunction(FTy, Name),
-                             llvm::ArrayRef<llvm::Value *>(Args)));
+      auto Call =
+          RValue::get(Builder.CreateCall(CGM.CreateRuntimeFunction(FTy, Name),
+                                         llvm::ArrayRef<llvm::Value *>(Args)));
+      if (TmpSize)
+        EmitLifetimeEnd(TmpSize, TmpPtr);
+      return Call;
     }
     LLVM_FALLTHROUGH;
   }
@@ -8873,6 +8907,33 @@ static Value *EmitX86SExtMask(CodeGenFunction &CGF, Value *Op,
   return CGF.Builder.CreateSExt(Mask, DstTy, "vpmovm2");
 }
 
+// Emit addition or subtraction with saturation.
+// Handles both signed and unsigned intrinsics.
+static Value *EmitX86AddSubSatExpr(CodeGenFunction &CGF, const CallExpr *E,
+                                   SmallVectorImpl<Value *> &Ops,
+                                   bool IsAddition) {
+
+  // Collect vector elements and type data.
+  llvm::Type *ResultType = CGF.ConvertType(E->getType());
+
+  Value *Res;
+  if (IsAddition) {
+    // ADDUS: a > (a+b) ? ~0 : (a+b)
+    // If Ops[0] > Add, overflow occured.
+    Value *Add = CGF.Builder.CreateAdd(Ops[0], Ops[1]);
+    Value *ICmp = CGF.Builder.CreateICmp(ICmpInst::ICMP_UGT, Ops[0], Add);
+    Value *Max = llvm::Constant::getAllOnesValue(ResultType);
+    Res = CGF.Builder.CreateSelect(ICmp, Max, Add);
+  } else {
+    // SUBUS: max(a, b) - b
+    Value *ICmp = CGF.Builder.CreateICmp(ICmpInst::ICMP_UGT, Ops[0], Ops[1]);
+    Value *Select = CGF.Builder.CreateSelect(ICmp, Ops[0], Ops[1]);
+    Res = CGF.Builder.CreateSub(Select, Ops[1]);
+  }
+
+  return Res;
+}
+
 Value *CodeGenFunction::EmitX86CpuIs(const CallExpr *E) {
   const Expr *CPUExpr = E->getArg(0)->IgnoreParenCasts();
   StringRef CPUStr = cast<clang::StringLiteral>(CPUExpr)->getString();
@@ -10496,9 +10557,22 @@ Value *CodeGenFunction::EmitX86BuiltinExpr(unsigned BuiltinID,
     Load->setVolatile(true);
     return Load;
   }
+  case X86::BI__builtin_ia32_paddusb512:
+  case X86::BI__builtin_ia32_paddusw512:
+  case X86::BI__builtin_ia32_paddusb256:
+  case X86::BI__builtin_ia32_paddusw256:
+  case X86::BI__builtin_ia32_paddusb128:
+  case X86::BI__builtin_ia32_paddusw128:
+    return EmitX86AddSubSatExpr(*this, E, Ops, true /* IsAddition */);
+  case X86::BI__builtin_ia32_psubusb512:
+  case X86::BI__builtin_ia32_psubusw512:
+  case X86::BI__builtin_ia32_psubusb256:
+  case X86::BI__builtin_ia32_psubusw256:
+  case X86::BI__builtin_ia32_psubusb128:
+  case X86::BI__builtin_ia32_psubusw128:
+    return EmitX86AddSubSatExpr(*this, E, Ops, false /* IsAddition */);
   }
 }
-
 
 Value *CodeGenFunction::EmitPPCBuiltinExpr(unsigned BuiltinID,
                                            const CallExpr *E) {
