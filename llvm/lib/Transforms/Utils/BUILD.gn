@@ -26,6 +26,7 @@ static_library("Utils") {
     "FunctionComparator.cpp",
     "FunctionImportUtils.cpp",
     "GlobalStatus.cpp",
+    "ImplicitControlFlowTracking.cpp",
     "ImportedFunctionsInliningStatistics.cpp",
     "InlineFunction.cpp",
     "InstructionNamer.cpp",

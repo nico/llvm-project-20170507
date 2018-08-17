@@ -52,6 +52,7 @@ static_library("Basic") {
     "DiagnosticOptions.cpp",
     "FileManager.cpp",
     "FileSystemStatCache.cpp",
+    "FixedPoint.cpp",
     "IdentifierTable.cpp",
     "LangOptions.cpp",
     "MemoryBufferCache.cpp",

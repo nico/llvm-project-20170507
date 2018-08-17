@@ -6,6 +6,7 @@ executable("DemangleTests") {
     "//llvm/utils/unittest/UnitTestMain",
   ]
   sources = [
+    "FindTypesInMangledNameTest.cpp",
     "PartialDemangleTest.cpp",
   ]
   testonly = true

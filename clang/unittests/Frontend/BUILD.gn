@@ -18,6 +18,7 @@ executable("FrontendTests") {
     "ASTUnitTest.cpp",
     "CodeGenActionTest.cpp",
     "CompilerInstanceTest.cpp",
+    "FixedPointString.cpp",
     "FrontendActionTest.cpp",
     "OutputStreamTest.cpp",
     "PCHPreambleTest.cpp",

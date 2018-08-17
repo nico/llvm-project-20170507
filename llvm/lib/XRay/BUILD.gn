@@ -6,7 +6,6 @@ static_library("XRay") {
   ]
   sources = [
     "InstrumentationMap.cpp",
-    "Profile.cpp",
     "Trace.cpp",
   ]
 }

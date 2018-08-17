@@ -9,7 +9,6 @@ executable("XRayTests") {
   ]
   sources = [
     "GraphTest.cpp",
-    "ProfileTest.cpp",
   ]
   testonly = true
 }

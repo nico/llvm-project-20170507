@@ -23,7 +23,7 @@ static_library("AsmPrinter") {
     "CodeViewDebug.cpp",
     "DIE.cpp",
     "DIEHash.cpp",
-    "DbgValueHistoryCalculator.cpp",
+    "DbgEntityHistoryCalculator.cpp",
     "DebugHandlerBase.cpp",
     "DebugLocStream.cpp",
     "DwarfCFIException.cpp",
