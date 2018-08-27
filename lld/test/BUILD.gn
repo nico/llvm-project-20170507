@@ -1,5 +1,6 @@
 import("//gn/libs/xml/enable.gni")
 import("//llvm/include/llvm/Config/config.gni")
+import("//llvm/lib/DebugInfo/PDB/enable_dia.gni")
 
 template("write_lit_config") {
   action(target_name) {
@@ -29,7 +30,6 @@ template("write_lit_config") {
       "@LLVM_BINARY_DIR@=" +
           rebase_path(get_label_info("//llvm", "target_out_dir")),
       "@LLVM_BUILD_MODE@=.",
-      "@LLVM_ENABLE_DIA_SDK@=0",  # FIXME: get from gni file
       "@LLVM_LIBRARY_OUTPUT_INTDIR@=",  # FIXME: for shared builds only (?)
       "@LLVM_LIBS_DIR@=",  # needed only for shared builds
       "@LLVM_LIT_TOOLS_DIR@=",  # Intentionally empty, matches cmake build.
@@ -42,6 +42,12 @@ template("write_lit_config") {
     outputs = [
       output,
     ]
+
+    if (llvm_enable_dia_sdk) {
+      args += [ "@LLVM_ENABLE_DIA_SDK@=1" ]
+    } else {
+      args += [ "@LLVM_ENABLE_DIA_SDK@=0" ]  # Must be 0.
+    }
 
     if (llvm_enable_libxml2) {
       args += [ "@LLVM_LIBXML2_ENABLED@=1" ]
