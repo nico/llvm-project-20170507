@@ -14137,7 +14137,7 @@ SDValue PPCTargetLowering::combineSHL(SDNode *N, DAGCombinerInfo &DCI) const {
   if (!Subtarget.isISA3_0() ||
       N0.getOpcode() != ISD::SIGN_EXTEND ||
       N0.getOperand(0).getValueType() != MVT::i32 ||
-      CN1 == nullptr)
+      CN1 == nullptr || N->getValueType(0) != MVT::i64)
     return SDValue();
 
   // We can't save an operation here if the value is already extended, and

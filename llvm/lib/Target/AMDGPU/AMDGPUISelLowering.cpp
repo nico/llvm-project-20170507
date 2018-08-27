@@ -4003,13 +4003,12 @@ SDValue AMDGPUTargetLowering::loadStackInputValue(SelectionDAG &DAG,
 SDValue AMDGPUTargetLowering::storeStackInputValue(SelectionDAG &DAG,
                                                    const SDLoc &SL,
                                                    SDValue Chain,
-                                                   SDValue StackPtr,
                                                    SDValue ArgVal,
                                                    int64_t Offset) const {
   MachineFunction &MF = DAG.getMachineFunction();
   MachinePointerInfo DstInfo = MachinePointerInfo::getStack(MF, Offset);
 
-  SDValue Ptr = DAG.getObjectPtrOffset(SL, StackPtr, Offset);
+  SDValue Ptr = DAG.getConstant(Offset, SL, MVT::i32);
   SDValue Store = DAG.getStore(Chain, SL, ArgVal, Ptr, DstInfo, 4,
                                MachineMemOperand::MODereferenceable);
   return Store;
@@ -4171,6 +4170,7 @@ const char* AMDGPUTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(BUFFER_LOAD)
   NODE_NAME_CASE(BUFFER_LOAD_FORMAT)
   NODE_NAME_CASE(BUFFER_LOAD_FORMAT_D16)
+  NODE_NAME_CASE(SBUFFER_LOAD)
   NODE_NAME_CASE(BUFFER_STORE)
   NODE_NAME_CASE(BUFFER_STORE_FORMAT)
   NODE_NAME_CASE(BUFFER_STORE_FORMAT_D16)

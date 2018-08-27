@@ -355,7 +355,7 @@ bool IRTranslator::translateBr(const User &U, MachineIRBuilder &MIRBuilder) {
     MIRBuilder.buildBr(TgtBB);
 
   // Link successors.
-  for (const BasicBlock *Succ : BrInst.successors())
+  for (const BasicBlock *Succ : successors(&BrInst))
     CurBB.addSuccessor(&getMBB(*Succ));
   return true;
 }
@@ -415,7 +415,7 @@ bool IRTranslator::translateIndirectBr(const User &U,
 
   // Link successors.
   MachineBasicBlock &CurBB = MIRBuilder.getMBB();
-  for (const BasicBlock *Succ : BrInst.successors())
+  for (const BasicBlock *Succ : successors(&BrInst))
     CurBB.addSuccessor(&getMBB(*Succ));
 
   return true;
@@ -858,6 +858,16 @@ bool IRTranslator::translateKnownIntrinsic(const CallInst &CI, Intrinsic::ID ID,
     return true;
   case Intrinsic::fabs:
     MIRBuilder.buildInstr(TargetOpcode::G_FABS)
+        .addDef(getOrCreateVReg(CI))
+        .addUse(getOrCreateVReg(*CI.getArgOperand(0)));
+    return true;
+  case Intrinsic::trunc:
+    MIRBuilder.buildInstr(TargetOpcode::G_INTRINSIC_TRUNC)
+        .addDef(getOrCreateVReg(CI))
+        .addUse(getOrCreateVReg(*CI.getArgOperand(0)));
+    return true;
+  case Intrinsic::round:
+    MIRBuilder.buildInstr(TargetOpcode::G_INTRINSIC_ROUND)
         .addDef(getOrCreateVReg(CI))
         .addUse(getOrCreateVReg(*CI.getArgOperand(0)));
     return true;

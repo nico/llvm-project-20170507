@@ -545,6 +545,12 @@ public:
     return false;
   }
 
+  /// Return true if inserting a scalar into a variable element of an undef
+  /// vector is more efficiently handled by splatting the scalar instead.
+  virtual bool shouldSplatInsEltVarIndex(EVT) const {
+    return false;
+  }
+
   /// Return true if target supports floating point exceptions.
   bool hasFloatingPointExceptions() const {
     return HasFloatingPointExceptions;
@@ -798,6 +804,7 @@ public:
       case ISD::STRICT_FSUB: EqOpc = ISD::FSUB; break;
       case ISD::STRICT_FMUL: EqOpc = ISD::FMUL; break;
       case ISD::STRICT_FDIV: EqOpc = ISD::FDIV; break;
+      case ISD::STRICT_FREM: EqOpc = ISD::FREM; break;
       case ISD::STRICT_FSQRT: EqOpc = ISD::FSQRT; break;
       case ISD::STRICT_FPOW: EqOpc = ISD::FPOW; break;
       case ISD::STRICT_FPOWI: EqOpc = ISD::FPOWI; break;

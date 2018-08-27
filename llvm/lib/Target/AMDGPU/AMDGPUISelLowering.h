@@ -287,7 +287,6 @@ public:
   SDValue storeStackInputValue(SelectionDAG &DAG,
                                const SDLoc &SL,
                                SDValue Chain,
-                               SDValue StackPtr,
                                SDValue ArgVal,
                                int64_t Offset) const;
 
@@ -487,6 +486,7 @@ enum NodeType : unsigned {
   BUFFER_LOAD,
   BUFFER_LOAD_FORMAT,
   BUFFER_LOAD_FORMAT_D16,
+  SBUFFER_LOAD,
   BUFFER_STORE,
   BUFFER_STORE_FORMAT,
   BUFFER_STORE_FORMAT_D16,

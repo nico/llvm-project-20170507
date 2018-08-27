@@ -639,8 +639,10 @@ def fapple_kext : Flag<["-"], "fapple-kext">, Group<f_Group>, Flags<[CC1Option]>
   HelpText<"Use Apple's kernel extensions ABI">;
 def fapple_pragma_pack : Flag<["-"], "fapple-pragma-pack">, Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Enable Apple gcc-compatible #pragma pack handling">;
-def shared_libsan : Flag<["-"], "shared-libsan">;
-def static_libsan : Flag<["-"], "static-libsan">;
+def shared_libsan : Flag<["-"], "shared-libsan">,
+  HelpText<"Dynamically link the sanitizer runtime">;
+def static_libsan : Flag<["-"], "static-libsan">,
+  HelpText<"Statically link the sanitizer runtime">;
 def : Flag<["-"], "shared-libasan">, Alias<shared_libsan>;
 def fasm : Flag<["-"], "fasm">, Group<f_Group>;
 
@@ -893,11 +895,19 @@ def fforce_enable_int128 : Flag<["-"], "fforce-enable-int128">,
 def fno_force_enable_int128 : Flag<["-"], "fno-force-enable-int128">,
   Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Disable support for int128_t type">;
-
+def fkeep_static_consts : Flag<["-"], "fkeep-static-consts">, Group<f_Group>, Flags<[CC1Option]>,
+  HelpText<"Keep static const variables even if unused">;
 def ffixed_point : Flag<["-"], "ffixed-point">, Group<f_Group>,
                    Flags<[CC1Option]>, HelpText<"Enable fixed point types">;
 def fno_fixed_point : Flag<["-"], "fno-fixed-point">, Group<f_Group>,
                       HelpText<"Disable fixed point types">;
+def fcxx_static_destructors : Flag<["-"], "fc++-static-destructors">,
+  Group<f_Group>,
+  HelpText<"Enable C++ static destructor registration (the default)">;
+def fno_cxx_static_destructors : Flag<["-"], "fno-c++-static-destructors">,
+  Group<f_Group>,
+  Flags<[CC1Option]>,
+  HelpText<"Disable C++ static destructor registration">;
 
 // Begin sanitizer flags. These should all be core options exposed in all driver
 // modes.
@@ -1807,6 +1817,8 @@ def gno_column_info : Flag<["-"], "gno-column-info">, Group<g_flags_Group>, Flag
 def gsplit_dwarf : Flag<["-"], "gsplit-dwarf">, Group<g_flags_Group>;
 def ggnu_pubnames : Flag<["-"], "ggnu-pubnames">, Group<g_flags_Group>, Flags<[CC1Option]>;
 def gno_gnu_pubnames : Flag<["-"], "gno-gnu-pubnames">, Group<g_flags_Group>, Flags<[CC1Option]>;
+def gpubnames : Flag<["-"], "gpubnames">, Group<g_flags_Group>, Flags<[CC1Option]>;
+def gno_pubnames : Flag<["-"], "gno-pubnames">, Group<g_flags_Group>, Flags<[CC1Option]>;
 def gdwarf_aranges : Flag<["-"], "gdwarf-aranges">, Group<g_flags_Group>;
 def gmodules : Flag <["-"], "gmodules">, Group<gN_Group>,
   HelpText<"Generate debug info with external references to clang modules"
@@ -1988,6 +2000,9 @@ def mno_relax_all : Flag<["-"], "mno-relax-all">, Group<m_Group>;
 def mno_rtd: Flag<["-"], "mno-rtd">, Group<m_Group>;
 def mno_soft_float : Flag<["-"], "mno-soft-float">, Group<m_Group>;
 def mno_stackrealign : Flag<["-"], "mno-stackrealign">, Group<m_Group>;
+
+def mretpoline : Flag<["-"], "mretpoline">, Group<m_Group>, Flags<[CoreOption,DriverOption]>;
+def mno_retpoline : Flag<["-"], "mno-retpoline">, Group<m_Group>, Flags<[CoreOption,DriverOption]>;
 
 def mrelax : Flag<["-"], "mrelax">, Group<m_riscv_Features_Group>,
   HelpText<"Enable linker relaxation">;
@@ -2814,8 +2829,6 @@ def mxsaves : Flag<["-"], "mxsaves">, Group<m_x86_Features_Group>;
 def mno_xsaves : Flag<["-"], "mno-xsaves">, Group<m_x86_Features_Group>;
 def mshstk : Flag<["-"], "mshstk">, Group<m_x86_Features_Group>;
 def mno_shstk : Flag<["-"], "mno-shstk">, Group<m_x86_Features_Group>;
-def mretpoline : Flag<["-"], "mretpoline">, Group<m_x86_Features_Group>;
-def mno_retpoline : Flag<["-"], "mno-retpoline">, Group<m_x86_Features_Group>;
 def mretpoline_external_thunk : Flag<["-"], "mretpoline-external-thunk">, Group<m_x86_Features_Group>;
 def mno_retpoline_external_thunk : Flag<["-"], "mno-retpoline-external-thunk">, Group<m_x86_Features_Group>;
 
