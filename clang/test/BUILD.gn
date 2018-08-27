@@ -48,6 +48,7 @@ template("write_lit_config") {
       "@PYTHON_EXECUTABLE@=$python_path",
       "@SHLIBDIR@=",  # FIXME!
       "@TARGET_TRIPLE@=$llvm_target_triple",
+      "@USE_Z3_SOLVER@=",
     ]
     if (clang_enable_arcmt) {
       args += [ "@CLANG_ENABLE_ARCMT@=1" ]
