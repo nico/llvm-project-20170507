@@ -13,6 +13,7 @@ executable("GlobalISelTests") {
     "//llvm/utils/unittest:gtest",  # GlobalISelTests has its own main().
   ]
   sources = [
+    "LegalizerHelperTest.cpp",
     "LegalizerInfoTest.cpp",
     "PatternMatchTest.cpp",
   ]

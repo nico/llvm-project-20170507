@@ -8,5 +8,6 @@ static_library("Demangle") {
   sources = [
     "ItaniumDemangle.cpp",
     "MicrosoftDemangle.cpp",
+    "MicrosoftDemangleNodes.cpp",
   ]
 }

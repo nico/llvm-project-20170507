@@ -8,6 +8,8 @@ executable("BinaryFormatTests") {
   sources = [
     "DwarfTest.cpp",
     "MachOTest.cpp",
+    "MsgPackReaderTest.cpp",
+    "MsgPackWriterTest.cpp",
     "TestFileMagic.cpp",
   ]
   testonly = true

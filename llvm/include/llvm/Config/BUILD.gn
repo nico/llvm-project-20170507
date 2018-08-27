@@ -50,6 +50,7 @@ action("config") {
     "HAVE_DECL_FE_ALL_EXCEPT=1",
     "HAVE_DECL_FE_INEXACT=1",
     "LLVM_ENABLE_DIA_SDK=",
+    "LLVM_ENABLE_CRASH_DUMPS=0",
     "HAVE_ERRNO_H=1",
     "HAVE_FCNTL_H=1",
     "HAVE_FENV_H=1",

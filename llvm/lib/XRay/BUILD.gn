@@ -5,6 +5,7 @@ static_library("XRay") {
     "//llvm/lib/Support",
   ]
   sources = [
+    "FileHeaderReader.cpp",
     "InstrumentationMap.cpp",
     "Trace.cpp",
   ]
