@@ -12,6 +12,12 @@ template("write_lit_config") {
     sources = [
       input,
     ]
+
+    targets_to_build = ""
+    foreach(target, llvm_targets_to_build) {
+      targets_to_build = "$targets_to_build $target"
+    }
+
     args = [
       rebase_path(input, root_out_dir),
       "-o",
@@ -47,7 +53,7 @@ template("write_lit_config") {
       "@LLVM_INCLUDE_GO_TESTS@=0",
       "@GO_EXECUTABLE@=",
       "@ENABLE_SHARED@=0",  # Must be 0.
-      "@TARGETS_TO_BUILD@=X86",  # FIXME!!
+      "@TARGETS_TO_BUILD@=$targets_to_build",
       "@LLVM_NATIVE_ARCH@=$native_target",
       "@LLVM_BINDINGS@=",
       "@HOST_CC@=cc",  # FIXME: better
