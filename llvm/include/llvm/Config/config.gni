@@ -5,7 +5,7 @@
 # https://is.gd/buildflag_header_gni instead.
 
 declare_args() {
-  # Wether to link against terminfo.
+  # Whether to link against terminfo.
   llvm_enable_terminfo = false
 }
 

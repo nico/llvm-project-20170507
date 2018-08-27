@@ -1,4 +1,4 @@
 declare_args() {
-  # Wether to include code that links against libxml2.
+  # Whether to include code that links against libxml2.
   llvm_enable_libxml2 = host_os != "win"
 }
