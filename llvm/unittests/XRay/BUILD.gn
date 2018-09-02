@@ -8,7 +8,10 @@ executable("XRayTests") {
     "//llvm/utils/unittest/UnitTestMain",
   ]
   sources = [
+    "FDRProducerConsumerTest.cpp",
+    "FDRTraceWriterTest.cpp",
     "GraphTest.cpp",
+    "ProfileTest.cpp",
   ]
   testonly = true
 }

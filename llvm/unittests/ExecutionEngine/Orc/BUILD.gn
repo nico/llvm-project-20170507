@@ -23,6 +23,7 @@ executable("OrcJITTests") {
     "OrcTestCommon.cpp",
     "QueueChannel.cpp",
     "RPCUtilsTest.cpp",
+    "RTDyldObjectLinkingLayer2Test.cpp",
     "RTDyldObjectLinkingLayerTest.cpp",
     "RemoteObjectLayerTest.cpp",
     "SymbolStringPoolTest.cpp",

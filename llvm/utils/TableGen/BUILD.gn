@@ -47,6 +47,7 @@ executable("llvm-tblgen") {
     "TableGen.cpp",
     "Types.cpp",
     "WebAssemblyDisassemblerEmitter.cpp",
+    "WebAssemblyStackifierEmitter.cpp",
     "X86DisassemblerTables.cpp",
     "X86EVEX2VEXTablesEmitter.cpp",
     "X86FoldTablesEmitter.cpp",

@@ -17,7 +17,6 @@ executable("UtilsTests") {
     "FunctionComparator.cpp",
     "IntegerDivision.cpp",
     "Local.cpp",
-    "OrderedInstructions.cpp",
     "SSAUpdaterBulk.cpp",
     "ValueMapperTest.cpp",
   ]
