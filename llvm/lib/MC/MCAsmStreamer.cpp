@@ -1303,7 +1303,7 @@ void MCAsmStreamer::EmitCVLocDirective(unsigned FunctionId, unsigned FileNo,
   if (PrologueEnd)
     OS << " prologue_end";
 
-  bool OldIsStmt = getContext().getCVContext().getCurrentCVLoc().isStmt();
+  unsigned OldIsStmt = getContext().getCVContext().getCurrentCVLoc().isStmt();
   if (IsStmt != OldIsStmt) {
     OS << " is_stmt ";
 
