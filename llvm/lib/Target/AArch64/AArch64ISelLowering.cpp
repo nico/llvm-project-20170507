@@ -3928,9 +3928,6 @@ SDValue AArch64TargetLowering::LowerGlobalAddress(SDValue Op,
                                                   SelectionDAG &DAG) const {
   GlobalAddressSDNode *GN = cast<GlobalAddressSDNode>(Op);
   const GlobalValue *GV = GN->getGlobal();
-  const AArch64II::TOF TargetFlags =
-      (GV->hasDLLImportStorageClass() ? AArch64II::MO_DLLIMPORT
-                                      : AArch64II::MO_NO_FLAG);
   unsigned char OpFlags =
       Subtarget->ClassifyGlobalReference(GV, getTargetMachine());
 
@@ -3941,20 +3938,20 @@ SDValue AArch64TargetLowering::LowerGlobalAddress(SDValue Op,
   // This also catches the large code model case for Darwin, and tiny code
   // model with got relocations.
   if ((OpFlags & AArch64II::MO_GOT) != 0) {
-    return getGOT(GN, DAG, TargetFlags);
+    return getGOT(GN, DAG, OpFlags);
   }
 
   SDValue Result;
   if (getTargetMachine().getCodeModel() == CodeModel::Large) {
-    Result = getAddrLarge(GN, DAG, TargetFlags);
+    Result = getAddrLarge(GN, DAG, OpFlags);
   } else if (getTargetMachine().getCodeModel() == CodeModel::Tiny) {
-    Result = getAddrTiny(GN, DAG, TargetFlags);
+    Result = getAddrTiny(GN, DAG, OpFlags);
   } else {
-    Result = getAddr(GN, DAG, TargetFlags);
+    Result = getAddr(GN, DAG, OpFlags);
   }
   EVT PtrVT = getPointerTy(DAG.getDataLayout());
   SDLoc DL(GN);
-  if (GV->hasDLLImportStorageClass())
+  if (OpFlags & (AArch64II::MO_DLLIMPORT | AArch64II::MO_COFFSTUB))
     Result = DAG.getLoad(PtrVT, DL, DAG.getEntryNode(), Result,
                          MachinePointerInfo::getGOT(DAG.getMachineFunction()));
   return Result;
@@ -5198,40 +5195,29 @@ bool AArch64TargetLowering::isFPImmLegal(const APFloat &Imm, EVT VT) const {
   // FIXME: We should be able to handle f128 as well with a clever lowering.
   if (Imm.isPosZero() && (VT == MVT::f64 || VT == MVT::f32 ||
                           (VT == MVT::f16 && Subtarget->hasFullFP16()))) {
-    LLVM_DEBUG(
-        dbgs() << "Legal fp imm: materialize 0 using the zero register\n");
+    LLVM_DEBUG(dbgs() << "Legal " << VT.getEVTString() << " imm value: 0\n");
     return true;
   }
 
-  StringRef FPType;
   bool IsLegal = false;
   SmallString<128> ImmStrVal;
   Imm.toString(ImmStrVal);
 
-  if (VT == MVT::f64) {
-    FPType = "f64";
+  if (VT == MVT::f64)
     IsLegal = AArch64_AM::getFP64Imm(Imm) != -1;
-  } else if (VT == MVT::f32) {
-    FPType = "f32";
+  else if (VT == MVT::f32)
     IsLegal = AArch64_AM::getFP32Imm(Imm) != -1;
-  } else if (VT == MVT::f16 && Subtarget->hasFullFP16()) {
-    FPType = "f16";
+  else if (VT == MVT::f16 && Subtarget->hasFullFP16())
     IsLegal = AArch64_AM::getFP16Imm(Imm) != -1;
-  }
 
   if (IsLegal) {
-    LLVM_DEBUG(dbgs() << "Legal " << FPType << " imm value: " << ImmStrVal
-                      << "\n");
+    LLVM_DEBUG(dbgs() << "Legal " << VT.getEVTString()
+                      << " imm value: " << ImmStrVal << "\n");
     return true;
   }
 
-  if (!FPType.empty())
-    LLVM_DEBUG(dbgs() << "Illegal " << FPType << " imm value: " << ImmStrVal
-                      << "\n");
-  else
-    LLVM_DEBUG(dbgs() << "Illegal fp imm " << ImmStrVal
-                      << ": unsupported fp type\n");
-
+  LLVM_DEBUG(dbgs() << "Illegal " << VT.getEVTString()
+                    << " imm value: " << ImmStrVal << "\n");
   return false;
 }
 
