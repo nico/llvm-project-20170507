@@ -5,6 +5,7 @@ static_library("XRay") {
     "//llvm/lib/Support",
   ]
   sources = [
+    "BlockIndexer.cpp",
     "FDRRecordProducer.cpp",
     "FDRRecords.cpp",
     "FDRTraceWriter.cpp",
@@ -13,6 +14,7 @@ static_library("XRay") {
     "LogBuilderConsumer.cpp",
     "Profile.cpp",
     "RecordInitializer.cpp",
+    "RecordPrinter.cpp",
     "Trace.cpp",
   ]
 }

@@ -10,6 +10,7 @@ executable("DebugInfoPDBTests") {
   ]
   sources = [
     "HashTableTest.cpp",
+    "NativeSymbolReuseTest.cpp",
     "PDBApiTest.cpp",
     "StringTableBuilderTest.cpp",
   ]

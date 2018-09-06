@@ -2,6 +2,8 @@ executable("CodeGenTests") {
   # test/Unit/lit.cfg expects unittests in LLVM_BINARY_DIR/unittest
   output_dir = target_out_dir
   deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/AsmParser",
     "//llvm/lib/CodeGen",
     "//llvm/lib/CodeGen/AsmPrinter",
     "//llvm/lib/CodeGen/SelectionDAG",
@@ -9,9 +11,11 @@ executable("CodeGenTests") {
     "//llvm/lib/MC",
     "//llvm/lib/Support",
     "//llvm/lib/Target",
-    "//llvm/utils/unittest/UnitTestMain",
+    "//llvm/lib/Target:TargetsToBuild",
+    "//llvm/utils/unittest:gtest",
   ]
   sources = [
+    "AArch64SelectionDAGTest.cpp",
     "DIEHashTest.cpp",
     "LowLevelTypeTest.cpp",
     "MachineInstrBundleIteratorTest.cpp",
