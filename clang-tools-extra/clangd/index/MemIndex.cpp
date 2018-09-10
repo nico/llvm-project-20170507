@@ -8,16 +8,19 @@
 //===-------------------------------------------------------------------===//
 
 #include "MemIndex.h"
-#include "../FuzzyMatch.h"
-#include "../Logger.h"
-#include "../Quality.h"
+#include "FuzzyMatch.h"
+#include "Logger.h"
+#include "Quality.h"
 
 namespace clang {
 namespace clangd {
 
 std::unique_ptr<SymbolIndex> MemIndex::build(SymbolSlab Slab, RefSlab Refs) {
+  // Store Slab size before it is moved.
+  const auto BackingDataSize = Slab.bytes() + Refs.bytes();
   auto Data = std::make_pair(std::move(Slab), std::move(Refs));
-  return llvm::make_unique<MemIndex>(Data.first, Data.second, std::move(Data));
+  return llvm::make_unique<MemIndex>(Data.first, Data.second, std::move(Data),
+                                     BackingDataSize);
 }
 
 bool MemIndex::fuzzyFind(
@@ -35,7 +38,8 @@ bool MemIndex::fuzzyFind(
     // Exact match against all possible scopes.
     if (!Req.Scopes.empty() && !llvm::is_contained(Req.Scopes, Sym->Scope))
       continue;
-    if (Req.RestrictForCodeCompletion && !Sym->IsIndexedForCodeCompletion)
+    if (Req.RestrictForCodeCompletion &&
+        !(Sym->Flags & Symbol::IndexedForCodeCompletion))
       continue;
 
     if (auto Score = Filter.match(Sym->Name))
@@ -69,7 +73,7 @@ void MemIndex::refs(const RefsRequest &Req,
 }
 
 size_t MemIndex::estimateMemoryUsage() const {
-  return Index.getMemorySize();
+  return Index.getMemorySize() + Refs.getMemorySize() + BackingDataSize;
 }
 
 } // namespace clangd
