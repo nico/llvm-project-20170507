@@ -15,4 +15,14 @@ executable("DebugInfoPDBTests") {
     "StringTableBuilderTest.cpp",
   ]
   testonly = true
+
+  # DebugInfoPDBTests uses llvm::getInputFileDirectory(), which expects
+  # a file called llvm.srcdir.txt next to the test executable that contains
+  # the path of the source directory (which contains this file).
+  # lit doesn't change the cwd while running googletests, so the cwd isn't
+  # well-defined. This means this has to be an absolute path.
+  # FIXME: This doesn't work with swarming. This should really be a data
+  # dependency, and the cwd while tests requiring input files run should
+  # be required to be some fixed directory.
+  write_file("$output_dir/llvm.srcdir.txt", rebase_path("."))
 }
