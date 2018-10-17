@@ -1,6 +1,7 @@
 import("//llvm/include/llvm/Config/config.gni")
 import("//llvm/lib/DebugInfo/PDB/enable_dia.gni")
 import("//llvm/lib/Target/targets.gni")
+import("//gn/enable_threads.gni")
 import("//gn/buildflags.gni")
 import("//gn/libs/xml/enable.gni")
 
@@ -106,6 +107,12 @@ template("write_lit_config") {
       args += [ "@LLVM_LIBXML2_ENABLED@=" ]  # Must be empty.
     }
 
+    if (llvm_enable_threads) {
+      args += [ "@LLVM_ENABLE_THREADS@=1" ]
+    } else {
+      args += [ "@LLVM_ENABLE_THREADS@=0" ]  # Must be 0.
+    }
+
     if (llvm_enable_zlib) {
       args += [ "@HAVE_LIBZ@=1" ]
     } else {
@@ -183,6 +190,7 @@ group("test") {
     "//llvm/tools/llvm-cvtres",
     "//llvm/tools/llvm-cxxdump",
     "//llvm/tools/llvm-cxxfilt",
+    "//llvm/tools/llvm-cxxmap",
     "//llvm/tools/llvm-diff",
     "//llvm/tools/llvm-dis",
     "//llvm/tools/llvm-dwarfdump",

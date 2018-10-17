@@ -18,6 +18,7 @@ executable("UtilsTests") {
     "IntegerDivisionTest.cpp",
     "LocalTest.cpp",
     "SSAUpdaterBulkTest.cpp",
+    "UnrollLoopTest.cpp",
     "ValueMapperTest.cpp",
   ]
   testonly = true

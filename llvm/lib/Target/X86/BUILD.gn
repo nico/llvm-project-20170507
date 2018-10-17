@@ -111,6 +111,7 @@ static_library("LLVMX86CodeGen") {
     "X86CallLowering.cpp",
     "X86CallingConv.cpp",
     "X86CmovConversion.cpp",
+    "X86CondBrFolding.cpp",
     "X86DomainReassignment.cpp",
     "X86EvexToVex.cpp",
     "X86ExpandPseudo.cpp",

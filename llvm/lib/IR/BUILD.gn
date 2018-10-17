@@ -57,6 +57,7 @@ static_library("IR") {
     "Operator.cpp",
     "OptBisect.cpp",
     "Pass.cpp",
+    "PassInstrumentation.cpp",
     "PassManager.cpp",
     "PassRegistry.cpp",
     "PassTimingInfo.cpp",

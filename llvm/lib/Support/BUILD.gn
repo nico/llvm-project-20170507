@@ -96,6 +96,7 @@ static_library("Support") {
     "StringPool.cpp",
     "StringRef.cpp",
     "StringSaver.cpp",
+    "SymbolRemappingReader.cpp",
     "SystemUtils.cpp",
     "TarWriter.cpp",
     "TargetParser.cpp",
@@ -137,6 +138,7 @@ static_library("Support") {
     "ThreadLocal.cpp",
     "Threading.cpp",
     "Valgrind.cpp",
+    "VirtualFileSystem.cpp",
     "Watchdog.cpp",
   ]
 

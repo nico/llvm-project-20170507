@@ -16,8 +16,10 @@ static_library("Orc") {
     "IRCompileLayer.cpp",
     "IRTransformLayer.cpp",
     "IndirectionUtils.cpp",
+    "JITTargetMachineBuilder.cpp",
     "LLJIT.cpp",
     "Layer.cpp",
+    "LazyReexports.cpp",
     "Legacy.cpp",
     "NullResolver.cpp",
     "ObjectTransformLayer.cpp",
@@ -27,5 +29,6 @@ static_library("Orc") {
     "OrcMCJITReplacement.cpp",
     "RPCUtils.cpp",
     "RTDyldObjectLinkingLayer.cpp",
+    "ThreadSafeModule.cpp",
   ]
 }

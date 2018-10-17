@@ -11,6 +11,7 @@ executable("AnalysisTests") {
   sources = [
     "AliasAnalysisTest.cpp",
     "AliasSetTrackerTest.cpp",
+    "BasicAliasAnalysisTest.cpp",
     "BlockFrequencyInfoTest.cpp",
     "BranchProbabilityInfoTest.cpp",
     "CFGTest.cpp",

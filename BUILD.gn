@@ -33,6 +33,7 @@ group("default") {
     "//llvm/tools/llvm-cvtres",
     "//llvm/tools/llvm-cxxdump",
     "//llvm/tools/llvm-cxxfilt",
+    "//llvm/tools/llvm-cxxmap",
     "//llvm/tools/llvm-diff",
     "//llvm/tools/llvm-dis",
     "//llvm/tools/llvm-dwarfdump",

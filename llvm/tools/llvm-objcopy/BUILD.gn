@@ -38,6 +38,8 @@ executable("llvm-objcopy") {
     "//llvm/lib/Support",
   ]
   sources = [
+    "Buffer.cpp",
+    "CopyConfig.cpp",
     "Object.cpp",
     "llvm-objcopy.cpp",
   ]

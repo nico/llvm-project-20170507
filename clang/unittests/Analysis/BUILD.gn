@@ -16,6 +16,7 @@ executable("ClangAnalysisTests") {
   sources = [
     "CFGTest.cpp",
     "CloneDetectionTest.cpp",
+    "ExprMutationAnalyzerTest.cpp",
   ]
   testonly = true
 }

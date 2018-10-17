@@ -16,7 +16,6 @@ executable("BasicTests") {
     "FixedPointTest.cpp",
     "MemoryBufferCacheTest.cpp",
     "SourceManagerTest.cpp",
-    "VirtualFileSystemTest.cpp",
   ]
   testonly = true
 }

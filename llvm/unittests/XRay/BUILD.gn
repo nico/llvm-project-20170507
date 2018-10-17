@@ -4,13 +4,16 @@ executable("XRayTests") {
   deps = [
     "//llvm/include/llvm/IR:tablegen",
     "//llvm/lib/Support",
+    "//llvm/lib/Testing/Support",
     "//llvm/lib/XRay",
     "//llvm/utils/unittest/UnitTestMain",
   ]
   sources = [
     "FDRBlockIndexerTest.cpp",
+    "FDRBlockVerifierTest.cpp",
     "FDRProducerConsumerTest.cpp",
     "FDRRecordPrinterTest.cpp",
+    "FDRRecordsTest.cpp",
     "FDRTraceWriterTest.cpp",
     "GraphTest.cpp",
     "ProfileTest.cpp",

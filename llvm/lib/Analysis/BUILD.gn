@@ -45,6 +45,7 @@ static_library("Analysis") {
     "EHPersonalities.cpp",
     "GlobalsModRef.cpp",
     "GuardUtils.cpp",
+    "IVDescriptors.cpp",
     "IVUsers.cpp",
     "IndirectCallPromotionAnalysis.cpp",
     "InlineCost.cpp",

@@ -40,6 +40,7 @@ static_library("CodeView") {
     "TypeHashing.cpp",
     "TypeIndex.cpp",
     "TypeIndexDiscovery.cpp",
+    "TypeRecordHelpers.cpp",
     "TypeRecordMapping.cpp",
     "TypeStreamMerger.cpp",
     "TypeTableCollection.cpp",

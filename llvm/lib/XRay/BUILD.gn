@@ -6,8 +6,11 @@ static_library("XRay") {
   ]
   sources = [
     "BlockIndexer.cpp",
+    "BlockPrinter.cpp",
+    "BlockVerifier.cpp",
     "FDRRecordProducer.cpp",
     "FDRRecords.cpp",
+    "FDRTraceExpander.cpp",
     "FDRTraceWriter.cpp",
     "FileHeaderReader.cpp",
     "InstrumentationMap.cpp",

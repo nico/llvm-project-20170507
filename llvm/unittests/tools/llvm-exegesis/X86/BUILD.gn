@@ -20,6 +20,7 @@ executable("LLVMExegesisX86Tests") {
   sources = [
     "AnalysisTest.cpp",
     "AssemblerTest.cpp",
+    "BenchmarkResultTest.cpp",
     "RegisterAliasingTest.cpp",
     "SnippetGeneratorTest.cpp",
     "TargetTest.cpp",

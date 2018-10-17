@@ -12,21 +12,24 @@ executable("OrcJITTests") {
     "//llvm/utils/unittest/UnitTestMain",
   ]
   sources = [
-    "CompileOnDemandLayerTest.cpp",
     "CoreAPIsTest.cpp",
     "GlobalMappingLayerTest.cpp",
     "IndirectionUtilsTest.cpp",
+    "JITTargetMachineBuilderTest.cpp",
+    "LazyCallThroughAndReexportsTest.cpp",
     "LazyEmittingLayerTest.cpp",
     "LegacyAPIInteropTest.cpp",
+    "LegacyCompileOnDemandLayerTest.cpp",
+    "LegacyRTDyldObjectLinkingLayerTest.cpp",
     "ObjectTransformLayerTest.cpp",
     "OrcCAPITest.cpp",
     "OrcTestCommon.cpp",
     "QueueChannel.cpp",
     "RPCUtilsTest.cpp",
-    "RTDyldObjectLinkingLayer2Test.cpp",
     "RTDyldObjectLinkingLayerTest.cpp",
     "RemoteObjectLayerTest.cpp",
     "SymbolStringPoolTest.cpp",
+    "ThreadSafeModuleTest.cpp",
   ]
   testonly = true
 }
