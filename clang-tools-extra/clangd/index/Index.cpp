@@ -41,8 +41,13 @@ SymbolID SymbolID::fromRaw(llvm::StringRef Raw) {
 
 std::string SymbolID::str() const { return toHex(raw()); }
 
-void operator>>(StringRef Str, SymbolID &ID) {
-  ID = SymbolID::fromRaw(fromHex(Str));
+llvm::Expected<SymbolID> SymbolID::fromStr(llvm::StringRef Str) {
+  if (Str.size() != RawSize * 2)
+    return createStringError(llvm::inconvertibleErrorCode(), "Bad ID length");
+  for (char C : Str)
+    if (!isHexDigit(C))
+      return createStringError(llvm::inconvertibleErrorCode(), "Bad hex ID");
+  return fromRaw(fromHex(Str));
 }
 
 raw_ostream &operator<<(raw_ostream &OS, SymbolOrigin O) {
@@ -79,10 +84,9 @@ float quality(const Symbol &S) {
 }
 
 SymbolSlab::const_iterator SymbolSlab::find(const SymbolID &ID) const {
-  auto It = std::lower_bound(Symbols.begin(), Symbols.end(), ID,
-                             [](const Symbol &S, const SymbolID &I) {
-                               return S.ID < I;
-                             });
+  auto It = std::lower_bound(
+      Symbols.begin(), Symbols.end(), ID,
+      [](const Symbol &S, const SymbolID &I) { return S.ID < I; });
   if (It != Symbols.end() && It->ID == ID)
     return It;
   return Symbols.end();
@@ -107,8 +111,8 @@ void SymbolSlab::Builder::insert(const Symbol &S) {
 SymbolSlab SymbolSlab::Builder::build() && {
   Symbols = {Symbols.begin(), Symbols.end()}; // Force shrink-to-fit.
   // Sort symbols so the slab can binary search over them.
-  std::sort(Symbols.begin(), Symbols.end(),
-            [](const Symbol &L, const Symbol &R) { return L.ID < R.ID; });
+  llvm::sort(Symbols,
+             [](const Symbol &L, const Symbol &R) { return L.ID < R.ID; });
   // We may have unused strings from overwritten symbols. Build a new arena.
   BumpPtrAllocator NewArena;
   llvm::UniqueStringSaver Strings(NewArena);
@@ -150,8 +154,8 @@ RefSlab RefSlab::Builder::build() && {
   Result.reserve(Refs.size());
   for (auto &Sym : Refs) {
     auto &SymRefs = Sym.second;
-    std::sort(SymRefs.begin(), SymRefs.end());
-    // TODO: do we really need to dedup?
+    llvm::sort(SymRefs);
+    // FIXME: do we really need to dedup?
     SymRefs.erase(std::unique(SymRefs.begin(), SymRefs.end()), SymRefs.end());
 
     auto *Array = Arena.Allocate<Ref>(SymRefs.size());
@@ -177,29 +181,25 @@ std::shared_ptr<SymbolIndex> SwapIndex::snapshot() const {
 
 bool fromJSON(const llvm::json::Value &Parameters, FuzzyFindRequest &Request) {
   json::ObjectMapper O(Parameters);
-  llvm::Optional<int64_t> MaxCandidateCount;
+  int64_t Limit;
   bool OK =
       O && O.map("Query", Request.Query) && O.map("Scopes", Request.Scopes) &&
+      O.map("Limit", Limit) &&
       O.map("RestrictForCodeCompletion", Request.RestrictForCodeCompletion) &&
-      O.map("ProximityPaths", Request.ProximityPaths) &&
-      O.map("MaxCandidateCount", MaxCandidateCount);
-  if (MaxCandidateCount)
-    Request.MaxCandidateCount = MaxCandidateCount.getValue();
+      O.map("ProximityPaths", Request.ProximityPaths);
+  if (OK && Limit <= std::numeric_limits<uint32_t>::max())
+    Request.Limit = Limit;
   return OK;
 }
 
 llvm::json::Value toJSON(const FuzzyFindRequest &Request) {
-  auto Result = json::Object{
+  return json::Object{
       {"Query", Request.Query},
       {"Scopes", json::Array{Request.Scopes}},
+      {"Limit", Request.Limit},
       {"RestrictForCodeCompletion", Request.RestrictForCodeCompletion},
       {"ProximityPaths", json::Array{Request.ProximityPaths}},
   };
-  // A huge limit means no limit, leave it out.
-  if (Request.MaxCandidateCount <= std::numeric_limits<int64_t>::max())
-    Result["MaxCandidateCount"] =
-        static_cast<int64_t>(Request.MaxCandidateCount);
-  return std::move(Result);
 }
 
 bool SwapIndex::fuzzyFind(const FuzzyFindRequest &R,

@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/DebugInfo/PDB/Native/NativeCompilandSymbol.h"
+#include "llvm/DebugInfo/PDB/Native/NativeSession.h"
 
 #include "llvm/ADT/STLExtras.h"
 
@@ -23,25 +24,25 @@ PDB_SymType NativeCompilandSymbol::getSymTag() const {
   return PDB_SymType::Compiland;
 }
 
-void NativeCompilandSymbol::dump(raw_ostream &OS, int Indent) const {
-  NativeRawSymbol::dump(OS, Indent);
+void NativeCompilandSymbol::dump(raw_ostream &OS, int Indent,
+                                 PdbSymbolIdField ShowIdFields,
+                                 PdbSymbolIdField RecurseIdFields) const {
+  NativeRawSymbol::dump(OS, Indent, ShowIdFields, RecurseIdFields);
 
-  dumpSymbolField(OS, "lexicalParentId", 0, Indent);
+  dumpSymbolIdField(OS, "lexicalParentId", 0, Indent, Session,
+                    PdbSymbolIdField::LexicalParent, ShowIdFields,
+                    RecurseIdFields);
   dumpSymbolField(OS, "libraryName", getLibraryName(), Indent);
   dumpSymbolField(OS, "name", getName(), Indent);
   dumpSymbolField(OS, "editAndContinueEnabled", isEditAndContinueEnabled(),
                   Indent);
 }
 
-std::unique_ptr<NativeRawSymbol> NativeCompilandSymbol::clone() const {
-  return llvm::make_unique<NativeCompilandSymbol>(Session, SymbolId, Module);
-}
-
 bool NativeCompilandSymbol::isEditAndContinueEnabled() const {
   return Module.hasECInfo();
 }
 
-uint32_t NativeCompilandSymbol::getLexicalParentId() const { return 0; }
+SymIndexId NativeCompilandSymbol::getLexicalParentId() const { return 0; }
 
 // The usage of getObjFileName for getLibraryName and getModuleName for getName
 // may seem backwards, but it is consistent with DIA, which is what this API

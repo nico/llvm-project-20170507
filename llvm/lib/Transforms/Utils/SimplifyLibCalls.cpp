@@ -171,7 +171,10 @@ static bool canTransformToMemCmp(CallInst *CI, Value *Str, uint64_t Len,
 
   if (!isDereferenceableAndAlignedPointer(Str, 1, APInt(64, Len), DL))
     return false;
-    
+
+  if (CI->getFunction()->hasFnAttribute(Attribute::SanitizeMemory))
+    return false;
+
   return true;
 }
 
@@ -920,8 +923,7 @@ Value *LibCallSimplifier::optimizeMemMove(CallInst *CI, IRBuilder<> &B) {
 }
 
 /// Fold memset[_chk](malloc(n), 0, n) --> calloc(1, n).
-static Value *foldMallocMemset(CallInst *Memset, IRBuilder<> &B,
-                               const TargetLibraryInfo &TLI) {
+Value *LibCallSimplifier::foldMallocMemset(CallInst *Memset, IRBuilder<> &B) {
   // This has to be a memset of zeros (bzero).
   auto *FillValue = dyn_cast<ConstantInt>(Memset->getArgOperand(1));
   if (!FillValue || FillValue->getZExtValue() != 0)
@@ -941,7 +943,7 @@ static Value *foldMallocMemset(CallInst *Memset, IRBuilder<> &B,
     return nullptr;
 
   LibFunc Func;
-  if (!TLI.getLibFunc(*InnerCallee, Func) || !TLI.has(Func) ||
+  if (!TLI->getLibFunc(*InnerCallee, Func) || !TLI->has(Func) ||
       Func != LibFunc_malloc)
     return nullptr;
 
@@ -956,18 +958,18 @@ static Value *foldMallocMemset(CallInst *Memset, IRBuilder<> &B,
   IntegerType *SizeType = DL.getIntPtrType(B.GetInsertBlock()->getContext());
   Value *Calloc = emitCalloc(ConstantInt::get(SizeType, 1),
                              Malloc->getArgOperand(0), Malloc->getAttributes(),
-                             B, TLI);
+                             B, *TLI);
   if (!Calloc)
     return nullptr;
 
   Malloc->replaceAllUsesWith(Calloc);
-  Malloc->eraseFromParent();
+  eraseFromParent(Malloc);
 
   return Calloc;
 }
 
 Value *LibCallSimplifier::optimizeMemSet(CallInst *CI, IRBuilder<> &B) {
-  if (auto *Calloc = foldMallocMemset(CI, B, *TLI))
+  if (auto *Calloc = foldMallocMemset(CI, B))
     return Calloc;
 
   // memset(p, v, n) -> llvm.memset(align 1 p, v, n)
@@ -1243,7 +1245,7 @@ Value *LibCallSimplifier::replacePowWithExp(CallInst *Pow, IRBuilder<> &B) {
       // effects (e.g., errno).  When the only consumer for the original
       // exp{,2}() is pow(), then it has to be explicitly erased.
       BaseFn->replaceAllUsesWith(ExpFn);
-      BaseFn->eraseFromParent();
+      eraseFromParent(BaseFn);
 
       return ExpFn;
     }
@@ -2588,7 +2590,7 @@ Value *LibCallSimplifier::optimizeCall(CallInst *CI) {
       if (Value *V = optimizeStringMemoryLibCall(SimplifiedCI, TmpBuilder)) {
         // If we were able to further simplify, remove the now redundant call.
         SimplifiedCI->replaceAllUsesWith(V);
-        SimplifiedCI->eraseFromParent();
+        eraseFromParent(SimplifiedCI);
         return V;
       }
     }
@@ -2667,13 +2669,18 @@ Value *LibCallSimplifier::optimizeCall(CallInst *CI) {
 LibCallSimplifier::LibCallSimplifier(
     const DataLayout &DL, const TargetLibraryInfo *TLI,
     OptimizationRemarkEmitter &ORE,
-    function_ref<void(Instruction *, Value *)> Replacer)
+    function_ref<void(Instruction *, Value *)> Replacer,
+    function_ref<void(Instruction *)> Eraser)
     : FortifiedSimplifier(TLI), DL(DL), TLI(TLI), ORE(ORE),
-      UnsafeFPShrink(false), Replacer(Replacer) {}
+      UnsafeFPShrink(false), Replacer(Replacer), Eraser(Eraser) {}
 
 void LibCallSimplifier::replaceAllUsesWith(Instruction *I, Value *With) {
   // Indirect through the replacer used in this instance.
   Replacer(I, With);
+}
+
+void LibCallSimplifier::eraseFromParent(Instruction *I) {
+  Eraser(I);
 }
 
 // TODO:

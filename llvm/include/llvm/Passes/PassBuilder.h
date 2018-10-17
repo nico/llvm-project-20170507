@@ -32,10 +32,13 @@ class ModuleSummaryIndex;
 /// A struct capturing PGO tunables.
 struct PGOOptions {
   PGOOptions(std::string ProfileGenFile = "", std::string ProfileUseFile = "",
-             std::string SampleProfileFile = "", bool RunProfileGen = false,
-             bool SamplePGOSupport = false)
+             std::string SampleProfileFile = "",
+             std::string ProfileRemappingFile = "",
+             bool RunProfileGen = false, bool SamplePGOSupport = false)
       : ProfileGenFile(ProfileGenFile), ProfileUseFile(ProfileUseFile),
-        SampleProfileFile(SampleProfileFile), RunProfileGen(RunProfileGen),
+        SampleProfileFile(SampleProfileFile),
+        ProfileRemappingFile(ProfileRemappingFile),
+        RunProfileGen(RunProfileGen),
         SamplePGOSupport(SamplePGOSupport || !SampleProfileFile.empty()) {
     assert((RunProfileGen ||
             !SampleProfileFile.empty() ||
@@ -45,6 +48,7 @@ struct PGOOptions {
   std::string ProfileGenFile;
   std::string ProfileUseFile;
   std::string SampleProfileFile;
+  std::string ProfileRemappingFile;
   bool RunProfileGen;
   bool SamplePGOSupport;
 };
@@ -58,6 +62,7 @@ struct PGOOptions {
 class PassBuilder {
   TargetMachine *TM;
   Optional<PGOOptions> PGOOpt;
+  PassInstrumentationCallbacks *PIC;
 
 public:
   /// A struct to capture parsed pass pipeline names.
@@ -172,8 +177,9 @@ public:
   };
 
   explicit PassBuilder(TargetMachine *TM = nullptr,
-                       Optional<PGOOptions> PGOOpt = None)
-      : TM(TM), PGOOpt(PGOOpt) {}
+                       Optional<PGOOptions> PGOOpt = None,
+                       PassInstrumentationCallbacks *PIC = nullptr)
+      : TM(TM), PGOOpt(PGOOpt), PIC(PIC) {}
 
   /// Cross register the analysis managers through their proxies.
   ///
@@ -585,7 +591,8 @@ private:
   void addPGOInstrPasses(ModulePassManager &MPM, bool DebugLogging,
                          OptimizationLevel Level, bool RunProfileGen,
                          std::string ProfileGenFile,
-                         std::string ProfileUseFile);
+                         std::string ProfileUseFile,
+                         std::string ProfileRemappingFile);
 
   void invokePeepholeEPCallbacks(FunctionPassManager &, OptimizationLevel);
 

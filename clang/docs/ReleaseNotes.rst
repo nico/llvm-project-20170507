@@ -46,6 +46,11 @@ sections with improvements to Clang's support for those languages.
 Major New Features
 ------------------
 
+- Clang supports use of a profile remapping file, which permits
+  profile data captured for one version of a program to be applied
+  when building another version where symbols have changed (for
+  example, due to renaming a class or namespace).
+  See the :doc:`UsersManual` for details.
 
 Improvements to Clang's diagnostics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -86,6 +91,11 @@ Attribute Changes in Clang
 
 Windows Support
 ---------------
+
+- clang-cl now supports the use of the precompiled header options /Yc and /Yu
+  without the filename argument. When these options are used without the
+  filename, a `#pragma hdrstop` inside the source marks the end of the
+  precompiled code.
 
 - ...
 

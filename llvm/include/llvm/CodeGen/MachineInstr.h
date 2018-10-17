@@ -97,8 +97,14 @@ public:
                                         // contraction operations like fma.
     FmAfn        = 1 << 9,              // Instruction may map to Fast math
                                         // instrinsic approximation.
-    FmReassoc    = 1 << 10              // Instruction supports Fast math
+    FmReassoc    = 1 << 10,             // Instruction supports Fast math
                                         // reassociation of operand order.
+    NoUWrap      = 1 << 11,             // Instruction supports binary operator
+                                        // no unsigned wrap.
+    NoSWrap      = 1 << 12,             // Instruction supports binary operator
+                                        // no signed wrap.
+    IsExact      = 1 << 13              // Instruction supports division is
+                                        // known to be exact.
   };
 
 private:
@@ -402,7 +408,7 @@ public:
   /// Returns the opcode of this MachineInstr.
   unsigned getOpcode() const { return MCID->Opcode; }
 
-  /// Access to explicit operands of the instruction.
+  /// Retuns the total number of operands.
   unsigned getNumOperands() const { return NumOperands; }
 
   const MachineOperand& getOperand(unsigned i) const {
@@ -1520,6 +1526,9 @@ public:
   /// not modify the MIFlags of this MachineInstr.
   uint16_t mergeFlagsWith(const MachineInstr& Other) const;
 
+  /// Copy all flags to MachineInst MIFlags
+  void copyIRFlags(const Instruction &I);
+
   /// Break any tie involving OpIdx.
   void untieRegOperand(unsigned OpIdx) {
     MachineOperand &MO = getOperand(OpIdx);
@@ -1534,6 +1543,10 @@ public:
 
   /// Scan instructions following MI and collect any matching DBG_VALUEs.
   void collectDebugValues(SmallVectorImpl<MachineInstr *> &DbgValues);
+
+  /// Find all DBG_VALUEs immediately following this instruction that point
+  /// to a register def in this instruction and point them to \p Reg instead.
+  void changeDebugValuesDefReg(unsigned Reg);
 
 private:
   /// If this instruction is embedded into a MachineFunction, return the

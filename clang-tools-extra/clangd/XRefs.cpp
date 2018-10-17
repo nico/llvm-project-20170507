@@ -104,21 +104,19 @@ public:
     }
 
     // Sort results. Declarations being referenced explicitly come first.
-    std::sort(Result.begin(), Result.end(),
-              [](const DeclInfo &L, const DeclInfo &R) {
-                if (L.IsReferencedExplicitly != R.IsReferencedExplicitly)
-                  return L.IsReferencedExplicitly > R.IsReferencedExplicitly;
-                return L.D->getBeginLoc() < R.D->getBeginLoc();
-              });
+    llvm::sort(Result, [](const DeclInfo &L, const DeclInfo &R) {
+      if (L.IsReferencedExplicitly != R.IsReferencedExplicitly)
+        return L.IsReferencedExplicitly > R.IsReferencedExplicitly;
+      return L.D->getBeginLoc() < R.D->getBeginLoc();
+    });
     return Result;
   }
 
   std::vector<MacroDecl> takeMacroInfos() {
     // Don't keep the same Macro info multiple times.
-    std::sort(MacroInfos.begin(), MacroInfos.end(),
-              [](const MacroDecl &Left, const MacroDecl &Right) {
-                return Left.Info < Right.Info;
-              });
+    llvm::sort(MacroInfos, [](const MacroDecl &Left, const MacroDecl &Right) {
+      return Left.Info < Right.Info;
+    });
 
     auto Last = std::unique(MacroInfos.begin(), MacroInfos.end(),
                             [](const MacroDecl &Left, const MacroDecl &Right) {
@@ -206,8 +204,8 @@ IdentifiedSymbol getSymbolAtPosition(ParsedAST &AST, SourceLocation Pos) {
   IndexOpts.SystemSymbolFilter =
       index::IndexingOptions::SystemSymbolFilterKind::All;
   IndexOpts.IndexFunctionLocals = true;
-  indexTopLevelDecls(AST.getASTContext(), AST.getLocalTopLevelDecls(),
-                     DeclMacrosFinder, IndexOpts);
+  indexTopLevelDecls(AST.getASTContext(), AST.getPreprocessor(),
+                     AST.getLocalTopLevelDecls(), DeclMacrosFinder, IndexOpts);
 
   return {DeclMacrosFinder.getFoundDecls(), DeclMacrosFinder.takeMacroInfos()};
 }
@@ -361,7 +359,7 @@ namespace {
 class ReferenceFinder : public index::IndexDataConsumer {
 public:
   struct Reference {
-    const Decl *Target;
+    const Decl *CanonicalTarget;
     SourceLocation Loc;
     index::SymbolRoleSet Role;
   };
@@ -370,22 +368,22 @@ public:
                   const std::vector<const Decl *> &TargetDecls)
       : AST(AST) {
     for (const Decl *D : TargetDecls)
-      Targets.insert(D);
+      CanonicalTargets.insert(D->getCanonicalDecl());
   }
 
   std::vector<Reference> take() && {
-    std::sort(References.begin(), References.end(),
-              [](const Reference &L, const Reference &R) {
-                return std::tie(L.Loc, L.Target, L.Role) <
-                       std::tie(R.Loc, R.Target, R.Role);
-              });
+    llvm::sort(References, [](const Reference &L, const Reference &R) {
+      return std::tie(L.Loc, L.CanonicalTarget, L.Role) <
+             std::tie(R.Loc, R.CanonicalTarget, R.Role);
+    });
     // We sometimes see duplicates when parts of the AST get traversed twice.
-    References.erase(std::unique(References.begin(), References.end(),
-                                 [](const Reference &L, const Reference &R) {
-                                   return std::tie(L.Target, L.Loc, L.Role) ==
-                                          std::tie(R.Target, R.Loc, R.Role);
-                                 }),
-                     References.end());
+    References.erase(
+        std::unique(References.begin(), References.end(),
+                    [](const Reference &L, const Reference &R) {
+                      return std::tie(L.CanonicalTarget, L.Loc, L.Role) ==
+                             std::tie(R.CanonicalTarget, R.Loc, R.Role);
+                    }),
+        References.end());
     return std::move(References);
   }
 
@@ -394,15 +392,16 @@ public:
                       ArrayRef<index::SymbolRelation> Relations,
                       SourceLocation Loc,
                       index::IndexDataConsumer::ASTNodeInfo ASTNode) override {
+    assert(D->isCanonicalDecl() && "expect D to be a canonical declaration");
     const SourceManager &SM = AST.getSourceManager();
     Loc = SM.getFileLoc(Loc);
-    if (SM.isWrittenInMainFile(Loc) && Targets.count(D))
+    if (SM.isWrittenInMainFile(Loc) && CanonicalTargets.count(D))
       References.push_back({D, Loc, Roles});
     return true;
   }
 
 private:
-  llvm::SmallSet<const Decl *, 4> Targets;
+  llvm::SmallSet<const Decl *, 4> CanonicalTargets;
   std::vector<Reference> References;
   const ASTContext &AST;
 };
@@ -414,8 +413,8 @@ findRefs(const std::vector<const Decl *> &Decls, ParsedAST &AST) {
   IndexOpts.SystemSymbolFilter =
       index::IndexingOptions::SystemSymbolFilterKind::All;
   IndexOpts.IndexFunctionLocals = true;
-  indexTopLevelDecls(AST.getASTContext(), AST.getLocalTopLevelDecls(),
-                     RefFinder, IndexOpts);
+  indexTopLevelDecls(AST.getASTContext(), AST.getPreprocessor(),
+                     AST.getLocalTopLevelDecls(), RefFinder, IndexOpts);
   return std::move(RefFinder).take();
 }
 
@@ -580,20 +579,28 @@ public:
 
   llvm::Optional<QualType> getDeducedType() { return DeducedType; }
 
+  // Remove the surrounding Reference or Pointer type of the given type T.
+  QualType UnwrapReferenceOrPointer(QualType T) {
+    // "auto &" is represented as a ReferenceType containing an AutoType
+    if (const ReferenceType *RT = dyn_cast<ReferenceType>(T.getTypePtr()))
+      return RT->getPointeeType();
+    // "auto *" is represented as a PointerType containing an AutoType
+    if (const PointerType *PT = dyn_cast<PointerType>(T.getTypePtr()))
+      return PT->getPointeeType();
+    return T;
+  }
+
   // Handle auto initializers:
   //- auto i = 1;
   //- decltype(auto) i = 1;
   //- auto& i = 1;
+  //- auto* i = &a;
   bool VisitDeclaratorDecl(DeclaratorDecl *D) {
     if (!D->getTypeSourceInfo() ||
         D->getTypeSourceInfo()->getTypeLoc().getBeginLoc() != SearchedLocation)
       return true;
 
-    auto DeclT = D->getType();
-    // "auto &" is represented as a ReferenceType containing an AutoType
-    if (const ReferenceType *RT = dyn_cast<ReferenceType>(DeclT.getTypePtr()))
-      DeclT = RT->getPointeeType();
-
+    auto DeclT = UnwrapReferenceOrPointer(D->getType());
     const AutoType *AT = dyn_cast<AutoType>(DeclT.getTypePtr());
     if (AT && !AT->getDeducedType().isNull()) {
       // For auto, use the underlying type because the const& would be
@@ -627,11 +634,7 @@ public:
     if (CurLoc != SearchedLocation)
       return true;
 
-    auto T = D->getReturnType();
-    // "auto &" is represented as a ReferenceType containing an AutoType.
-    if (const ReferenceType *RT = dyn_cast<ReferenceType>(T.getTypePtr()))
-      T = RT->getPointeeType();
-
+    auto T = UnwrapReferenceOrPointer(D->getReturnType());
     const AutoType *AT = dyn_cast<AutoType>(T.getTypePtr());
     if (AT && !AT->getDeducedType().isNull()) {
       DeducedType = T.getUnqualifiedType();

@@ -44,18 +44,20 @@ URI parseOrDie(llvm::StringRef Uri) {
 
 TEST(PercentEncodingTest, Encode) {
   EXPECT_EQ(URI("x", /*Authority=*/"", "a/b/c").toString(), "x:a/b/c");
-  EXPECT_EQ(URI("x", /*Authority=*/"", "a!b;c~").toString(), "x:a%21b%3bc~");
+  EXPECT_EQ(URI("x", /*Authority=*/"", "a!b;c~").toString(), "x:a%21b%3Bc~");
   EXPECT_EQ(URI("x", /*Authority=*/"", "a123b").toString(), "x:a123b");
+  EXPECT_EQ(URI("x", /*Authority=*/"", "a:b;c").toString(), "x:a:b%3Bc");
 }
 
 TEST(PercentEncodingTest, Decode) {
   EXPECT_EQ(parseOrDie("x:a/b/c").body(), "a/b/c");
 
-  EXPECT_EQ(parseOrDie("%3a://%3a/%3").scheme(), ":");
-  EXPECT_EQ(parseOrDie("%3a://%3a/%3").authority(), ":");
-  EXPECT_EQ(parseOrDie("%3a://%3a/%3").body(), "/%3");
+  EXPECT_EQ(parseOrDie("s%2b://%3a/%3").scheme(), "s+");
+  EXPECT_EQ(parseOrDie("s%2b://%3a/%3").authority(), ":");
+  EXPECT_EQ(parseOrDie("s%2b://%3a/%3").body(), "/%3");
 
   EXPECT_EQ(parseOrDie("x:a%21b%3ac~").body(), "a!b:c~");
+  EXPECT_EQ(parseOrDie("x:a:b%3bc").body(), "a:b;c");
 }
 
 std::string resolveOrDie(const URI &U, llvm::StringRef HintPath = "") {
@@ -67,10 +69,10 @@ std::string resolveOrDie(const URI &U, llvm::StringRef HintPath = "") {
 
 TEST(URITest, Create) {
 #ifdef _WIN32
-  EXPECT_THAT(createOrDie("c:\\x\\y\\z"), "file:///c%3a/x/y/z");
+  EXPECT_THAT(createOrDie("c:\\x\\y\\z"), "file:///c:/x/y/z");
 #else
   EXPECT_THAT(createOrDie("/x/y/z"), "file:///x/y/z");
-  EXPECT_THAT(createOrDie("/(x)/y/\\ z"), "file:///%28x%29/y/%5c%20z");
+  EXPECT_THAT(createOrDie("/(x)/y/\\ z"), "file:///%28x%29/y/%5C%20z");
 #endif
 }
 
@@ -132,11 +134,13 @@ TEST(URITest, ParseFailed) {
   // Empty.
   EXPECT_TRUE(FailedParse(""));
   EXPECT_TRUE(FailedParse(":/a/b/c"));
+  EXPECT_TRUE(FailedParse("\"/a/b/c\" IWYU pragma: abc"));
 }
 
 TEST(URITest, Resolve) {
 #ifdef _WIN32
   EXPECT_THAT(resolveOrDie(parseOrDie("file:///c%3a/x/y/z")), "c:\\x\\y\\z");
+  EXPECT_THAT(resolveOrDie(parseOrDie("file:///c:/x/y/z")), "c:\\x\\y\\z");
 #else
   EXPECT_EQ(resolveOrDie(parseOrDie("file:/a/b/c")), "/a/b/c");
   EXPECT_EQ(resolveOrDie(parseOrDie("file://auth/a/b/c")), "/a/b/c");

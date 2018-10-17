@@ -71,9 +71,6 @@ public:
   Status ReadMemory(lldb::addr_t addr, void *buf, size_t size,
                     size_t &bytes_read) override;
 
-  Status ReadMemoryWithoutTrap(lldb::addr_t addr, void *buf, size_t size,
-                               size_t &bytes_read) override;
-
   Status WriteMemory(lldb::addr_t addr, const void *buf, size_t size,
                      size_t &bytes_written) override;
 
@@ -184,10 +181,6 @@ private:
   bool StopTrackingThread(lldb::tid_t thread_id);
 
   NativeThreadLinux &AddThread(lldb::tid_t thread_id);
-
-  Status GetSoftwareBreakpointPCOffset(uint32_t &actual_opcode_size);
-
-  Status FixupBreakpointPCAsNeeded(NativeThreadLinux &thread);
 
   /// Writes a siginfo_t structure corresponding to the given thread ID to the
   /// memory region pointed to by @p siginfo.

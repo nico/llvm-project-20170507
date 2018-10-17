@@ -407,8 +407,8 @@ void AliasSetTracker::add(AnyMemSetInst *MSI) {
 }
 
 void AliasSetTracker::add(AnyMemTransferInst *MTI) {
-  addPointer(MemoryLocation::getForSource(MTI), AliasSet::RefAccess);
   addPointer(MemoryLocation::getForDest(MTI), AliasSet::ModAccess);
+  addPointer(MemoryLocation::getForSource(MTI), AliasSet::RefAccess);
 }
 
 void AliasSetTracker::addUnknown(Instruction *Inst) {
@@ -649,7 +649,7 @@ void AliasSet::print(raw_ostream &OS) const {
     for (iterator I = begin(), E = end(); I != E; ++I) {
       if (I != begin()) OS << ", ";
       I.getPointer()->printAsOperand(OS << "(");
-      if (I.getSize() == MemoryLocation::UnknownSize)
+      if (I.getSize() == LocationSize::unknown())
         OS << ", unknown)";
       else 
         OS << ", " << I.getSize() << ")";

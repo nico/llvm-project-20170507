@@ -233,13 +233,65 @@ struct CompletionItemClientCapabilities {
 };
 bool fromJSON(const llvm::json::Value &, CompletionItemClientCapabilities &);
 
+/// The kind of a completion entry.
+enum class CompletionItemKind {
+  Missing = 0,
+  Text = 1,
+  Method = 2,
+  Function = 3,
+  Constructor = 4,
+  Field = 5,
+  Variable = 6,
+  Class = 7,
+  Interface = 8,
+  Module = 9,
+  Property = 10,
+  Unit = 11,
+  Value = 12,
+  Enum = 13,
+  Keyword = 14,
+  Snippet = 15,
+  Color = 16,
+  File = 17,
+  Reference = 18,
+  Folder = 19,
+  EnumMember = 20,
+  Constant = 21,
+  Struct = 22,
+  Event = 23,
+  Operator = 24,
+  TypeParameter = 25,
+};
+bool fromJSON(const llvm::json::Value &, CompletionItemKind &);
+
+struct CompletionItemKindCapabilities {
+  /// The CompletionItemKinds that the client supports. If not set, the client
+  /// only supports <= CompletionItemKind::Reference and will not fall back to a
+  /// valid default value.
+  llvm::Optional<std::vector<CompletionItemKind>> valueSet;
+};
+// Discards unknown CompletionItemKinds.
+bool fromJSON(const llvm::json::Value &, std::vector<CompletionItemKind> &);
+bool fromJSON(const llvm::json::Value &, CompletionItemKindCapabilities &);
+
+constexpr auto CompletionItemKindMin =
+    static_cast<size_t>(CompletionItemKind::Text);
+constexpr auto CompletionItemKindMax =
+    static_cast<size_t>(CompletionItemKind::TypeParameter);
+using CompletionItemKindBitset = std::bitset<CompletionItemKindMax + 1>;
+CompletionItemKind
+adjustKindToCapability(CompletionItemKind Kind,
+                       CompletionItemKindBitset &supportedCompletionItemKinds);
+
 struct CompletionClientCapabilities {
   /// Whether completion supports dynamic registration.
   bool dynamicRegistration = false;
   /// The client supports the following `CompletionItem` specific capabilities.
   CompletionItemClientCapabilities completionItem;
-  // NOTE: not used by clangd at the moment.
-  // llvm::Optional<CompletionItemKindCapabilities> completionItemKind;
+  /// The CompletionItemKinds that the client supports. If not set, the client
+  /// only supports <= CompletionItemKind::Reference and will not fall back to a
+  /// valid default value.
+  llvm::Optional<CompletionItemKindCapabilities> completionItemKind;
 
   /// The client supports to send additional context information for a
   /// `textDocument/completion` request.
@@ -305,6 +357,7 @@ struct SymbolKindCapabilities {
   /// value.
   llvm::Optional<std::vector<SymbolKind>> valueSet;
 };
+// Discards unknown SymbolKinds.
 bool fromJSON(const llvm::json::Value &, std::vector<SymbolKind> &);
 bool fromJSON(const llvm::json::Value &, SymbolKindCapabilities &);
 SymbolKind adjustKindToCapability(SymbolKind Kind,
@@ -332,6 +385,10 @@ struct TextDocumentClientCapabilities {
 
   /// Capabilities specific to the 'textDocument/publishDiagnostics'
   PublishDiagnosticsClientCapabilities publishDiagnostics;
+
+  /// Flattened from codeAction.codeActionLiteralSupport.
+  // FIXME: flatten other properties in this way.
+  bool codeActionLiteralSupport = false;
 };
 bool fromJSON(const llvm::json::Value &, TextDocumentClientCapabilities &);
 
@@ -358,8 +415,6 @@ bool fromJSON(const llvm::json::Value &, ClangdCompileCommand &);
 /// "initialize" request and for the "workspace/didChangeConfiguration"
 /// notification since the data received is described as 'any' type in LSP.
 struct ClangdConfigurationParamsChange {
-  llvm::Optional<std::string> compilationDatabasePath;
-
   // The changes that happened to the compilation database.
   // The key of the map is a file name.
   llvm::Optional<std::map<std::string, ClangdCompileCommand>>
@@ -367,7 +422,14 @@ struct ClangdConfigurationParamsChange {
 };
 bool fromJSON(const llvm::json::Value &, ClangdConfigurationParamsChange &);
 
-struct ClangdInitializationOptions : public ClangdConfigurationParamsChange {};
+struct ClangdInitializationOptions {
+  // What we can change throught the didChangeConfiguration request, we can
+  // also set through the initialize request (initializationOptions field).
+  ClangdConfigurationParamsChange ParamsChange;
+
+  llvm::Optional<std::string> compilationDatabasePath;
+};
+bool fromJSON(const llvm::json::Value &, ClangdInitializationOptions &);
 
 struct InitializeParams {
   /// The process Id of the parent process that started
@@ -555,6 +617,7 @@ struct Diagnostic {
   /// which the issue was produced, e.g. "Semantic Issue" or "Parse Issue".
   std::string category;
 };
+llvm::json::Value toJSON(const Diagnostic &);
 
 /// A LSP-specific comparator used to find diagnostic in a container like
 /// std:map.
@@ -620,8 +683,33 @@ bool fromJSON(const llvm::json::Value &, ExecuteCommandParams &);
 struct Command : public ExecuteCommandParams {
   std::string title;
 };
-
 llvm::json::Value toJSON(const Command &C);
+
+/// A code action represents a change that can be performed in code, e.g. to fix
+/// a problem or to refactor code.
+///
+/// A CodeAction must set either `edit` and/or a `command`. If both are
+/// supplied, the `edit` is applied first, then the `command` is executed.
+struct CodeAction {
+  /// A short, human-readable, title for this code action.
+  std::string title;
+
+  /// The kind of the code action.
+  /// Used to filter code actions.
+  llvm::Optional<std::string> kind;
+  const static llvm::StringLiteral QUICKFIX_KIND;
+
+  /// The diagnostics that this code action resolves.
+  llvm::Optional<std::vector<Diagnostic>> diagnostics;
+
+  /// The workspace edit this code action performs.
+  llvm::Optional<WorkspaceEdit> edit;
+
+  /// A command this code action executes. If a code action provides an edit
+  /// and a command, first the edit is executed and then the command.
+  llvm::Optional<Command> command;
+};
+llvm::json::Value toJSON(const CodeAction &);
 
 /// Represents information about programming constructs like variables, classes,
 /// interfaces etc.
@@ -682,29 +770,6 @@ struct Hover {
   llvm::Optional<Range> range;
 };
 llvm::json::Value toJSON(const Hover &H);
-
-/// The kind of a completion entry.
-enum class CompletionItemKind {
-  Missing = 0,
-  Text = 1,
-  Method = 2,
-  Function = 3,
-  Constructor = 4,
-  Field = 5,
-  Variable = 6,
-  Class = 7,
-  Interface = 8,
-  Module = 9,
-  Property = 10,
-  Unit = 11,
-  Value = 12,
-  Enum = 13,
-  Keyword = 14,
-  Snippet = 15,
-  Color = 16,
-  File = 17,
-  Reference = 18,
-};
 
 /// Defines whether the insert text in a completion item should be interpreted
 /// as plain text or a snippet.
@@ -885,20 +950,6 @@ struct ReferenceParams : public TextDocumentPositionParams {
   // For now, no options like context.includeDeclaration are supported.
 };
 bool fromJSON(const llvm::json::Value &, ReferenceParams &);
-
-struct CancelParams {
-  /// The request id to cancel.
-  /// This can be either a number or string, if it is a number simply print it
-  /// out and always use a string.
-  std::string ID;
-};
-llvm::json::Value toJSON(const CancelParams &);
-llvm::raw_ostream &operator<<(llvm::raw_ostream &, const CancelParams &);
-bool fromJSON(const llvm::json::Value &, CancelParams &);
-
-/// Param can be either of type string or number. Returns the result as a
-/// string.
-llvm::Optional<std::string> parseNumberOrString(const llvm::json::Value *Param);
 
 } // namespace clangd
 } // namespace clang

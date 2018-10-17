@@ -157,6 +157,8 @@ static MVT typeForRegClass(const TargetRegisterClass *RC) {
     return MVT::f32;
   if (RC == &WebAssembly::F64RegClass)
     return MVT::f64;
+  if (RC == &WebAssembly::V128RegClass)
+    return MVT::v16i8;
   if (RC == &WebAssembly::EXCEPT_REFRegClass)
     return MVT::ExceptRef;
   llvm_unreachable("unrecognized register class");
@@ -316,6 +318,9 @@ bool WebAssemblyExplicitLocals::runOnMachineFunction(MachineFunction &MF) {
         if (MO.isDef()) {
           assert(MI.getOpcode() == TargetOpcode::INLINEASM);
           unsigned LocalId = getLocalId(Reg2Local, CurLocal, OldReg);
+          // If this register operand is tied to another operand, we can't
+          // change it to an immediate. Untie it first.
+          MI.untieRegOperand(MI.getOperandNo(&MO));
           MO.ChangeToImmediate(LocalId);
           continue;
         }
@@ -331,6 +336,8 @@ bool WebAssemblyExplicitLocals::runOnMachineFunction(MachineFunction &MF) {
         // indices as immediates.
         if (MI.getOpcode() == TargetOpcode::INLINEASM) {
           unsigned LocalId = getLocalId(Reg2Local, CurLocal, OldReg);
+          // Untie it first if this reg operand is tied to another operand.
+          MI.untieRegOperand(MI.getOperandNo(&MO));
           MO.ChangeToImmediate(LocalId);
           continue;
         }

@@ -91,12 +91,12 @@ public:
     return StringRef(reinterpret_cast<const char *>(HashValue.data()), RawSize);
   }
   static SymbolID fromRaw(llvm::StringRef);
+
   // Returns a 40-bytes hex encoded string.
   std::string str() const;
+  static llvm::Expected<SymbolID> fromStr(llvm::StringRef);
 
 private:
-  friend void operator>>(llvm::StringRef Str, SymbolID &ID);
-
   std::array<uint8_t, RawSize> HashValue;
 };
 
@@ -108,14 +108,8 @@ inline llvm::hash_code hash_value(const SymbolID &ID) {
   return llvm::hash_code(Result);
 }
 
-// Write SymbolID into the given stream. SymbolID is encoded as a 40-bytes
-// hex string.
+// Write SymbolID into the given stream. SymbolID is encoded as ID.str().
 llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, const SymbolID &ID);
-
-// Construct SymbolID from a hex string.
-// The HexStr is required to be a 40-bytes hex string, which is encoded from the
-// "<<" operator.
-void operator>>(llvm::StringRef HexStr, SymbolID &ID);
 
 } // namespace clangd
 } // namespace clang
@@ -292,6 +286,7 @@ class SymbolSlab {
 public:
   using const_iterator = std::vector<Symbol>::const_iterator;
   using iterator = const_iterator;
+  using value_type = Symbol;
 
   SymbolSlab() = default;
 
@@ -300,6 +295,7 @@ public:
   const_iterator find(const SymbolID &SymID) const;
 
   size_t size() const { return Symbols.size(); }
+  bool empty() const { return Symbols.empty(); }
   // Estimates the total memory usage.
   size_t bytes() const {
     return sizeof(*this) + Arena.getTotalMemory() +
@@ -395,6 +391,7 @@ public:
   const_iterator begin() const { return Refs.begin(); }
   const_iterator end() const { return Refs.end(); }
   size_t size() const { return Refs.size(); }
+  bool empty() const { return Refs.empty(); }
 
   size_t bytes() const {
     return sizeof(*this) + Arena.getTotalMemory() +
@@ -434,10 +431,16 @@ struct FuzzyFindRequest {
   /// namespace xyz::abc.
   ///
   /// The global scope is "", a top level scope is "foo::", etc.
+  /// FIXME: drop the special case for empty list, which is the same as
+  /// `AnyScope = true`.
+  /// FIXME: support scope proximity.
   std::vector<std::string> Scopes;
+  /// If set to true, allow symbols from any scope. Scopes explicitly listed
+  /// above will be ranked higher.
+  bool AnyScope = false;
   /// \brief The number of top candidates to return. The index may choose to
   /// return more than this, e.g. if it doesn't know which candidates are best.
-  size_t MaxCandidateCount = std::numeric_limits<size_t>::max();
+  llvm::Optional<uint32_t> Limit;
   /// If set to true, only symbols for completion support will be considered.
   bool RestrictForCodeCompletion = false;
   /// Contextually relevant files (e.g. the file we're code-completing in).
@@ -445,9 +448,9 @@ struct FuzzyFindRequest {
   std::vector<std::string> ProximityPaths;
 
   bool operator==(const FuzzyFindRequest &Req) const {
-    return std::tie(Query, Scopes, MaxCandidateCount, RestrictForCodeCompletion,
+    return std::tie(Query, Scopes, Limit, RestrictForCodeCompletion,
                     ProximityPaths) ==
-           std::tie(Req.Query, Req.Scopes, Req.MaxCandidateCount,
+           std::tie(Req.Query, Req.Scopes, Req.Limit,
                     Req.RestrictForCodeCompletion, Req.ProximityPaths);
   }
   bool operator!=(const FuzzyFindRequest &Req) const { return !(*this == Req); }
@@ -474,7 +477,7 @@ public:
   /// each matched symbol before returning.
   /// If returned Symbols are used outside Callback, they must be deep-copied!
   ///
-  /// Returns true if there may be more results (limited by MaxCandidateCount).
+  /// Returns true if there may be more results (limited by Req.Limit).
   virtual bool
   fuzzyFind(const FuzzyFindRequest &Req,
             llvm::function_ref<void(const Symbol &)> Callback) const = 0;

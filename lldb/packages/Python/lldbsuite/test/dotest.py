@@ -307,6 +307,17 @@ def parseOptionsAndInitTestdirs():
       os.environ['DSYMUTIL'] = seven.get_command_output(
           'xcrun -find -toolchain default dsymutil')
 
+    if args.filecheck:
+        # The lldb-dotest script produced by the CMake build passes in a path
+        # to a working FileCheck binary. So does one specific Xcode project
+        # target. However, when invoking dotest.py directly, a valid --filecheck
+        # option needs to be given.
+        configuration.filecheck = os.path.abspath(args.filecheck)
+
+    if not configuration.get_filecheck_path():
+        logging.warning('No valid FileCheck executable; some tests may fail...')
+        logging.warning('(Double-check the --filecheck argument to dotest.py)')
+
     if args.channels:
         lldbtest_config.channels = args.channels
 

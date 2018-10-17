@@ -54,9 +54,10 @@ enum StateType {
   eStateCrashed,   ///< Process or thread has crashed and can be examined.
   eStateDetached,  ///< Process has been detached and can't be examined.
   eStateExited,    ///< Process has exited and can't be examined.
-  eStateSuspended  ///< Process or thread is in a suspended state as far
+  eStateSuspended, ///< Process or thread is in a suspended state as far
                    ///< as the debugger is concerned while other processes
                    ///< or threads get the chance to run.
+  kLastStateType = eStateSuspended
 };
 
 //----------------------------------------------------------------------
@@ -253,17 +254,19 @@ enum ExpressionResults {
   eExpressionHitBreakpoint,
   eExpressionTimedOut,
   eExpressionResultUnavailable,
-  eExpressionStoppedForDebug
+  eExpressionStoppedForDebug,
+  eExpressionProducedNoResult
 };
 
 enum SearchDepth {
-    eSearchDepthTarget = 0,
+    eSearchDepthInvalid = 0,
+    eSearchDepthTarget,
     eSearchDepthModule,
     eSearchDepthCompUnit,
     eSearchDepthFunction,
     eSearchDepthBlock,
     eSearchDepthAddress,
-    kNumSearchDepthKinds = eSearchDepthAddress
+    kLastSearchDepthKind = eSearchDepthAddress
 };
 
 //----------------------------------------------------------------------
@@ -671,7 +674,9 @@ enum SectionType {
   eSectionTypeDWARFGNUDebugAltLink,
   eSectionTypeDWARFDebugTypes, // DWARF .debug_types section
   eSectionTypeDWARFDebugNames, // DWARF v5 .debug_names
-  eSectionTypeOther
+  eSectionTypeOther,
+  eSectionTypeDWARFDebugLineStr, // DWARF v5 .debug_line_str
+  eSectionTypeDWARFDebugRngLists, // DWARF v5 .debug_rnglists
 };
 
 FLAGS_ENUM(EmulateInstructionOptions){

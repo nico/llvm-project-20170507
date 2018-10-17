@@ -783,7 +783,7 @@ static bool unswitchAllTrivialConditions(Loop &L, DominatorTree &DT,
                      [](Instruction &I) { return I.mayHaveSideEffects(); }))
       return Changed;
 
-    TerminatorInst *CurrentTerm = CurrentBB->getTerminator();
+    Instruction *CurrentTerm = CurrentBB->getTerminator();
 
     if (auto *SI = dyn_cast<SwitchInst>(CurrentTerm)) {
       // Don't bother trying to unswitch past a switch with a constant
@@ -1265,11 +1265,10 @@ static void buildClonedLoops(Loop &OrigL, ArrayRef<BasicBlock *> ExitBlocks,
   // matter as we're just trying to build up the map from inside-out; we use
   // the map in a more stably ordered way below.
   auto OrderedClonedExitsInLoops = ClonedExitsInLoops;
-  llvm::sort(OrderedClonedExitsInLoops.begin(), OrderedClonedExitsInLoops.end(),
-             [&](BasicBlock *LHS, BasicBlock *RHS) {
-               return ExitLoopMap.lookup(LHS)->getLoopDepth() <
-                      ExitLoopMap.lookup(RHS)->getLoopDepth();
-             });
+  llvm::sort(OrderedClonedExitsInLoops, [&](BasicBlock *LHS, BasicBlock *RHS) {
+    return ExitLoopMap.lookup(LHS)->getLoopDepth() <
+           ExitLoopMap.lookup(RHS)->getLoopDepth();
+  });
 
   // Populate the existing ExitLoopMap with everything reachable from each
   // exit, starting from the inner most exit.

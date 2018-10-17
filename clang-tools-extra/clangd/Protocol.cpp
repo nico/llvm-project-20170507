@@ -251,6 +251,9 @@ bool fromJSON(const json::Value &Params, TextDocumentClientCapabilities &R) {
     return false;
   O.map("completion", R.completion);
   O.map("publishDiagnostics", R.publishDiagnostics);
+  if (auto *CodeAction = Params.getAsObject()->getObject("codeAction"))
+    if (CodeAction->getObject("codeActionLiteralSupport"))
+      R.codeActionLiteralSupport = true;
   return true;
 }
 
@@ -360,6 +363,17 @@ bool fromJSON(const json::Value &Params, DocumentSymbolParams &R) {
   return O && O.map("textDocument", R.textDocument);
 }
 
+llvm::json::Value toJSON(const Diagnostic &D) {
+  json::Object Diag{
+      {"range", D.range},
+      {"severity", D.severity},
+      {"message", D.message},
+  };
+  // FIXME: this should be used for publishDiagnostics.
+  // FIXME: send category and fixes when appropriate.
+  return std::move(Diag);
+}
+
 bool fromJSON(const json::Value &Params, Diagnostic &R) {
   json::ObjectMapper O(Params);
   if (!O || !O.map("range", R.range) || !O.map("message", R.message))
@@ -448,6 +462,21 @@ json::Value toJSON(const Command &C) {
   return std::move(Cmd);
 }
 
+const llvm::StringLiteral CodeAction::QUICKFIX_KIND = "quickfix";
+
+llvm::json::Value toJSON(const CodeAction &CA) {
+  auto CodeAction = json::Object{{"title", CA.title}};
+  if (CA.kind)
+    CodeAction["kind"] = *CA.kind;
+  if (CA.diagnostics)
+    CodeAction["diagnostics"] = json::Array(*CA.diagnostics);
+  if (CA.edit)
+    CodeAction["edit"] = *CA.edit;
+  if (CA.command)
+    CodeAction["command"] = *CA.command;
+  return std::move(CodeAction);
+}
+
 json::Value toJSON(const WorkspaceEdit &WE) {
   if (!WE.changes)
     return json::Object{};
@@ -494,6 +523,57 @@ json::Value toJSON(const Hover &H) {
     Result["range"] = toJSON(*H.range);
 
   return std::move(Result);
+}
+
+bool fromJSON(const json::Value &E, CompletionItemKind &Out) {
+  if (auto T = E.getAsInteger()) {
+    if (*T < static_cast<int>(CompletionItemKind::Text) ||
+        *T > static_cast<int>(CompletionItemKind::TypeParameter))
+      return false;
+    Out = static_cast<CompletionItemKind>(*T);
+    return true;
+  }
+  return false;
+}
+
+CompletionItemKind
+adjustKindToCapability(CompletionItemKind Kind,
+                       CompletionItemKindBitset &supportedCompletionItemKinds) {
+  auto KindVal = static_cast<size_t>(Kind);
+  if (KindVal >= CompletionItemKindMin &&
+      KindVal <= supportedCompletionItemKinds.size() &&
+      supportedCompletionItemKinds[KindVal])
+    return Kind;
+
+  switch (Kind) {
+  // Provide some fall backs for common kinds that are close enough.
+  case CompletionItemKind::Folder:
+    return CompletionItemKind::File;
+  case CompletionItemKind::EnumMember:
+    return CompletionItemKind::Enum;
+  case CompletionItemKind::Struct:
+    return CompletionItemKind::Class;
+  default:
+    return CompletionItemKind::Text;
+  }
+}
+
+bool fromJSON(const json::Value &E, std::vector<CompletionItemKind> &Out) {
+  if (auto *A = E.getAsArray()) {
+    Out.clear();
+    for (size_t I = 0; I < A->size(); ++I) {
+      CompletionItemKind KindOut;
+      if (fromJSON((*A)[I], KindOut))
+        Out.push_back(KindOut);
+    }
+    return true;
+  }
+  return false;
+}
+
+bool fromJSON(const json::Value &Params, CompletionItemKindCapabilities &R) {
+  json::ObjectMapper O(Params);
+  return O && O.map("valueSet", R.valueSet);
 }
 
 json::Value toJSON(const CompletionItem &CI) {
@@ -614,46 +694,22 @@ bool fromJSON(const llvm::json::Value &Params,
 bool fromJSON(const json::Value &Params,
               ClangdConfigurationParamsChange &CCPC) {
   json::ObjectMapper O(Params);
-  return O && O.map("compilationDatabasePath", CCPC.compilationDatabasePath) &&
+  return O &&
          O.map("compilationDatabaseChanges", CCPC.compilationDatabaseChanges);
+}
+
+bool fromJSON(const json::Value &Params, ClangdInitializationOptions &Opts) {
+  if (!fromJSON(Params, Opts.ParamsChange)) {
+    return false;
+  }
+
+  json::ObjectMapper O(Params);
+  return O && O.map("compilationDatabasePath", Opts.compilationDatabasePath);
 }
 
 bool fromJSON(const json::Value &Params, ReferenceParams &R) {
   TextDocumentPositionParams &Base = R;
   return fromJSON(Params, Base);
-}
-
-json::Value toJSON(const CancelParams &CP) {
-  return json::Object{{"id", CP.ID}};
-}
-
-llvm::raw_ostream &operator<<(llvm::raw_ostream &O, const CancelParams &CP) {
-  O << toJSON(CP);
-  return O;
-}
-
-llvm::Optional<std::string> parseNumberOrString(const json::Value *Params) {
-  if (!Params)
-    return llvm::None;
-  // ID is either a number or a string, check for both.
-  if(const auto AsString = Params->getAsString())
-    return AsString->str();
-
-  if(const auto AsNumber = Params->getAsInteger())
-    return itostr(AsNumber.getValue());
-
-  return llvm::None;
-}
-
-bool fromJSON(const json::Value &Params, CancelParams &CP) {
-  const auto ParamsAsObject = Params.getAsObject();
-  if (!ParamsAsObject)
-    return false;
-  if (auto Parsed = parseNumberOrString(ParamsAsObject->get("id"))) {
-    CP.ID = std::move(*Parsed);
-    return true;
-  }
-  return false;
 }
 
 } // namespace clangd

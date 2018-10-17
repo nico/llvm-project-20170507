@@ -51,34 +51,13 @@ WebAssemblyMCInstLower::GetGlobalAddressSymbol(const MachineOperand &MO) const {
     const TargetMachine &TM = MF.getTarget();
     const Function &CurrentFunc = MF.getFunction();
 
-    SmallVector<wasm::ValType, 4> Returns;
-    SmallVector<wasm::ValType, 4> Params;
+    SmallVector<MVT, 1> ResultMVTs;
+    SmallVector<MVT, 4> ParamMVTs;
+    ComputeSignatureVTs(FuncTy, CurrentFunc, TM, ParamMVTs, ResultMVTs);
 
-    wasm::ValType iPTR = MF.getSubtarget<WebAssemblySubtarget>().hasAddr64()
-                             ? wasm::ValType::I64
-                             : wasm::ValType::I32;
-
-    SmallVector<MVT, 4> ResultMVTs;
-    ComputeLegalValueVTs(CurrentFunc, TM, FuncTy->getReturnType(), ResultMVTs);
-    // WebAssembly can't currently handle returning tuples.
-    if (ResultMVTs.size() <= 1)
-      for (MVT ResultMVT : ResultMVTs)
-        Returns.push_back(WebAssembly::toValType(ResultMVT));
-    else
-      Params.push_back(iPTR);
-
-    for (Type *Ty : FuncTy->params()) {
-      SmallVector<MVT, 4> ParamMVTs;
-      ComputeLegalValueVTs(CurrentFunc, TM, Ty, ParamMVTs);
-      for (MVT ParamMVT : ParamMVTs)
-        Params.push_back(WebAssembly::toValType(ParamMVT));
-    }
-
-    if (FuncTy->isVarArg())
-      Params.push_back(iPTR);
-
-    WasmSym->setReturns(std::move(Returns));
-    WasmSym->setParams(std::move(Params));
+    auto Signature = SignatureFromMVTs(ResultMVTs, ParamMVTs);
+    WasmSym->setSignature(Signature.get());
+    Printer.addSignature(std::move(Signature));
     WasmSym->setType(wasm::WASM_SYMBOL_TYPE_FUNCTION);
   }
 
@@ -107,10 +86,11 @@ MCSymbol *WebAssemblyMCInstLower::GetExternalSymbolSymbol(
 
   SmallVector<wasm::ValType, 4> Returns;
   SmallVector<wasm::ValType, 4> Params;
-  GetSignature(Subtarget, Name, Returns, Params);
-
-  WasmSym->setReturns(std::move(Returns));
-  WasmSym->setParams(std::move(Params));
+  GetLibcallSignature(Subtarget, Name, Returns, Params);
+  auto Signature =
+      make_unique<wasm::WasmSignature>(std::move(Returns), std::move(Params));
+  WasmSym->setSignature(Signature.get());
+  Printer.addSignature(std::move(Signature));
   WasmSym->setType(wasm::WASM_SYMBOL_TYPE_FUNCTION);
 
   return WasmSym;
@@ -149,6 +129,8 @@ static wasm::ValType getType(const TargetRegisterClass *RC) {
     return wasm::ValType::F32;
   if (RC == &WebAssembly::F64RegClass)
     return wasm::ValType::F64;
+  if (RC == &WebAssembly::V128RegClass)
+    return wasm::ValType::V128;
   llvm_unreachable("Unexpected register class");
 }
 
@@ -201,8 +183,10 @@ void WebAssemblyMCInstLower::Lower(const MachineInstr *MI,
             Params.pop_back();
 
           MCSymbolWasm *WasmSym = cast<MCSymbolWasm>(Sym);
-          WasmSym->setReturns(std::move(Returns));
-          WasmSym->setParams(std::move(Params));
+          auto Signature = make_unique<wasm::WasmSignature>(std::move(Returns),
+                                                            std::move(Params));
+          WasmSym->setSignature(Signature.get());
+          Printer.addSignature(std::move(Signature));
           WasmSym->setType(wasm::WASM_SYMBOL_TYPE_FUNCTION);
 
           const MCExpr *Expr = MCSymbolRefExpr::create(

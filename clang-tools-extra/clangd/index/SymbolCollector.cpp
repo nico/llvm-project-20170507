@@ -15,12 +15,15 @@
 #include "Logger.h"
 #include "SourceCode.h"
 #include "URI.h"
+#include "clang/AST/Decl.h"
+#include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclTemplate.h"
-#include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Basic/Specifiers.h"
 #include "clang/Index/IndexSymbol.h"
 #include "clang/Index/USRGeneration.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
@@ -126,8 +129,7 @@ bool isPrivateProtoDecl(const NamedDecl &ND) {
   // will include OUTER_INNER and exclude some_enum_constant.
   // FIXME: the heuristic relies on naming style (i.e. no underscore in
   // user-defined names) and can be improved.
-  return (ND.getKind() != Decl::EnumConstant) ||
-         std::any_of(Name.begin(), Name.end(), islower);
+  return (ND.getKind() != Decl::EnumConstant) || llvm::any_of(Name, islower);
 }
 
 // We only collect #include paths for symbols that are suitable for global code
@@ -225,14 +227,21 @@ getTokenLocation(SourceLocation TokLoc, const SourceManager &SM,
 // the first seen declaration as canonical declaration is not a good enough
 // heuristic.
 bool isPreferredDeclaration(const NamedDecl &ND, index::SymbolRoleSet Roles) {
-  using namespace clang::ast_matchers;
+  const auto& SM = ND.getASTContext().getSourceManager();
   return (Roles & static_cast<unsigned>(index::SymbolRole::Definition)) &&
          llvm::isa<TagDecl>(&ND) &&
-         match(decl(isExpansionInMainFile()), ND, ND.getASTContext()).empty();
+         !SM.isWrittenInMainFile(SM.getExpansionLoc(ND.getLocation()));
 }
 
 RefKind toRefKind(index::SymbolRoleSet Roles) {
   return static_cast<RefKind>(static_cast<unsigned>(RefKind::All) & Roles);
+}
+
+template <class T> bool explicitTemplateSpecialization(const NamedDecl &ND) {
+  if (const auto *TD = llvm::dyn_cast<T>(&ND))
+    if (TD->getTemplateSpecializationKind() == TSK_ExplicitSpecialization)
+      return true;
+  return false;
 }
 
 } // namespace
@@ -249,7 +258,6 @@ void SymbolCollector::initialize(ASTContext &Ctx) {
 bool SymbolCollector::shouldCollectSymbol(const NamedDecl &ND,
                                           ASTContext &ASTCtx,
                                           const Options &Opts) {
-  using namespace clang::ast_matchers;
   if (ND.isImplicit())
     return false;
   // Skip anonymous declarations, e.g (anonymous enum/class/struct).
@@ -271,21 +279,33 @@ bool SymbolCollector::shouldCollectSymbol(const NamedDecl &ND,
   // FunctionDecl, BlockDecl, ObjCMethodDecl and OMPDeclareReductionDecl.
   // FIXME: Need a matcher for ExportDecl in order to include symbols declared
   // within an export.
-  auto InNonLocalContext = hasDeclContext(anyOf(
-      translationUnitDecl(), namespaceDecl(), linkageSpecDecl(), recordDecl(),
-      enumDecl(), objcProtocolDecl(), objcInterfaceDecl(), objcCategoryDecl(),
-      objcCategoryImplDecl(), objcImplementationDecl()));
-  // Don't index template specializations and expansions in main files.
-  auto IsSpecialization =
-      anyOf(functionDecl(isExplicitTemplateSpecialization()),
-            cxxRecordDecl(isExplicitTemplateSpecialization()),
-            varDecl(isExplicitTemplateSpecialization()));
-  if (match(decl(allOf(unless(isExpansionInMainFile()), InNonLocalContext,
-                       unless(IsSpecialization))),
-            ND, ASTCtx)
-          .empty())
+  const auto *DeclCtx = ND.getDeclContext();
+  switch (DeclCtx->getDeclKind()) {
+  case Decl::TranslationUnit:
+  case Decl::Namespace:
+  case Decl::LinkageSpec:
+  case Decl::Enum:
+  case Decl::ObjCProtocol:
+  case Decl::ObjCInterface:
+  case Decl::ObjCCategory:
+  case Decl::ObjCCategoryImpl:
+  case Decl::ObjCImplementation:
+    break;
+  default:
+    // Record has a few derivations (e.g. CXXRecord, Class specialization), it's
+    // easier to cast.
+    if (!llvm::isa<RecordDecl>(DeclCtx))
+      return false;
+  }
+  if (explicitTemplateSpecialization<FunctionDecl>(ND) ||
+      explicitTemplateSpecialization<CXXRecordDecl>(ND) ||
+      explicitTemplateSpecialization<VarDecl>(ND))
     return false;
 
+  const auto &SM = ASTCtx.getSourceManager();
+  // Skip decls in the main file.
+  if (SM.isInMainFile(SM.getExpansionLoc(ND.getBeginLoc())))
+    return false;
   // Avoid indexing internal symbols in protobuf generated headers.
   if (isPrivateProtoDecl(ND))
     return false;
@@ -325,15 +345,19 @@ bool SymbolCollector::handleDeclOccurence(
       SM.getFileID(SpellingLoc) == SM.getMainFileID())
     ReferencedDecls.insert(ND);
 
-  if ((static_cast<unsigned>(Opts.RefFilter) & Roles) &&
-      SM.getFileID(SpellingLoc) == SM.getMainFileID())
-    DeclRefs[ND].emplace_back(SpellingLoc, Roles);
+  bool CollectRef = static_cast<unsigned>(Opts.RefFilter) & Roles;
+  bool IsOnlyRef =
+      !(Roles & (static_cast<unsigned>(index::SymbolRole::Declaration) |
+                 static_cast<unsigned>(index::SymbolRole::Definition)));
 
-  // Don't continue indexing if this is a mere reference.
-  if (!(Roles & static_cast<unsigned>(index::SymbolRole::Declaration) ||
-        Roles & static_cast<unsigned>(index::SymbolRole::Definition)))
+  if (IsOnlyRef && !CollectRef)
     return true;
   if (!shouldCollectSymbol(*ND, *ASTCtx, Opts))
+    return true;
+  if (CollectRef && SM.getFileID(SpellingLoc) == SM.getMainFileID())
+    DeclRefs[ND].emplace_back(SpellingLoc, Roles);
+  // Don't continue indexing if this is a mere reference.
+  if (IsOnlyRef)
     return true;
 
   auto ID = getSymbolID(ND);
@@ -456,17 +480,15 @@ void SymbolCollector::finish() {
     std::string MainURI = *MainFileURI;
     for (const auto &It : DeclRefs) {
       if (auto ID = getSymbolID(It.first)) {
-        if (Symbols.find(*ID)) {
-          for (const auto &LocAndRole : It.second) {
-            Ref R;
-            auto Range =
-                getTokenRange(LocAndRole.first, SM, ASTCtx->getLangOpts());
-            R.Location.Start = Range.first;
-            R.Location.End = Range.second;
-            R.Location.FileURI = MainURI;
-            R.Kind = toRefKind(LocAndRole.second);
-            Refs.insert(*ID, R);
-          }
+        for (const auto &LocAndRole : It.second) {
+          Ref R;
+          auto Range =
+              getTokenRange(LocAndRole.first, SM, ASTCtx->getLangOpts());
+          R.Location.Start = Range.first;
+          R.Location.End = Range.second;
+          R.Location.FileURI = MainURI;
+          R.Kind = toRefKind(LocAndRole.second);
+          Refs.insert(*ID, R);
         }
       }
     }

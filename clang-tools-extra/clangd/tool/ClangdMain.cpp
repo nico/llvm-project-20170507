@@ -12,7 +12,7 @@
 #include "Path.h"
 #include "RIFF.h"
 #include "Trace.h"
-#include "index/SymbolYAML.h"
+#include "index/Serialization.h"
 #include "clang/Basic/Version.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
@@ -29,11 +29,11 @@
 using namespace clang;
 using namespace clang::clangd;
 
-// FIXME: remove this option when Dex is stable enough.
+// FIXME: remove this option when Dex is cheap enough.
 static llvm::cl::opt<bool>
     UseDex("use-dex-index",
-           llvm::cl::desc("Use experimental Dex static index."),
-           llvm::cl::init(true), llvm::cl::Hidden);
+           llvm::cl::desc("Use experimental Dex dynamic index."),
+           llvm::cl::init(false), llvm::cl::Hidden);
 
 static llvm::cl::opt<Path> CompileCommandsDir(
     "compile-commands-dir",
@@ -130,10 +130,20 @@ static llvm::cl::opt<Path> InputMirrorFile(
 
 static llvm::cl::opt<bool> EnableIndex(
     "index",
-    llvm::cl::desc("Enable index-based features such as global code completion "
-                   "and searching for symbols. "
-                   "Clang uses an index built from symbols in opened files"),
-    llvm::cl::init(true));
+    llvm::cl::desc(
+        "Enable index-based features. By default, clangd maintains an index "
+        "built from symbols in opened files. Global index support needs to "
+        "enabled separatedly."),
+    llvm::cl::init(true), llvm::cl::Hidden);
+
+static llvm::cl::opt<bool> AllScopesCompletion(
+    "all-scopes-completion",
+    llvm::cl::desc(
+        "If set to true, code completion will include index symbols that are "
+        "not defined in the scopes (e.g. "
+        "namespaces) visible from the code completion point. Such completions "
+        "can insert scope qualifiers."),
+    llvm::cl::init(false), llvm::cl::Hidden);
 
 static llvm::cl::opt<bool>
     ShowOrigins("debug-origin",
@@ -148,11 +158,11 @@ static llvm::cl::opt<bool> HeaderInsertionDecorators(
                    "an include line will be inserted or not."),
     llvm::cl::init(true));
 
-static llvm::cl::opt<Path> YamlSymbolFile(
-    "yaml-symbol-file",
+static llvm::cl::opt<Path> IndexFile(
+    "index-file",
     llvm::cl::desc(
-        "YAML-format global symbol file to build the static index. Clangd will "
-        "use the static index for global code completion.\n"
+        "Index file to build the static index. The file must have been created "
+        "by a compatible clangd-index.\n"
         "WARNING: This option is experimental only, and will be removed "
         "eventually. Don't rely on it."),
     llvm::cl::init(""), llvm::cl::Hidden);
@@ -168,6 +178,13 @@ static llvm::cl::opt<CompileArgsFrom> CompileArgsFrom(
                                 "'compile_commands.json' files")),
     llvm::cl::init(FilesystemCompileArgs), llvm::cl::Hidden);
 
+static llvm::cl::opt<bool> EnableFunctionArgSnippets(
+    "function-arg-placeholders",
+    llvm::cl::desc("When disabled, completions contain only parentheses for "
+                   "function calls. When enabled, completions also contain "
+                   "placeholders for method parameters."),
+    llvm::cl::init(clangd::CodeCompleteOptions().EnableFunctionArgSnippets));
+
 int main(int argc, char *argv[]) {
   llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
   llvm::cl::SetVersionPrinter([](llvm::raw_ostream &OS) {
@@ -176,7 +193,7 @@ int main(int argc, char *argv[]) {
   llvm::cl::ParseCommandLineOptions(
       argc, argv,
       "clangd is a language server that provides IDE-like features to editors. "
-      "\n\nIt should be used via an editor plugin rather than invoked directly."
+      "\n\nIt should be used via an editor plugin rather than invoked directly. "
       "For more information, see:"
       "\n\thttps://clang.llvm.org/extra/clangd.html"
       "\n\thttps://microsoft.github.io/language-server-protocol/");
@@ -269,14 +286,15 @@ int main(int argc, char *argv[]) {
   if (!ResourceDir.empty())
     Opts.ResourceDir = ResourceDir;
   Opts.BuildDynamicSymbolIndex = EnableIndex;
+  Opts.HeavyweightDynamicSymbolIndex = UseDex;
   std::unique_ptr<SymbolIndex> StaticIdx;
   std::future<void> AsyncIndexLoad; // Block exit while loading the index.
-  if (EnableIndex && !YamlSymbolFile.empty()) {
+  if (EnableIndex && !IndexFile.empty()) {
     // Load the index asynchronously. Meanwhile SwapIndex returns no results.
     SwapIndex *Placeholder;
     StaticIdx.reset(Placeholder = new SwapIndex(llvm::make_unique<MemIndex>()));
     AsyncIndexLoad = runAsync<void>([Placeholder, &Opts] {
-      if (auto Idx = loadIndex(YamlSymbolFile, Opts.URISchemes, UseDex))
+      if (auto Idx = loadIndex(IndexFile, Opts.URISchemes, /*UseDex=*/true))
         Placeholder->reset(std::move(Idx));
     });
     if (RunSynchronously)
@@ -295,6 +313,8 @@ int main(int argc, char *argv[]) {
     CCOpts.IncludeIndicator.NoInsert.clear();
   }
   CCOpts.SpeculativeIndexRequest = Opts.StaticIndex;
+  CCOpts.EnableFunctionArgSnippets = EnableFunctionArgSnippets;
+  CCOpts.AllScopes = AllScopesCompletion;
 
   // Initialize and run ClangdLSPServer.
   ClangdLSPServer LSPServer(

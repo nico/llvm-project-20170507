@@ -33,37 +33,6 @@ using namespace llvm::objcopy;
 using namespace object;
 using namespace ELF;
 
-Buffer::~Buffer() {}
-
-void FileBuffer::allocate(size_t Size) {
-  Expected<std::unique_ptr<FileOutputBuffer>> BufferOrErr =
-      FileOutputBuffer::create(getName(), Size, FileOutputBuffer::F_executable);
-  handleAllErrors(BufferOrErr.takeError(), [this](const ErrorInfoBase &E) {
-    error("failed to open " + getName() + ": " + E.message());
-  });
-  Buf = std::move(*BufferOrErr);
-}
-
-Error FileBuffer::commit() { return Buf->commit(); }
-
-uint8_t *FileBuffer::getBufferStart() {
-  return reinterpret_cast<uint8_t *>(Buf->getBufferStart());
-}
-
-void MemBuffer::allocate(size_t Size) {
-  Buf = WritableMemoryBuffer::getNewMemBuffer(Size, getName());
-}
-
-Error MemBuffer::commit() { return Error::success(); }
-
-uint8_t *MemBuffer::getBufferStart() {
-  return reinterpret_cast<uint8_t *>(Buf->getBufferStart());
-}
-
-std::unique_ptr<WritableMemoryBuffer> MemBuffer::releaseMemoryBuffer() {
-  return std::move(Buf);
-}
-
 template <class ELFT> void ELFWriter<ELFT>::writePhdr(const Segment &Seg) {
   uint8_t *B = Buf.getBufferStart();
   B += Obj.ProgramHdrSegment.Offset + Seg.Index * sizeof(Elf_Phdr);
@@ -136,6 +105,63 @@ void SectionWriter::visit(const OwnedDataSection &Sec) {
   std::copy(std::begin(Sec.Data), std::end(Sec.Data), Buf);
 }
 
+static const std::vector<uint8_t> ZlibGnuMagic = {'Z', 'L', 'I', 'B'};
+
+static bool isDataGnuCompressed(ArrayRef<uint8_t> Data) {
+  return Data.size() > ZlibGnuMagic.size() &&
+         std::equal(ZlibGnuMagic.begin(), ZlibGnuMagic.end(), Data.data());
+}
+
+template <class ELFT>
+static std::tuple<uint64_t, uint64_t>
+getDecompressedSizeAndAlignment(ArrayRef<uint8_t> Data) {
+  const bool IsGnuDebug = isDataGnuCompressed(Data);
+  const uint64_t DecompressedSize =
+      IsGnuDebug
+          ? support::endian::read64be(reinterpret_cast<const uint64_t *>(
+                Data.data() + ZlibGnuMagic.size()))
+          : reinterpret_cast<const Elf_Chdr_Impl<ELFT> *>(Data.data())->ch_size;
+  const uint64_t DecompressedAlign =
+      IsGnuDebug ? 1
+                 : reinterpret_cast<const Elf_Chdr_Impl<ELFT> *>(Data.data())
+                       ->ch_addralign;
+
+  return std::make_tuple(DecompressedSize, DecompressedAlign);
+}
+
+template <class ELFT>
+void ELFSectionWriter<ELFT>::visit(const DecompressedSection &Sec) {
+  uint8_t *Buf = Out.getBufferStart() + Sec.Offset;
+
+  if (!zlib::isAvailable()) {
+    std::copy(Sec.OriginalData.begin(), Sec.OriginalData.end(), Buf);
+    return;
+  }
+
+  const size_t DataOffset = isDataGnuCompressed(Sec.OriginalData)
+                                ? (ZlibGnuMagic.size() + sizeof(Sec.Size))
+                                : sizeof(Elf_Chdr_Impl<ELFT>);
+
+  StringRef CompressedContent(
+      reinterpret_cast<const char *>(Sec.OriginalData.data()) + DataOffset,
+      Sec.OriginalData.size() - DataOffset);
+
+  SmallVector<char, 128> DecompressedContent;
+  if (Error E = zlib::uncompress(CompressedContent, DecompressedContent,
+                                 static_cast<size_t>(Sec.Size)))
+    reportError(Sec.Name, std::move(E));
+
+  std::copy(DecompressedContent.begin(), DecompressedContent.end(), Buf);
+}
+
+void BinarySectionWriter::visit(const DecompressedSection &Sec) {
+  error("Cannot write compressed section '" + Sec.Name + "' ");
+}
+
+void DecompressedSection::accept(SectionVisitor &Visitor) const {
+  Visitor.visit(*this);
+}
+
 void OwnedDataSection::accept(SectionVisitor &Visitor) const {
   Visitor.visit(*this);
 }
@@ -204,6 +230,14 @@ CompressedSection::CompressedSection(const SectionBase &Sec,
   }
   Size = ChdrSize + CompressedData.size();
   Align = 8;
+}
+
+CompressedSection::CompressedSection(ArrayRef<uint8_t> CompressedData,
+                                     uint64_t DecompressedSize,
+                                     uint64_t DecompressedAlign)
+    : CompressionType(DebugCompressionType::None),
+      DecompressedSize(DecompressedSize), DecompressedAlign(DecompressedAlign) {
+  OriginalData = CompressedData;
 }
 
 void CompressedSection::accept(SectionVisitor &Visitor) const {
@@ -969,9 +1003,19 @@ SectionBase &ELFBuilder<ELFT>::makeSection(const Elf_Shdr &Shdr) {
   }
   case SHT_NOBITS:
     return Obj.addSection<Section>(Data);
-  default:
+  default: {
     Data = unwrapOrError(ElfFile.getSectionContents(&Shdr));
+
+    if (isDataGnuCompressed(Data) || (Shdr.sh_flags & ELF::SHF_COMPRESSED)) {
+      uint64_t DecompressedSize, DecompressedAlign;
+      std::tie(DecompressedSize, DecompressedAlign) =
+          getDecompressedSizeAndAlignment<ELFT>(Data);
+      return Obj.addSection<CompressedSection>(Data, DecompressedSize,
+                                               DecompressedAlign);
+    }
+
     return Obj.addSection<Section>(Data);
+  }
   }
 }
 
@@ -1121,15 +1165,13 @@ template <class ELFT> void ELFWriter<ELFT>::writeEhdr() {
   Ehdr.e_machine = Obj.Machine;
   Ehdr.e_version = Obj.Version;
   Ehdr.e_entry = Obj.Entry;
-  // TODO: Only set phoff when a program header exists, to avoid tools
-  // thinking this is corrupt data.
-  Ehdr.e_phoff = Obj.ProgramHdrSegment.Offset;
+  Ehdr.e_phnum = size(Obj.segments());
+  Ehdr.e_phoff = (Ehdr.e_phnum != 0) ? Obj.ProgramHdrSegment.Offset : 0;
+  Ehdr.e_phentsize = (Ehdr.e_phnum != 0) ? sizeof(Elf_Phdr) : 0;
   Ehdr.e_flags = Obj.Flags;
   Ehdr.e_ehsize = sizeof(Elf_Ehdr);
-  Ehdr.e_phentsize = sizeof(Elf_Phdr);
-  Ehdr.e_phnum = size(Obj.segments());
-  Ehdr.e_shentsize = sizeof(Elf_Shdr);
-  if (WriteSectionHeaders) {
+  if (WriteSectionHeaders && size(Obj.sections()) != 0) {
+    Ehdr.e_shentsize = sizeof(Elf_Shdr);
     Ehdr.e_shoff = Obj.SHOffset;
     // """
     // If the number of sections is greater than or equal to
@@ -1153,6 +1195,7 @@ template <class ELFT> void ELFWriter<ELFT>::writeEhdr() {
     else
       Ehdr.e_shstrndx = Obj.SectionNames->Index;
   } else {
+    Ehdr.e_shentsize = 0;
     Ehdr.e_shoff = 0;
     Ehdr.e_shnum = 0;
     Ehdr.e_shstrndx = 0;

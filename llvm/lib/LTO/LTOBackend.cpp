@@ -138,9 +138,15 @@ createTargetMachine(Config &Conf, const Target *TheTarget, Module &M) {
     RelocModel =
         M.getPICLevel() == PICLevel::NotPIC ? Reloc::Static : Reloc::PIC_;
 
+  Optional<CodeModel::Model> CodeModel;
+  if (Conf.CodeModel)
+    CodeModel = *Conf.CodeModel;
+  else
+    CodeModel = M.getCodeModel();
+
   return std::unique_ptr<TargetMachine>(TheTarget->createTargetMachine(
       TheTriple, Conf.CPU, Features.getString(), Conf.Options, RelocModel,
-      Conf.CodeModel, Conf.CGOptLevel));
+      CodeModel, Conf.CGOptLevel));
 }
 
 static void runNewPMPasses(Config &Conf, Module &Mod, TargetMachine *TM,
@@ -149,7 +155,8 @@ static void runNewPMPasses(Config &Conf, Module &Mod, TargetMachine *TM,
                            const ModuleSummaryIndex *ImportSummary) {
   Optional<PGOOptions> PGOOpt;
   if (!Conf.SampleProfile.empty())
-    PGOOpt = PGOOptions("", "", Conf.SampleProfile, false, true);
+    PGOOpt = PGOOptions("", "", Conf.SampleProfile, Conf.ProfileRemapping,
+                        false, true);
 
   PassBuilder PB(TM, PGOOpt);
   AAManager AA;
